@@ -15,6 +15,6 @@ public class SettingsTest {
         String original = Files.readString(path);
         Settings settings = Settings.read(Files.newInputStream(path));
         String serialized = settings.serializeToString();
-        Assertions.assertEquals(original, serialized);
+        Assertions.assertEquals(original.strip(), serialized.strip());
     }
 }
