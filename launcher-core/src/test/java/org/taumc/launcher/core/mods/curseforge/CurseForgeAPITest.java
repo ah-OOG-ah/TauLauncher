@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.taumc.launcher.core.mods.ModSearchOptions;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -32,7 +33,9 @@ public class CurseForgeAPITest {
 
     @Test
     void testSearch() {
-        var firstMod = api.searchForMods("modernfix").join().getFirst();
+        var searchOptions = new ModSearchOptions();
+        searchOptions.filterText = "modernfix";
+        var firstMod = api.searchForMods(searchOptions).join().getFirst();
         Assertions.assertEquals(790626, firstMod.id());
     }
 
