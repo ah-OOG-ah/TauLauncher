@@ -32,3 +32,12 @@ jobs:
 
       - name: Build and test with Gradle
         run: ./gradlew build --no-daemon
+
+      - name: Store reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports
+          path: |
+            **/build/reports/
+            **/build/test-results/
