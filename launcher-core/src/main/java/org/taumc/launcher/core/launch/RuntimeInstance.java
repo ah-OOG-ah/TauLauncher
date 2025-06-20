@@ -232,7 +232,7 @@ public class RuntimeInstance {
                 if (component.requires() == null) {
                     continue;
                 }
-                var missingDeps = component.requires().stream().filter(r -> !r.isSatisfied(this.components)).toList();
+                var missingDeps = component.requires().stream().filter(r -> !r.isSatisfied(this.components, this.getMetadataService())).toList();
                 if (!missingDeps.isEmpty()) {
                     requirementsToFix = missingDeps;
                     break;
@@ -377,8 +377,6 @@ public class RuntimeInstance {
 
         this.scanDependencies();
 
-        this.components.sort(Comparator.comparingInt(Component::order));
-
         var traits = this.components.stream().map(Component::traits).filter(Objects::nonNull).flatMap(Collection::stream).distinct().toList();
 
         boolean isLegacyLaunch = (traits.contains("legacyLaunch") || traits.contains("alphaLaunch")) && !traits.contains("noapplet");
@@ -386,6 +384,8 @@ public class RuntimeInstance {
         if (isLegacyLaunch) {
             this.addComponent(BuiltinComponents.LEGACY_LAUNCH_WRAPPER);
         }
+
+        this.components.sort(Comparator.comparingInt(Component::order));
 
         // Start asset download asynchronously
         CompletableFuture<Void> assetsFuture;
@@ -415,7 +415,7 @@ public class RuntimeInstance {
         this.mainComponent = this.components.stream().filter(c -> c.mainJar().isPresent()).findFirst().orElseThrow(() -> new IllegalStateException("Main jar does not exist in any components"));
         this.mainJarPath = this.downloadLibrary(this.mainComponent.mainJar().orElseThrow());
 
-        this.mainClassName = this.components.stream().flatMap(c -> c.mainClass().stream()).reduce((first, second) -> second).orElseThrow(() -> new IllegalStateException("No component has a main class"));
+        this.mainClassName = this.components.stream().flatMap(c -> c.mainClass() != null ? c.mainClass().stream() : Stream.empty()).reduce((first, second) -> second).orElseThrow(() -> new IllegalStateException("No component has a main class"));
 
         this.javaBinaryFuture = this.computeJavaVersion();
 

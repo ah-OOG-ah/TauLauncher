@@ -115,11 +115,7 @@ public class InstanceEditView extends JDialog {
         this.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosed(WindowEvent ev) {
-                try {
-                    InstanceEditView.this.saveCurrentConfig();
-                } catch (IOException e) {
-                    LOGGER.error("Error saving config", e);
-                }
+                InstanceEditView.this.saveCurrentConfig();
                 InstanceEditView.this.metadataService.close();
             }
         });
@@ -141,15 +137,23 @@ public class InstanceEditView extends JDialog {
         return IntStream.range(0, this.componentList.size()).mapToObj(this.componentList::getElementAt).toList();
     }
 
-    private void saveCurrentConfig() throws IOException {
+    private void saveCurrentConfig() {
         var mapper = new ObjectMapper();
         DefaultPrettyPrinter prettyPrinter = new DefaultPrettyPrinter();
         prettyPrinter.indentArraysWith(DefaultIndenter.SYSTEM_LINEFEED_INSTANCE);
         prettyPrinter.indentObjectsWith(DefaultIndenter.SYSTEM_LINEFEED_INSTANCE);
         var mmcPack = new MMCPack(1, this.getCurrentComponents());
-        mapper.writer(prettyPrinter).writeValue(this.mmcPackJson.toFile(), mmcPack);
+        try {
+            mapper.writer(prettyPrinter).writeValue(this.mmcPackJson.toFile(), mmcPack);
+        } catch (IOException e) {
+            LOGGER.error("Error saving mmc-pack.json", e);
+        }
 
-        this.instanceCfg.writeTo(this.instanceCfgPath);
+        try {
+            this.instanceCfg.writeTo(this.instanceCfgPath);
+        } catch (IOException e) {
+            LOGGER.error("Error saving instance.cfg", e);
+        }
     }
 
     private void refreshCurrentPanel() {
@@ -191,11 +195,7 @@ public class InstanceEditView extends JDialog {
 
                 if (value instanceof MMCPack.Component component) {
                     var future = componentFutureMap.computeIfAbsent(component, coord -> CompletableFuture.supplyAsync(() -> {
-                        try {
-                            return metadataService.getComponent(coord.uid(), coord.version());
-                        } catch (IOException e) {
-                            throw new RuntimeException(e);
-                        }
+                        return metadataService.getComponent(coord.uid(), coord.version());
                     }).handle((c, t) -> {
                         if (c != null) {
                             return c.name() + " " + c.version();
@@ -220,6 +220,7 @@ public class InstanceEditView extends JDialog {
         removeButton.addActionListener(e -> {
             if (components.getSelectedValue() != null) {
                 componentList.removeElement(components.getSelectedValue());
+                saveCurrentConfig();
             }
         });
         editButton.addActionListener(e -> {
@@ -227,11 +228,13 @@ public class InstanceEditView extends JDialog {
             new NewComponentDialog(this.owner, this.getCurrentComponents(), coordinate -> {
                 componentList.removeElement(current);
                 componentList.addElement(new MMCPack.Component(coordinate.uid(), coordinate.version()));
+                saveCurrentConfig();
             }, current);
         });
         addButton.addActionListener(e -> {
             new NewComponentDialog(this.owner, this.getCurrentComponents(), coordinate -> {
                 componentList.addElement(new MMCPack.Component(coordinate.uid(), coordinate.version()));
+                saveCurrentConfig();
                 this.refreshCurrentPanel();
             });
         });

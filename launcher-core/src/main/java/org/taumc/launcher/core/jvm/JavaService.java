@@ -145,6 +145,9 @@ public class JavaService {
     private void downloadJVM(int version, Path destination, ProgressProvider progressProvider) throws IOException, InterruptedException {
         Files.createDirectories(destination);
         var component = this.metadataService.getComponent("net.adoptium.java", "java" + version);
+        if (component == null) {
+            throw new IOException("Cannot find Java component for version " + version);
+        }
         var runtimes = this.mapper.convertValue(component.extraProperty("runtimes"), new TypeReference<List<JavaRuntime>>() {});
         var selectedRuntime = runtimes.stream().filter(r -> EXPECTED_JVM_OS.equals(r.runtimeOS()) && r.downloadType().equals("archive")).findFirst().orElseThrow(() -> new IllegalStateException("No JVM found for current OS"));
         Path tmpDir = Files.createTempDirectory("taulauncher-java" + version);

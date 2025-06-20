@@ -3,6 +3,11 @@ plugins {
 }
 
 dependencies {
+    compileOnly("org.projectlombok:lombok:1.18.32") // or latest
+    annotationProcessor("org.projectlombok:lombok:1.18.32")
+
+    implementation("com.vdurmont:semver4j:3.1.0")
+
     api("com.fasterxml.jackson.core:jackson-databind:2.19.0")
     api("com.fasterxml.jackson.core:jackson-core:2.19.0")
     api("com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.19.0")

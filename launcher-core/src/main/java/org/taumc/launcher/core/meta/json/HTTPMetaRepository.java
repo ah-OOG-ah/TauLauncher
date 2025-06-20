@@ -3,45 +3,40 @@ package org.taumc.launcher.core.meta.json;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.mizosoft.methanol.HttpCache;
 import com.github.mizosoft.methanol.Methanol;
+import org.taumc.launcher.core.http.HttpUtils;
 import org.taumc.launcher.core.storage.LauncherPaths;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URI;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
+import java.util.function.Predicate;
 
-public record HTTPMetaRepository(String url) implements MetaRepository {
-    private static final HttpCache CACHE = HttpCache.newBuilder().cacheOnDisk(LauncherPaths.getLauncherCache().resolve("meta_cache"), 100 * 1024 * 1024).build();
+public record HTTPMetaRepository(String url, Predicate<String> uidFilter) implements MetaRepository {
+    private static final HttpCache CACHE = HttpCache.newBuilder().cacheOnDisk(LauncherPaths.getLauncherCache().resolve("caches").resolve("mmc_meta"), 100 * 1024 * 1024).build();
     private static final Methanol CLIENT = Methanol.newBuilder().cache(CACHE).build();
     private static final ObjectMapper MAPPER = JsonDecoder.make();
 
     public static HTTPMetaRepository prism() {
-        return new HTTPMetaRepository("https://meta.prismlauncher.org/v1");
+        return new HTTPMetaRepository("https://meta.prismlauncher.org/v1", null);
     }
 
     private static InputStream obtainFile(String url) throws IOException {
-        HttpResponse<InputStream> response;
-        try {
-            response = CLIENT.send(HttpRequest.newBuilder().uri(URI.create(url)).GET().build(), HttpResponse.BodyHandlers.ofInputStream());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IOException("Interrupted while downloading");
-        }
-        if (response.statusCode() == 200) {
-            return response.body();
-        } else {
-            throw new IOException("Unexpected response status for " + url + ": " + response.statusCode());
-        }
+        return HttpUtils.obtainFile(CLIENT, url);
     }
 
     @Override
     public RootIndex getRootIndex() throws IOException {
-        return MAPPER.readValue(obtainFile(url + "/index.json"), RootIndex.class);
+        var rootIndex = MAPPER.readValue(obtainFile(url + "/index.json"), RootIndex.class);
+        if (uidFilter == null) {
+            return rootIndex;
+        }
+        return new RootIndex(rootIndex.formatVersion(), rootIndex.packages().stream().filter(p -> uidFilter.test(p.uid())).toList());
     }
 
     @Override
     public PackageIndex getPackageIndex(String pkgName) throws IOException {
+        if (uidFilter != null && !uidFilter.test(pkgName)) {
+            throw new IOException("Filtered");
+        }
         return MAPPER.readValue(obtainFile(url + "/" + pkgName + "/index.json"), PackageIndex.class);
     }
 
@@ -49,6 +44,9 @@ public record HTTPMetaRepository(String url) implements MetaRepository {
     public Component getComponent(String pkgName, String version) throws IOException {
         if (version == null) {
             throw new IOException("Version does not exist");
+        }
+        if (uidFilter != null && !uidFilter.test(pkgName)) {
+            throw new IOException("Filtered");
         }
         return MAPPER.readValue(obtainFile(url + "/" + pkgName + "/" + version + ".json"), Component.class);
     }

@@ -32,7 +32,7 @@ public class NewComponentDialog extends JDialog {
 
         Map<String, List<String>> options = new HashMap<>();
 
-        Predicate<Requirement> requirementsSatisfied = r -> r.isSatisfied(existingComponents);
+        Predicate<Requirement> requirementsSatisfied = r -> r.isSatisfied(existingComponents, Main.METADATA);
         // Compute the valid components to add
         for (String pkg : Main.METADATA.getKnownPackages()) {
             LinkedHashSet<String> versions = new LinkedHashSet<>();

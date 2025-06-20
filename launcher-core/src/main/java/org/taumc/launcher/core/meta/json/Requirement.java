@@ -4,11 +4,12 @@ import java.util.List;
 import java.util.Optional;
 
 public record Requirement(String uid, Optional<String> suggests, Optional<String> equals) {
-    public boolean isSatisfied(List<? extends ComponentCoordinate> components) {
+    public boolean isSatisfied(List<? extends ComponentCoordinate> components, MetadataService metadataService) {
         boolean foundComponent = false;
         for (var component : components) {
-            if (component.uid().equals(uid)) {
-                foundComponent = equals.isEmpty() || component.version().equals(equals.get());
+            var fullComponent = metadataService.getComponent(component);
+            if (fullComponent.doesProvide(uid)) {
+                foundComponent |= equals.isEmpty() || component.version().equals(equals.get());
             }
         }
         return foundComponent;
