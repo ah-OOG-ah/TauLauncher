@@ -174,7 +174,7 @@ public class HomeView extends JFrame {
             this.refreshSidebar();
         }
         model.setSelectedInstance(name);
-        new InstanceEditView(this, name);
+        InstanceEditView.createOrShow(this, name);
     }
 
     private void showImportInstanceDialog() {
@@ -331,11 +331,13 @@ public class HomeView extends JFrame {
 
             JButton editButton = makeSidebarButton("Edit");
             editButton.addActionListener(ev -> {
-                new InstanceEditView(this, selectedInstance);
+                InstanceEditView.createOrShow(this, selectedInstance);
+                refreshSidebar();
             });
             sidebar.add(editButton);
 
             JButton deleteButton = makeSidebarButton("Delete");
+            deleteButton.setEnabled(!InstanceEditView.isLocked(selectedInstance));
             deleteButton.addActionListener(ev -> {
                 int result = JOptionPane.showConfirmDialog(null, "Are you sure you want to delete instance '%s'?".formatted(selectedInstance), "Confirm", JOptionPane.YES_NO_OPTION);
                 if (result != JOptionPane.YES_OPTION) {
@@ -352,7 +354,7 @@ public class HomeView extends JFrame {
             sidebar.add(deleteButton);
 
             JButton renameButton = makeSidebarButton("Rename");
-            renameButton.setEnabled(existingLaunchHandler == null);
+            renameButton.setEnabled(existingLaunchHandler == null && !InstanceEditView.isLocked(selectedInstance));
             renameButton.addActionListener(ev -> {
                 String result = (String) JOptionPane.showInputDialog(
                         null,

@@ -8,7 +8,7 @@ import java.util.stream.Stream;
 public class PatchedPrismMetaRepository extends DelegatingMetaRepository {
     private static final List<String> ASM_MODULES = List.of("asm", "asm-commons", "asm-tree", "asm-analysis", "asm-util");
     private static final String ASM_VERSION = "9.8";
-    private static final boolean UPGRADE_JAVA = true;
+    private static final boolean UPGRADE_JAVA = false;
 
     public PatchedPrismMetaRepository() {
         super(HTTPMetaRepository.prism());

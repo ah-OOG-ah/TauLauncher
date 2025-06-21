@@ -15,6 +15,8 @@ import org.taumc.launcher.gui.Main;
 import org.taumc.launcher.gui.UIPaths;
 import org.taumc.launcher.core.meta.json.MMCPack;
 import org.taumc.launcher.gui.launch.LaunchHandler;
+import org.taumc.launcher.gui.launch.LogViewFrame;
+import org.taumc.launcher.gui.screens.home.HomeView;
 
 import javax.swing.*;
 import java.awt.*;
@@ -31,17 +33,20 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 
-public class InstanceEditView extends JDialog {
+public class InstanceEditView extends JFrame {
     private static final Map<String, Function<InstanceEditView, JPanel>> PAGES = new LinkedHashMap<>();
     private static final Logger LOGGER = LoggerFactory.getLogger(InstanceEditView.class);
+
+    public static final Map<String, InstanceEditView> OPEN_EDIT_VIEWS = new HashMap<>();
 
     static {
         PAGES.put("Components", InstanceEditView::createComponentsPanel);
         PAGES.put("Memory & JVM", InstanceEditView::createMemoryPanel);
         PAGES.put("Mods", InstanceEditView::createModsPanel);
+        PAGES.put("Logs", InstanceEditView::mountLogsPanel);
     }
 
-    private final Frame owner;
+    private final HomeView owner;
     private final String instance;
     private final Path instancePath;
     private final Path mmcPackJson, instanceCfgPath;
@@ -55,8 +60,8 @@ public class InstanceEditView extends JDialog {
 
     private final CompletableFuture<MetadataService> metadataService;
 
-    public InstanceEditView(Frame owner, String instance) {
-        super(owner, instance, true);
+    private InstanceEditView(HomeView owner, String instance) {
+        super(instance);
         this.owner = owner;
         this.instance = instance;
         this.instancePath = UIPaths.INSTANCES_FOLDER.resolve(this.instance);
@@ -115,13 +120,29 @@ public class InstanceEditView extends JDialog {
         this.add(splitPane);
         this.setLocationRelativeTo(null);
         this.setVisible(true);
+        OPEN_EDIT_VIEWS.put(instance, this);
         this.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosed(WindowEvent ev) {
                 InstanceEditView.this.saveCurrentConfig();
                 InstanceEditView.this.metadataService.join().close();
+                OPEN_EDIT_VIEWS.remove(instance);
+                owner.refreshSidebar();
             }
         });
+    }
+
+    public static boolean isLocked(String instance) {
+        return OPEN_EDIT_VIEWS.containsKey(instance);
+    }
+
+    public static void createOrShow(HomeView owner, String instance) {
+        var view = OPEN_EDIT_VIEWS.get(instance);
+        if (view != null) {
+            view.toFront();
+        } else {
+            new InstanceEditView(owner, instance);
+        }
     }
 
     private void readCurrentConfig() throws IOException {
@@ -252,6 +273,10 @@ public class InstanceEditView extends JDialog {
 
     private JPanel createModsPanel() {
         return new ModManagerPanel(instancePath, this.owner, this.componentList);
+    }
+
+    private JPanel mountLogsPanel() {
+        return LogViewFrame.forInstance(this.instance);
     }
 
     private static JPanel createLabelPanel(String text) {

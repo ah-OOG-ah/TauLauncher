@@ -15,19 +15,19 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class LogViewFrame extends JFrame {
+public class LogViewFrame extends JPanel {
     private static final Logger LOGGER = LoggerFactory.getLogger(LogViewFrame.class);
+    private static final Map<String, LogViewFrame> PANELS_BY_INSTANCE = new HashMap<>();
     private final Style defaultStyle, warnStyle, errorStyle, systemStyle;
     private final JTextPane logPane;
     private final JScrollPane scrollPane;
-    private final Process gameProcess;
 
-    public LogViewFrame(String title, Process gameProcess) {
-        this.setTitle("Logs for '" + title + "'");
+    public LogViewFrame() {
         this.setLayout(new BorderLayout());
-        this.gameProcess = gameProcess;
 
         this.logPane = new JTextPane();
         logPane.setEditable(false);
@@ -133,13 +133,24 @@ public class LogViewFrame extends JFrame {
                 }
             }
         });
+    }
 
+    public static LogViewFrame forInstance(String instance) {
+        return PANELS_BY_INSTANCE.computeIfAbsent(instance, $ -> new LogViewFrame());
+    }
+
+    public void attachProcess(Process gameProcess) {
         new LogReaderThread(gameProcess.getInputStream()).start();
         new LogReaderThread(gameProcess.getErrorStream()).start();
 
         gameProcess.onExit().thenRunAsync(() -> {
             appendLog("Game has exited with code " + gameProcess.exitValue() + ".", systemStyle);
         }, SwingUtilities::invokeLater);
+    }
+
+    public void clearLog() {
+        logPane.setText("");
+        logPane.setCaretPosition(0);
     }
 
     public void appendLog(String line, Style style) {
@@ -153,6 +164,10 @@ public class LogViewFrame extends JFrame {
         } catch (BadLocationException e) {
             LOGGER.error("Unexpected location", e);
         }
+    }
+
+    public final void appendSystemMessage(String line) {
+        appendLog(line, systemStyle);
     }
 
     private class LogReaderThread extends Thread {

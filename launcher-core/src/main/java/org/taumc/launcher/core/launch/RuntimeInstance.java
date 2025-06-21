@@ -37,6 +37,7 @@ import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -294,6 +295,10 @@ public class RuntimeInstance {
                 throw new RuntimeException(e);
             }
         });
+    }
+
+    public List<Path> getLaunchClasspath() {
+        return Collections.unmodifiableList(this.libraryPaths);
     }
 
     private void startGame() {

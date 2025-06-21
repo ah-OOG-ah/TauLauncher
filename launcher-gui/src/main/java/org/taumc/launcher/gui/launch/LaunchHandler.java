@@ -91,7 +91,18 @@ public class LaunchHandler {
                 }
                 var process = this.gameInstance.getCurrentProcess();
                 if (process != null) {
-                    SwingUtilities.invokeLater(() -> new LogViewFrame(this.instance, process).setVisible(true));
+                    SwingUtilities.invokeLater(() -> {
+                        var logView = LogViewFrame.forInstance(this.instance);
+                        logView.clearLog();
+
+                        logView.appendSystemMessage("Classpath:");
+                        for (var path : this.gameInstance.getLaunchClasspath()) {
+                            logView.appendSystemMessage("    " + path.toAbsolutePath().toString());
+                        }
+                        logView.appendSystemMessage("");
+
+                        logView.attachProcess(process);
+                    });
                 }
             }, LAUNCH_EXECUTOR).whenComplete((p, t) -> {
                 try {
