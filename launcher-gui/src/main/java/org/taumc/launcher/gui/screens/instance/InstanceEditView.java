@@ -53,7 +53,7 @@ public class InstanceEditView extends JDialog {
 
     private final Map<MMCPack.Component, CompletableFuture<String>> componentFutureMap = new HashMap<>();
 
-    private final MetadataService metadataService;
+    private final CompletableFuture<MetadataService> metadataService;
 
     public InstanceEditView(Frame owner, String instance) {
         super(owner, instance, true);
@@ -70,12 +70,15 @@ public class InstanceEditView extends JDialog {
         }
 
         // Build a metadata service for the instance
-        this.metadataService = new MetadataService();
-        try {
-            LaunchHandler.configureMetadataService(this.metadataService, this.instancePath);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        this.metadataService = CompletableFuture.supplyAsync(() -> {
+            var service = new MetadataService();
+            try {
+                LaunchHandler.configureMetadataService(service, this.instancePath);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            return service;
+        });
 
         this.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         this.setSize(800, 600);
@@ -116,7 +119,7 @@ public class InstanceEditView extends JDialog {
             @Override
             public void windowClosed(WindowEvent ev) {
                 InstanceEditView.this.saveCurrentConfig();
-                InstanceEditView.this.metadataService.close();
+                InstanceEditView.this.metadataService.join().close();
             }
         });
     }
@@ -194,8 +197,8 @@ public class InstanceEditView extends JDialog {
                 super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
 
                 if (value instanceof MMCPack.Component component) {
-                    var future = componentFutureMap.computeIfAbsent(component, coord -> CompletableFuture.supplyAsync(() -> {
-                        return metadataService.getComponent(coord.uid(), coord.version());
+                    var future = componentFutureMap.computeIfAbsent(component, coord -> metadataService.thenApplyAsync(meta -> {
+                        return meta.getComponent(coord.uid(), coord.version());
                     }).handle((c, t) -> {
                         if (c != null) {
                             return c.name() + " " + c.version();
