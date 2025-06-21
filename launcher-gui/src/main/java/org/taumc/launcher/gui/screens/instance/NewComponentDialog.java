@@ -100,9 +100,11 @@ public class NewComponentDialog extends JDialog {
         buttons.add(okBtn);
         buttons.add(cancelBtn);
 
-        if (initialSelection != null && options.getOrDefault(initialSelection.uid(), List.of()).contains(initialSelection.version())) {
+        if (initialSelection != null && options.containsKey(initialSelection.uid())) {
             componentList.setSelectedValue(initialSelection.uid(), true);
-            versionList.setSelectedValue(initialSelection.version(), true);
+            if (options.getOrDefault(initialSelection.uid(), List.of()).contains(initialSelection.version())) {
+                versionList.setSelectedValue(initialSelection.version(), true);
+            }
         }
 
         this.getContentPane().add(buttons, BorderLayout.SOUTH);
