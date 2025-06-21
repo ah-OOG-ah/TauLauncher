@@ -228,6 +228,7 @@ public class RuntimeInstance {
     private void scanDependencies() throws IOException, InterruptedException {
         while (true) {
             List<Requirement> requirementsToFix = List.of();
+            Component complainingComponent = null;
             for (var component : this.components) {
                 if (component.requires() == null) {
                     continue;
@@ -235,6 +236,7 @@ public class RuntimeInstance {
                 var missingDeps = component.requires().stream().filter(r -> !r.isSatisfied(this.components, this.getMetadataService())).toList();
                 if (!missingDeps.isEmpty()) {
                     requirementsToFix = missingDeps;
+                    complainingComponent = component;
                     break;
                 }
             }
@@ -244,7 +246,7 @@ public class RuntimeInstance {
             for (var r : requirementsToFix) {
                 var component = this.components.stream().filter(c -> c.uid().equals(r.uid())).findFirst();
                 if (component.isPresent()) {
-                    throw new IllegalStateException("Cannot satisfy requirement " + r + " as version " + component.get().version() + " is already added");
+                    throw new IllegalStateException("Component " + complainingComponent.uid() + " has requirement " + r + ", but version " + component.get().version() + " is already added");
                 }
                 LOGGER.info("Adding missing component {} with version {}", r.uid(), r.recommendedVersion());
                 this.addComponent(new MMCPack.Component(r.uid(), r.recommendedVersion()));

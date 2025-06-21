@@ -24,4 +24,9 @@ public record Requirement(String uid, Optional<String> suggests, Optional<String
         }
         throw new IllegalStateException("Don't know how to recommend a version for component " + uid);
     }
+
+    @Override
+    public String toString() {
+        return uid + " = " + (equals.isEmpty() ? "~"  : "") + recommendedVersion();
+    }
 }
