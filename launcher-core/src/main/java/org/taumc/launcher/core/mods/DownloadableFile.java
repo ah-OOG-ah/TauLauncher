@@ -10,8 +10,8 @@ public interface DownloadableFile {
     String downloadUrl();
     String fileName();
     ReleaseType releaseType();
-    int modId();
-    CompletableFuture<List<? extends DownloadableFile>> getDependencies(List<MMCPack.Component> components, Set<Integer> existingModIds);
+    String getParentModId();
+    CompletableFuture<List<? extends DownloadableFile>> getDependencies(List<MMCPack.Component> components, Set<String> existingModIds);
 
     enum ReleaseType {
         RELEASE,

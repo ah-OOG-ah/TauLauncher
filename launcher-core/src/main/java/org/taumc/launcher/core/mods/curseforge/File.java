@@ -31,7 +31,12 @@ public record File(int id, int gameId, int modId, boolean isAvailable, String do
     }
 
     @Override
-    public CompletableFuture<List<? extends DownloadableFile>> getDependencies(List<MMCPack.Component> components, Set<Integer> existingModIds) {
+    public String getParentModId() {
+        return String.valueOf(modId);
+    }
+
+    @Override
+    public CompletableFuture<List<? extends DownloadableFile>> getDependencies(List<MMCPack.Component> components, Set<String> existingModIds) {
         if (dependencies == null || dependencies.isEmpty()) {
             return CompletableFuture.completedFuture(List.of());
         }

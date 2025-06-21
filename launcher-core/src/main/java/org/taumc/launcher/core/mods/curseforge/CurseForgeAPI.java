@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.mizosoft.methanol.Methanol;
 import org.taumc.launcher.core.http.JacksonBodyHandler;
+import org.taumc.launcher.core.http.URIBuilder;
 import org.taumc.launcher.core.meta.json.JsonDecoder;
 import org.taumc.launcher.core.meta.json.MMCPack;
 import org.taumc.launcher.core.mods.ModSearchOptions;
@@ -27,6 +28,7 @@ import java.util.concurrent.CompletableFuture;
 
 public class CurseForgeAPI implements Closeable {
     private static final String API_BASE = "https://api.curseforge.com";
+    private static final URIBuilder API_BUILDER = new URIBuilder(API_BASE);
     // You must change this if forking the launcher.
     private static final String API_KEY = "$2a$10$i6iAcI6XXzv53fKRksUk2u1Tz8zYPHOvD0xgPxnDB/ZKKdy73xFSi";
 
@@ -49,17 +51,11 @@ public class CurseForgeAPI implements Closeable {
     }
 
     private static URI buildUri(String baseUrl) {
-        return URI.create(API_BASE + baseUrl);
+        return API_BUILDER.buildUri(baseUrl);
     }
 
     private static URI buildUri(String baseUrl, Map<String, ?> params) {
-        String query = params.entrySet().stream()
-                .map(e -> URLEncoder.encode(e.getKey(), StandardCharsets.UTF_8) + "=" +
-                        URLEncoder.encode(e.getValue().toString(), StandardCharsets.UTF_8))
-                .reduce((a, b) -> a + "&" + b)
-                .orElse("");
-
-        return URI.create(API_BASE + baseUrl + (baseUrl.contains("?") ? "&" : "?") + query);
+        return API_BUILDER.buildUri(baseUrl, params);
     }
 
     private <T> CompletableFuture<HttpResponse<T>> executeQuery(URI uri, TypeReference<T> ref) {

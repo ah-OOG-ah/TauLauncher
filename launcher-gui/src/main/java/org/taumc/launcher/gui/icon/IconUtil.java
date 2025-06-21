@@ -1,5 +1,8 @@
 package org.taumc.launcher.gui.icon;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
@@ -9,6 +12,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class IconUtil {
+    private static final Logger LOGGER = LoggerFactory.getLogger(IconUtil.class);
     private static final Map<String, ImageIcon> iconCache = new ConcurrentHashMap<>();
 
     public static ImageIcon loadIconFromURL(String urlStr, int size) {
@@ -26,7 +30,7 @@ public class IconUtil {
             URL url = new URL(urlStr);
             Image image = ImageIO.read(url);
             if (image == null) {
-                System.err.println("Failed to read image from " + urlStr);
+                LOGGER.error("Failed to read image from {}", urlStr);
                 return null;
             }
 
@@ -35,7 +39,7 @@ public class IconUtil {
             iconCache.put(cacheKey, icon);
             return icon;
         } catch (IOException e) {
-            e.printStackTrace();
+            LOGGER.error("Failed to read image", e);
             return null;
         }
     }

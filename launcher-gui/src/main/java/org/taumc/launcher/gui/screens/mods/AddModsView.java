@@ -8,6 +8,7 @@ import org.taumc.launcher.core.mods.Mod;
 import org.taumc.launcher.core.mods.ModHostingSite;
 import org.taumc.launcher.core.mods.ModSearchOptions;
 import org.taumc.launcher.core.mods.curseforge.CurseForgeModHostingSite;
+import org.taumc.launcher.core.mods.modrinth.ModrinthModHostingSite;
 import org.taumc.launcher.gui.icon.IconUtil;
 import org.taumc.launcher.gui.launch.ProgressDialog;
 
@@ -81,7 +82,7 @@ public class AddModsView extends JDialog {
         sidebar.setPreferredSize(new Dimension(150, 0));
 
         // Create entries with icons
-        List<ModHostingSite<?, ?>> sites = List.of(new CurseForgeModHostingSite());
+        List<ModHostingSite<?, ?>> sites = List.of(new CurseForgeModHostingSite(), new ModrinthModHostingSite());
 
         sourceList = new JList<>(sites.toArray(new ModHostingSite[0]));
         sourceList.setCellRenderer(new SourceEntryRenderer());
@@ -181,9 +182,9 @@ public class AddModsView extends JDialog {
                                 downloadModsPanel.modListModel.removeElement(file);
                             } else {
                                 downloadModsPanel.modListModel.addElement(file);
-                                Set<Integer> existingDeps = IntStream.range(0, downloadModsPanel.modListModel.size())
+                                Set<String> existingDeps = IntStream.range(0, downloadModsPanel.modListModel.size())
                                         .mapToObj(downloadModsPanel.modListModel::getElementAt)
-                                        .map(DownloadableFile::modId)
+                                        .map(DownloadableFile::getParentModId)
                                         .collect(Collectors.toSet());
                                 var depFuture = file.getDependencies(installedComponents, existingDeps);
                                 if (!depFuture.isDone()) {
