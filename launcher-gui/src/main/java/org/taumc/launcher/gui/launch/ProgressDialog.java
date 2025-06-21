@@ -12,7 +12,7 @@ public class ProgressDialog extends JDialog implements ProgressProvider {
     private final Map<String, JProgressBar> taskMap = new ConcurrentHashMap<>();
 
     public ProgressDialog(Frame owner) {
-        super(owner, "Working...", true); // true = modal
+        super(owner, "Working...", false);
         setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
         setLayout(new BorderLayout());
         setResizable(false);

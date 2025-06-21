@@ -14,7 +14,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record File(int id, int gameId, int modId, boolean isAvailable, String downloadUrl, String displayName, String fileName, Instant fileDate, List<Dependency> dependencies, @JsonProperty("releaseType") int cfReleaseType) implements DownloadableFile {
+public record File(int id, int gameId, int modId, boolean isAvailable, String downloadUrl, String displayName, String fileName, Instant fileDate, List<Dependency> dependencies, @JsonProperty("releaseType") int cfReleaseType, int fileLength) implements DownloadableFile {
     public record Dependency(int modId, int relationType) {}
 
     @Override

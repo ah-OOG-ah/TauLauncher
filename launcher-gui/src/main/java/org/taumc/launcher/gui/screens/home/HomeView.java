@@ -369,7 +369,7 @@ public class HomeView extends JFrame {
                         null,      // no selection values (it's just a plain text box)
                         selectedInstance  // this sets the initial input value
                 );
-                if (result.equals(selectedInstance)) {
+                if (result == null || result.equals(selectedInstance)) {
                     return;
                 }
                 try {

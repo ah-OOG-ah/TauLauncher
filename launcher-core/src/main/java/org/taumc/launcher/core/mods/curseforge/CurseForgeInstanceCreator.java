@@ -19,19 +19,16 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
-import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.ServiceLoader;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Semaphore;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
 
 public class CurseForgeInstanceCreator {
     private static final Map<Integer, String> CLASS_TO_SUBFOLDER = Map.of(
@@ -45,6 +42,7 @@ public class CurseForgeInstanceCreator {
     private static final int MAX_CONCURRENT_DOWNLOADS = 10;
 
     private final CurseForgeAPI cfApi;
+    private final ManualDownloadService manualDownloadService = ServiceLoader.load(ManualDownloadService.class).findFirst().orElseThrow();
 
     public CurseForgeInstanceCreator(CurseForgeAPI cfApi) {
         this.cfApi = cfApi;
@@ -58,10 +56,6 @@ public class CurseForgeInstanceCreator {
         Semaphore semaphore = new Semaphore(10);
         for (var file : fileInfos) {
             String downloadUrl = knownDownloadUrls.getOrDefault(file.modId(), file.downloadUrl());
-            if (downloadUrl == null) {
-                LOGGER.error("File {} is missing download URL and cannot be downloaded", file.fileName());
-                continue;
-            }
             var metaTask = progressProvider.addTask("Fetching mod info for file " + file.fileName());
             try {
                 semaphore.acquire();
@@ -80,6 +74,11 @@ public class CurseForgeInstanceCreator {
                     return CompletableFuture.failedFuture(e);
                 }
                 Path destination = subfolderPath.resolve(file.fileName());
+                if (downloadUrl == null) {
+                    manualDownloadService.trackFileForManualDownload(new ManualDownloadService.Download(file, mod, destination));
+                    LOGGER.info("File {} is missing download URL and must be downloaded manually by user", file.fileName());
+                    return CompletableFuture.completedFuture(null);
+                }
                 var task = progressProvider.addTask("Downloading " + file.fileName());
                 var handler = DownloadProgressTracker.track(HttpResponse.BodyHandlers.ofFile(destination), task);
                 try {
@@ -142,6 +141,8 @@ public class CurseForgeInstanceCreator {
 
             modsDownloadFuture.join();
 
+            manualDownloadService.downloadManualFiles().join();
+
             var overridesFolder = zipRootPath.resolve("overrides");
             try (Stream<Path> stream = Files.find(zipRootPath, Integer.MAX_VALUE, (path, attrs) -> path.startsWith(overridesFolder) && !attrs.isDirectory())) {
                 stream.forEach(entry -> {
@@ -190,5 +191,12 @@ public class CurseForgeInstanceCreator {
         } finally {
             Files.deleteIfExists(modpackZip);
         }
+    }
+
+    public interface ManualDownloadService {
+        record Download(File file, Mod mod, Path destination) {}
+
+        void trackFileForManualDownload(Download download);
+        CompletableFuture<Void> downloadManualFiles();
     }
 }
