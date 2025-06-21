@@ -6,9 +6,14 @@ import lombok.With;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record PackageIndex(String name, String uid, List<Version> versions) {
+    public Optional<Version> version(String version) {
+        return versions.stream().filter(v -> version.equals(v.version)).findFirst();
+    }
+
     public record Version(
             boolean recommended,
             String releaseTime,

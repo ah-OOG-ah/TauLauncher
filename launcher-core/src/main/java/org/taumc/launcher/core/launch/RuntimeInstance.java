@@ -80,8 +80,12 @@ public class RuntimeInstance {
 
     private final Map<String, String> systemProperties = new LinkedHashMap<>();
 
-    public void addComponent(MMCPack.Component component) throws IOException, InterruptedException {
-        addComponent(this.service.getComponent(component.uid(), component.version()));
+    public void addComponent(MMCPack.Component coordinate) throws IOException, InterruptedException {
+        var component = this.service.getComponent(coordinate.uid(), coordinate.version());
+        if (component == null) {
+            throw new NullPointerException("Component " + coordinate + " does not exist in any meta repositories");
+        }
+        addComponent(component);
     }
 
     public void addComponent(Component component) {
@@ -270,8 +274,8 @@ public class RuntimeInstance {
     private CompletableFuture<String> computeJavaVersion() {
         int javaVersion;
 
-        if (this.mainComponent.extraProperty("compatibleJavaMajors") != null) {
-            javaVersion = ((List<Integer>)this.mainComponent.extraProperty("compatibleJavaMajors")).stream().mapToInt(Integer::intValue).max().orElseThrow();
+        if (this.mainComponent.compatibleJavaMajors() != null) {
+            javaVersion = this.mainComponent.compatibleJavaMajors().stream().mapToInt(Integer::intValue).max().orElseThrow();
         } else {
             javaVersion = 21; // Default
         }

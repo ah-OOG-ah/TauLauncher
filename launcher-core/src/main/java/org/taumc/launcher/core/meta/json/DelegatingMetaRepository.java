@@ -2,6 +2,7 @@ package org.taumc.launcher.core.meta.json;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Objects;
 
 public class DelegatingMetaRepository implements MetaRepository {
     protected final MetaRepository delegate;
@@ -25,10 +26,14 @@ public class DelegatingMetaRepository implements MetaRepository {
         return new PackageIndex(pkg.name(), pkg.uid(), pkg.versions().stream().map(v -> v.withRequires(transformRequirements(v.requires()))).toList());
     }
 
+    protected Component.ComponentBuilder transformComponent(Component.ComponentBuilder builder, Component original) {
+        return builder.clearRequires().requires(transformRequirements(Objects.requireNonNullElse(original.requires(), List.of())));
+    }
+
     @Override
-    public Component getComponent(String pkgName, String version) throws IOException {
+    public final Component getComponent(String pkgName, String version) throws IOException {
         var component = this.delegate.getComponent(pkgName, version);
-        return component.toBuilder().requires(transformRequirements(component.requires())).build();
+        return transformComponent(component.toBuilder(), component).build();
     }
 
     @Override

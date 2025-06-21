@@ -88,7 +88,7 @@ public class MetadataService implements Closeable {
                     try {
                         return index.repo().getComponent(pkg, version);
                     } catch (IOException e) {
-                        errors.add(e);
+                        errors.add(new IOException("Could not load component " + pkg + " version " + version + " from repo " + index.repo(), e));
                     }
                 }
             } else {
@@ -115,7 +115,10 @@ public class MetadataService implements Closeable {
 
         existing = findComponent(pkg, version);
 
-        componentCache.put(key, existing);
+        if (existing != null) {
+            componentCache.put(key, existing);
+        }
+
         return existing;
     }
 

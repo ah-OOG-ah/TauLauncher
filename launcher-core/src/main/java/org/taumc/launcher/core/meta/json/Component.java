@@ -4,10 +4,12 @@ import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
+import lombok.Singular;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Predicate;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 @Builder(toBuilder = true)
@@ -19,13 +21,14 @@ public record Component(
         String releaseTime,
         Optional<String> mainClass,
         List<Library> libraries,
-        List<Requirement> requires,
+        @Singular List<Requirement> requires,
         Optional<Library> mainJar,
         Optional<Artifact> assetIndex,
         List<Library> mavenFiles,
         List<String> provides,
-        @JsonProperty("+traits") List<String> traits,
-        @JsonAnySetter Map<String, Object> extraProperties
+        @Singular List<Integer> compatibleJavaMajors,
+        @Singular @JsonProperty("+traits") List<String> traits,
+        @Singular @JsonAnySetter Map<String, Object> extraProperties
 ) implements ComponentCoordinate {
     public Object extraProperty(String name) {
         return extraProperties != null ? extraProperties.get(name) : null;
@@ -43,6 +46,10 @@ public record Component(
             this.assetIndex = Optional.empty();
             this.mainJar = Optional.empty();
             this.mainClass = Optional.empty();
+        }
+
+        public boolean removeRequirementIf(Predicate<Requirement> predicate) {
+            return this.requires.removeIf(predicate);
         }
 
         public ComponentBuilder packageIndex(PackageIndex packageIndex, PackageIndex.Version version) {
