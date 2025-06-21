@@ -15,7 +15,7 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.function.Predicate;
 
-public record Library(String name, Optional<String> url, Optional<Download> downloads, ExtractConfig extract, Map<String, String> natives, List<Rule> rules, @JsonProperty("MMC-hint") String mmcHint) {
+public record Library(String name, Optional<String> url, Optional<Download> downloads, ExtractConfig extract, Map<String, String> natives, List<Rule> rules, @JsonProperty("MMC-hint") String mmcHint, @JsonProperty("MMC-filename") String mmcFileName) {
     public static final String NATIVE_CATEGORY = findNativeCategory();
 
     private static String findNativeCategory() {
@@ -156,6 +156,6 @@ public record Library(String name, Optional<String> url, Optional<Download> down
     }
 
     public static Library fromMaven(String name, String url) {
-        return new Library(name, Optional.of(url), Optional.empty(), null, null, null, null);
+        return new Library(name, Optional.of(url), Optional.empty(), null, null, null, null, null);
     }
 }

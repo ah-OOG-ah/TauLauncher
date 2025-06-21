@@ -148,8 +148,11 @@ public class RuntimeInstance {
 
     private Path downloadLibrary(Library lib) {
         if ("local".equals(lib.mmcHint())) {
-            var explodedName = lib.explodedName();
-            Path libPath = this.instancePath.getParent().resolve("libraries").resolve(explodedName.fileName());
+            var fileName = lib.mmcFileName();
+            if (fileName == null) {
+                fileName = lib.explodedName().fileName();
+            }
+            Path libPath = this.instancePath.getParent().resolve("libraries").resolve(fileName);
             if (!Files.exists(libPath)) {
                 throw new IllegalArgumentException("Library " + lib.name() + " is specified as being local but does not exist in instance folder");
             }
