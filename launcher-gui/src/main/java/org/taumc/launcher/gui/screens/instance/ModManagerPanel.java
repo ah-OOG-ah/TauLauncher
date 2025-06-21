@@ -8,17 +8,22 @@ import org.taumc.launcher.gui.launch.LaunchHandler;
 import org.taumc.launcher.gui.screens.mods.AddModsView;
 
 import javax.swing.*;
+import javax.swing.filechooser.FileFilter;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.*;
 import java.awt.*;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.*;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
 public class ModManagerPanel extends JPanel {
@@ -81,13 +86,13 @@ public class ModManagerPanel extends JPanel {
 
         removeButton = new JButton("Remove Selected");
         downloadMoreButton = new JButton("Download More");
+        var addFileButton = new JButton("Add Local File");
 
-        removeButton.setAlignmentX(Component.CENTER_ALIGNMENT);
-        downloadMoreButton.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        sidebar.add(removeButton);
-        sidebar.add(Box.createVerticalStrut(15));
-        sidebar.add(downloadMoreButton);
+        List.of(removeButton, downloadMoreButton, addFileButton).forEach(btn -> {
+            btn.setAlignmentX(Component.CENTER_ALIGNMENT);
+            sidebar.add(btn);
+            sidebar.add(Box.createVerticalStrut(15));
+        });
 
         add(tableScrollPane, BorderLayout.CENTER);
         add(sidebar, BorderLayout.EAST);
@@ -98,6 +103,26 @@ public class ModManagerPanel extends JPanel {
         // Button actions
         removeButton.addActionListener(e -> removeSelectedMods());
         downloadMoreButton.addActionListener(e -> downloadMoreMods());
+        addFileButton.addActionListener(e -> {
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setMultiSelectionEnabled(true);
+            fileChooser.setFileFilter(new FileNameExtensionFilter("Mods", "jar"));
+            int result = fileChooser.showOpenDialog(null); // or use a parent component
+
+            if (result == JFileChooser.APPROVE_OPTION) {
+                Path modsFolder = getModsFolder();
+                File[] files = fileChooser.getSelectedFiles();
+                for (var f : files) {
+                    var path = f.toPath();
+                    try {
+                        Files.copy(path, modsFolder.resolve(path.getFileName()), StandardCopyOption.REPLACE_EXISTING);
+                    } catch (IOException ex) {
+                        JOptionPane.showMessageDialog(null, ex.getMessage(), "Error copying mod", JOptionPane.ERROR_MESSAGE);
+                    }
+                }
+                this.refreshTableModel();
+            }
+        });
 
         this.addComponentListener(new ComponentAdapter() {
             @Override
@@ -134,6 +159,7 @@ public class ModManagerPanel extends JPanel {
     private void refreshTableModel() {
         var modsFolder = getModsFolder();
         modTableModel.clear();
+        modTable.clearSelection();
         try {
             Files.createDirectories(modsFolder);
 
@@ -151,6 +177,7 @@ public class ModManagerPanel extends JPanel {
         } catch (IOException e) {
             modTableModel.clear();
         }
+        modTable.clearSelection();
     }
 
     private void removeSelectedMods() {
