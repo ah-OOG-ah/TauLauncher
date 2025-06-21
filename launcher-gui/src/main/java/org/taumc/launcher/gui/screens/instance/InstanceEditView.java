@@ -250,14 +250,14 @@ public class InstanceEditView extends JFrame {
         });
         editButton.addActionListener(e -> {
             var current = components.getSelectedValue();
-            new NewComponentDialog(this.owner, this.getCurrentComponents(), coordinate -> {
+            new NewComponentDialog(this, this.getCurrentComponents(), coordinate -> {
                 componentList.removeElement(current);
                 componentList.addElement(new MMCPack.Component(coordinate.uid(), coordinate.version()));
                 saveCurrentConfig();
             }, current);
         });
         addButton.addActionListener(e -> {
-            new NewComponentDialog(this.owner, this.getCurrentComponents(), coordinate -> {
+            new NewComponentDialog(this, this.getCurrentComponents(), coordinate -> {
                 componentList.addElement(new MMCPack.Component(coordinate.uid(), coordinate.version()));
                 saveCurrentConfig();
                 this.refreshCurrentPanel();

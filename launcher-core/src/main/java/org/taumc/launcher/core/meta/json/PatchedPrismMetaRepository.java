@@ -9,13 +9,15 @@ public class PatchedPrismMetaRepository extends DelegatingMetaRepository {
     private static final List<String> ASM_MODULES = List.of("asm", "asm-commons", "asm-tree", "asm-analysis", "asm-util");
     private static final String ASM_VERSION = "9.8";
     private static final boolean UPGRADE_JAVA = false;
+    private static final boolean UPGRADE_LWJGL = false;
+    private static final boolean FORCE_RFB = false;
 
     public PatchedPrismMetaRepository() {
         super(HTTPMetaRepository.prism());
     }
 
     private Stream<Requirement> transformRequirement(Requirement requirement) {
-        if (requirement.uid().equals("org.lwjgl")) {
+        if (UPGRADE_LWJGL && requirement.uid().equals("org.lwjgl")) {
             // Upgrade to LWJGL3 + legacy-lwjgl
             return Stream.of(
                     new Requirement("org.taumc.legacy-lwjgl", Optional.empty(), Optional.empty())
@@ -28,7 +30,7 @@ public class PatchedPrismMetaRepository extends DelegatingMetaRepository {
     @Override
     protected Component.ComponentBuilder transformComponent(Component.ComponentBuilder builder, Component original) {
         builder = super.transformComponent(builder, original);
-        if (original.mainClass().isPresent() && original.mainClass().get().equals("net.minecraft.launchwrapper.Launch")) {
+        if (FORCE_RFB && original.mainClass().isPresent() && original.mainClass().get().equals("net.minecraft.launchwrapper.Launch")) {
             // Replace LaunchWrapper with RetroFuturaBootstrap for Java 9+ compat plus more powerful plugins
             builder.mainClass(Optional.of("com.gtnewhorizons.retrofuturabootstrap.Main"));
             builder.require(Requirement.strict("org.taumc.rfb-args", UPGRADE_JAVA ? "java9" : "java8"));
