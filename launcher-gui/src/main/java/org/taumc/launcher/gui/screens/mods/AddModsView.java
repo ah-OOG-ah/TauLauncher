@@ -172,10 +172,8 @@ public class AddModsView extends JDialog {
         searchResultsList.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                System.out.println(e.getClickCount());
                 if (e.getClickCount() == 2 && SwingUtilities.isLeftMouseButton(e)) {
                     int index = searchResultsList.locationToIndex(e.getPoint());
-                    System.out.println("I: " + index + " O: " + searchResultsList.getSelectedIndex());
                     if (index != -1 && index == searchResultsList.getSelectedIndex()) {
                         if (filesComboBox.getSelectedItem() instanceof DownloadableFile file) {
                             if (downloadModsPanel.modListModel.contains(file)) {
@@ -284,8 +282,12 @@ public class AddModsView extends JDialog {
             var entry = container.mod();
             titleLabel.setText(entry.name());
             summaryLabel.setText(entry.summary());
-            var future = modIcons.computeIfAbsent(entry.smallIconUrl(), url -> CompletableFuture.supplyAsync(() -> IconUtil.loadIconFromURL(url, 64)).whenCompleteAsync((c, t) -> AddModsView.this.searchResultsList.repaint(), SwingUtilities::invokeLater));
-            iconLabel.setIcon(future.getNow(null));
+            if (!entry.smallIconUrl().isEmpty()) {
+                var future = modIcons.computeIfAbsent(entry.smallIconUrl(), url -> CompletableFuture.supplyAsync(() -> IconUtil.loadIconFromURL(url, 64)).whenCompleteAsync((c, t) -> AddModsView.this.searchResultsList.repaint(), SwingUtilities::invokeLater));
+                iconLabel.setIcon(future.getNow(null));
+            } else {
+                iconLabel.setIcon(null);
+            }
 
             if (isSelected) {
                 setBackground(list.getSelectionBackground());

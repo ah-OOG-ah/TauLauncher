@@ -12,6 +12,9 @@ import java.util.concurrent.CompletableFuture;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record Version(String name, String version_number, List<String> game_versions, String version_type, String id, String project_id, int downloads, List<File> files) implements DownloadableFile {
     private File getPrimaryFile() {
+        if (files.size() == 1) {
+            return files.getFirst();
+        }
         for (var f : files) {
             if (f.primary()) {
                 return f;

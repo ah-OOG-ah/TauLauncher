@@ -8,6 +8,8 @@ dependencies {
 
     implementation("com.vdurmont:semver4j:3.1.0")
 
+    implementation("org.commonmark:commonmark:0.25.0")
+
     api("com.fasterxml.jackson.core:jackson-databind:2.19.0")
     api("com.fasterxml.jackson.core:jackson-core:2.19.0")
     api("com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.19.0")
