@@ -62,6 +62,7 @@ public class InstanceEditView extends JFrame {
 
     private InstanceEditView(HomeView owner, String instance) {
         super(instance);
+        this.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         this.owner = owner;
         this.instance = instance;
         this.instancePath = UIPaths.INSTANCES_FOLDER.resolve(this.instance);

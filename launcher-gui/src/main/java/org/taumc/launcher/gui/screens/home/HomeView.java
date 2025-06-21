@@ -141,7 +141,7 @@ public class HomeView extends JFrame {
 
         this.setSize(800, 600);
         this.setLocationRelativeTo(null);
-        this.setDefaultCloseOperation(EXIT_ON_CLOSE);
+        this.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 
         // Update initial state
         this.refreshInstanceButtons();
