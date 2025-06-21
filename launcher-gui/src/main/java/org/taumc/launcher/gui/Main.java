@@ -9,6 +9,7 @@ import org.taumc.launcher.gui.screens.home.HomeModel;
 import org.taumc.launcher.gui.screens.home.HomeView;
 import org.taumc.launcher.core.meta.json.MetadataService;
 
+import javax.swing.*;
 import java.nio.file.Files;
 import java.util.List;
 
@@ -26,7 +27,9 @@ public class Main {
         ACCOUNTS.loadFromDisk();
         FlatDarkLaf.setup();
         Files.createDirectories(UIPaths.INSTANCES_FOLDER);
-        new HomeView(new HomeModel()).setVisible(true);
+        SwingUtilities.invokeLater(() -> {
+            new HomeView(new HomeModel()).setVisible(true);
+        });
     }
 
     public static List<MetaRepository> getDefaultRepositories() {
