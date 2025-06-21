@@ -248,8 +248,9 @@ public class RuntimeInstance {
                 if (component.isPresent()) {
                     throw new IllegalStateException("Component " + complainingComponent.uid() + " has requirement " + r + ", but version " + component.get().version() + " is already added");
                 }
-                LOGGER.info("Adding missing component {} with version {}", r.uid(), r.recommendedVersion());
-                this.addComponent(new MMCPack.Component(r.uid(), r.recommendedVersion()));
+                String version = r.recommendedVersion().orElseGet(() -> this.getMetadataService().getKnownVersions(r.uid()).getLast());
+                LOGGER.info("Adding missing component {} with version {}", r.uid(), version);
+                this.addComponent(new MMCPack.Component(r.uid(), version));
             }
         }
     }

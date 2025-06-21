@@ -11,7 +11,7 @@ import java.util.stream.Collectors;
 
 public class MetadataService implements Closeable {
     private static final Logger LOGGER = LoggerFactory.getLogger(MetadataService.class);
-    public record DiscoveredPackageIndex(MetaRepository repo, PackageIndex index, Set<String> knownVersions) {}
+    public record DiscoveredPackageIndex(MetaRepository repo, PackageIndex index, SequencedSet<String> knownVersions) {}
 
     private final List<MetaRepository> repositories;
     private final Map<String, List<DiscoveredPackageIndex>> packageIndex;
@@ -53,7 +53,7 @@ public class MetadataService implements Closeable {
             for (var pkg : index.packages()) {
                 var pkgIndex = repo.getPackageIndex(pkg.uid());
                 var knownVersions = pkgIndex.versions().stream().map(PackageIndex.Version::version).collect(Collectors.toCollection(LinkedHashSet::new));
-                this.packageIndex.computeIfAbsent(pkg.uid(), $ -> new ArrayList<>()).add(new DiscoveredPackageIndex(repo, pkgIndex, Collections.unmodifiableSet(knownVersions)));
+                this.packageIndex.computeIfAbsent(pkg.uid(), $ -> new ArrayList<>()).add(new DiscoveredPackageIndex(repo, pkgIndex, Collections.unmodifiableSequencedSet(knownVersions)));
             }
         }
         this.indexed = true;
@@ -64,10 +64,10 @@ public class MetadataService implements Closeable {
         return Collections.unmodifiableSet(this.packageIndex.keySet());
     }
 
-    public Set<String> getKnownVersions(String pkg) {
+    public SequencedSet<String> getKnownVersions(String pkg) {
         this.checkIndexed();
         var indexes = this.packageIndex.getOrDefault(pkg, List.of());
-        Set<String> versions = new LinkedHashSet<>();
+        SequencedSet<String> versions = new LinkedHashSet<>();
         indexes.forEach(i -> versions.addAll(i.knownVersions()));
         return versions;
     }

@@ -15,18 +15,27 @@ public record Requirement(String uid, Optional<String> suggests, Optional<String
         return foundComponent;
     }
 
-    public String recommendedVersion() {
+    public Optional<String> recommendedVersion() {
         if (equals.isPresent()) {
-            return equals.get();
+            return equals;
         }
-        if (suggests.isPresent()) {
-            return suggests.get();
-        }
-        throw new IllegalStateException("Don't know how to recommend a version for component " + uid);
+        return suggests;
     }
 
     @Override
     public String toString() {
         return uid + " = " + (equals.isEmpty() ? "~"  : "") + recommendedVersion();
+    }
+
+    public static Requirement strict(String uid, String version) {
+        return new Requirement(uid, Optional.empty(), Optional.of(version));
+    }
+
+    public static Requirement approximately(String uid, String version) {
+        return new Requirement(uid, Optional.of(version), Optional.empty());
+    }
+
+    public static Requirement any(String uid) {
+        return new Requirement(uid, Optional.empty(), Optional.empty());
     }
 }

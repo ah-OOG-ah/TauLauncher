@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.Optional;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-@Builder
+@Builder(toBuilder = true)
 public record Component(
         String name,
         String uid,
@@ -36,5 +36,21 @@ public record Component(
             return true;
         }
         return provides != null && provides.contains(uid);
+    }
+
+    public static class ComponentBuilder {
+        ComponentBuilder() {
+            this.assetIndex = Optional.empty();
+            this.mainJar = Optional.empty();
+            this.mainClass = Optional.empty();
+        }
+
+        public ComponentBuilder packageIndex(PackageIndex packageIndex, PackageIndex.Version version) {
+            requires(version.requires());
+            version(version.version());
+            name(packageIndex.name());
+            uid(packageIndex.uid());
+            return this;
+        }
     }
 }
