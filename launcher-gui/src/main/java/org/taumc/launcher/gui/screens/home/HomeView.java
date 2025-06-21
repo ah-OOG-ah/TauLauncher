@@ -166,6 +166,7 @@ public class HomeView extends JFrame {
         }
         try {
             model.createInstance(name);
+            model.setSelectedInstance(name);
         } catch (IOException e) {
             JOptionPane.showMessageDialog(null, e.toString(), "Error", JOptionPane.ERROR_MESSAGE);
             return;
@@ -173,7 +174,6 @@ public class HomeView extends JFrame {
             this.refreshInstanceButtons();
             this.refreshSidebar();
         }
-        model.setSelectedInstance(name);
         InstanceEditView.createOrShow(this, name);
     }
 
@@ -242,6 +242,10 @@ public class HomeView extends JFrame {
 
             this.instanceButtonGroup.add(toggle);
             this.instanceGridPanel.add(toggle);
+
+            if (name.equals(model.getSelectedInstance())) {
+                this.instanceButtonGroup.setSelected(toggle.getModel(), true);
+            }
         }
 
         instanceGridPanel.revalidate();
