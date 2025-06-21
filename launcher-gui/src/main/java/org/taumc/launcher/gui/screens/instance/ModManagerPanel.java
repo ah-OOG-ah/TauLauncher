@@ -181,7 +181,8 @@ public class ModManagerPanel extends JPanel {
     }
 
     private void removeSelectedMods() {
-        int[] selectedRows = modTable.getSelectedRows();
+        int[] selectedRows = Arrays.stream(modTable.getSelectedRows()).map(modTable::convertRowIndexToModel).toArray();
+        Arrays.sort(selectedRows);
         if (selectedRows.length == 0) {
             JOptionPane.showMessageDialog(this, "No mods selected to remove.", "Warning", JOptionPane.WARNING_MESSAGE);
             return;
