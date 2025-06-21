@@ -94,6 +94,11 @@ public class LaunchHandler {
                     SwingUtilities.invokeLater(() -> new LogViewFrame(this.instance, process).setVisible(true));
                 }
             }, LAUNCH_EXECUTOR).whenComplete((p, t) -> {
+                try {
+                    Main.ACCOUNTS.saveToDisk();
+                } catch (IOException e) {
+                    LOGGER.error("Error persisting accounts", e);
+                }
                 if (t != null) {
                     LOGGER.error("Error launching game", t);
                 }
