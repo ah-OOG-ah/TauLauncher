@@ -62,6 +62,8 @@ public class RuntimeInstance {
     private final List<Component> components = new ArrayList<>();
 
     private final List<Path> libraryPaths = new ArrayList<>();
+    private final List<Path> agents = new ArrayList<>();
+
     private Optional<Artifact> assetIndex;
     private Path mainJarPath;
     private Process currentProcess;
@@ -308,6 +310,8 @@ public class RuntimeInstance {
             command.addAll((List<String>)extraArgs);
         });
 
+        this.agents.forEach(p -> command.add("-javaagent:" + p.toAbsolutePath().toString()));
+
         for (var prop : this.systemProperties.entrySet()) {
             command.add("-D" + prop.getKey() + "=" + prop.getValue());
         }
@@ -417,6 +421,9 @@ public class RuntimeInstance {
 
         // Download Maven files, but don't add them to the class path
         this.getOrDownloadLibraries(this.components.stream().map(Component::mavenFiles).filter(Objects::nonNull).flatMap(Collection::stream).toList());
+
+        this.agents.clear();
+        this.agents.addAll(this.getOrDownloadLibraries(this.components.stream().map(Component::agents).filter(Objects::nonNull).flatMap(Collection::stream).toList()));
 
         // Bootstrap the game
         this.mainComponent = this.components.stream().filter(c -> c.mainJar().isPresent()).findFirst().orElseThrow(() -> new IllegalStateException("Main jar does not exist in any components"));

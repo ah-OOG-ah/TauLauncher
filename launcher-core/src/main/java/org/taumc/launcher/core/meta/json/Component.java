@@ -28,6 +28,7 @@ public record Component(
         List<String> provides,
         @Singular List<Integer> compatibleJavaMajors,
         @Singular @JsonProperty("+traits") List<String> traits,
+        @Singular @JsonProperty("+agents") List<Library> agents,
         @Singular @JsonAnySetter Map<String, Object> extraProperties
 ) implements ComponentCoordinate {
     public Object extraProperty(String name) {

@@ -8,7 +8,7 @@ import java.util.stream.Stream;
 public class PatchedPrismMetaRepository extends DelegatingMetaRepository {
     private static final List<String> ASM_MODULES = List.of("asm", "asm-commons", "asm-tree", "asm-analysis", "asm-util");
     private static final String ASM_VERSION = "9.8";
-    private static boolean UPGRADE_JAVA = false;
+    private static final boolean UPGRADE_JAVA = true;
 
     public PatchedPrismMetaRepository() {
         super(HTTPMetaRepository.prism());
@@ -36,9 +36,13 @@ public class PatchedPrismMetaRepository extends DelegatingMetaRepository {
                     Library.fromMaven("com.gtnewhorizons.retrofuturabootstrap:RetroFuturaBootstrap:1.0.11", "https://nexus.gtnewhorizons.com/repository/public/") : l).toList());
             newLibraries.removeIf(lib -> lib.name().startsWith("org.ow2.asm"));
             ASM_MODULES.forEach(module -> newLibraries.add(Library.fromMaven("org.ow2.asm:" + module + ":" + ASM_VERSION, "https://libraries.minecraft.net/")));
+            newLibraries.add(Library.fromMaven("org.apache.commons:commons-compress:1.26.2", "https://nexus.gtnewhorizons.com/repository/public/"));
+            newLibraries.add(Library.fromMaven("commons-io:commons-io:2.16.1", "https://nexus.gtnewhorizons.com/repository/public/"));
+
             builder.libraries(newLibraries);
         }
         if (UPGRADE_JAVA && original.compatibleJavaMajors() != null && !original.compatibleJavaMajors().contains(21)) {
+            builder.agent(Library.fromMaven("org.taumc:fml-java-fix-agent:0.1.0", "https://maven.taumc.org/releases/"));
             builder.compatibleJavaMajor(21);
         }
         return builder;
