@@ -35,6 +35,7 @@ public class IconUtil {
             }
 
             Image scaled = image.getScaledInstance(size, size, Image.SCALE_SMOOTH);
+            image.flush();
             ImageIcon icon = new ImageIcon(scaled);
             iconCache.put(cacheKey, icon);
             return icon;

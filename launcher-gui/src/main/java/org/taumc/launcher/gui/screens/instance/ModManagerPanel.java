@@ -6,7 +6,10 @@ import org.taumc.launcher.core.meta.json.MMCPack;
 import org.taumc.launcher.gui.SwingHelpers;
 import org.taumc.launcher.gui.launch.LaunchHandler;
 import org.taumc.launcher.gui.screens.mods.AddModsView;
+import org.tomlj.Toml;
+import org.tomlj.TomlParseResult;
 
+import javax.imageio.ImageIO;
 import javax.swing.*;
 import javax.swing.filechooser.FileFilter;
 import javax.swing.filechooser.FileNameExtensionFilter;
@@ -16,6 +19,7 @@ import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -24,14 +28,19 @@ import java.nio.file.StandardCopyOption;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 public class ModManagerPanel extends JPanel {
+    private static final int ICON_SIZE = 24;
     private static final Logger LOGGER = LoggerFactory.getLogger(ModManagerPanel.class);
 
     private final Path instancePath;
     private final Frame owner;
     private final ListModel<MMCPack.Component> installedComponents;
+    private final Map<Path, CompletableFuture<ImageIcon>> iconFutures = new HashMap<>();
 
     private JTable modTable;
     private ModTableModel modTableModel;
@@ -58,19 +67,20 @@ public class ModManagerPanel extends JPanel {
                 return modTableModel.getColumnClass(column);
             }
         };
-        modTable.setRowHeight(24); // make row tall enough for images
+        modTable.setRowHeight(ICON_SIZE); // make row tall enough for images
         modTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
         modTable.setAutoCreateRowSorter(true);
 
         SwingUtilities.invokeLater(() -> {
             TableRowSorter<?> sorter = (TableRowSorter<?>) modTable.getRowSorter();
-            sorter.setSortKeys(List.of(new RowSorter.SortKey(1, SortOrder.ASCENDING)));
+            sorter.setSortKeys(List.of(new RowSorter.SortKey(2, SortOrder.ASCENDING)));
             sorter.sort();
         });
 
         modTable.getColumnModel().getColumn(0).setPreferredWidth(60);
-        modTable.getColumnModel().getColumn(1).setPreferredWidth(200);
-        modTable.getColumnModel().getColumn(2).setPreferredWidth(80);
+        modTable.getColumnModel().getColumn(1).setPreferredWidth(40);
+        modTable.getColumnModel().getColumn(2).setPreferredWidth(200);
+        modTable.getColumnModel().getColumn(3).setPreferredWidth(80);
 
         // Checkbox editor/renderer already handled by default for Boolean class
 
@@ -132,8 +142,7 @@ public class ModManagerPanel extends JPanel {
                 var columnModel = modTable.getColumnModel();
 
                 // Calculate width taken by fixed columns
-                int fixedWidth = columnModel.getColumn(0).getPreferredWidth()
-                        + columnModel.getColumn(2).getPreferredWidth();
+                int fixedWidth = IntStream.range(0, ModTableModel.COLUMNS.size()).map(i -> ModTableModel.COLUMNS.get(i).fixed() ? columnModel.getColumn(i).getPreferredWidth() : 0).sum();
 
                 // Subtract column margins (if any)
                 int columnMargin = columnModel.getColumnMargin() * columnModel.getColumnCount();
@@ -144,7 +153,8 @@ public class ModManagerPanel extends JPanel {
 
                 if (middleWidth < 50) middleWidth = 50; // minimal width guard
 
-                columnModel.getColumn(1).setPreferredWidth(middleWidth);
+                int middleWidthPerColumn = middleWidth / (int)ModTableModel.COLUMNS.stream().filter(c -> !c.fixed()).count();
+                IntStream.range(0, ModTableModel.COLUMNS.size()).filter(i -> !ModTableModel.COLUMNS.get(i).fixed()).forEach(i -> columnModel.getColumn(i).setPreferredWidth(middleWidthPerColumn));
 
                 // Force table to re-layout columns
                 modTable.doLayout();
@@ -154,6 +164,53 @@ public class ModManagerPanel extends JPanel {
 
     private Path getModsFolder() {
         return LaunchHandler.computeMinecraftFolder(instancePath).resolve("mods");
+    }
+
+
+    private ImageIcon computeForgeModIcon(ZipEntry modsToml, ZipFile file) throws IOException {
+        TomlParseResult toml;
+        try (var is = file.getInputStream(modsToml)) {
+            toml = Toml.parse(is);
+        }
+        var mods = toml.getArrayOrEmpty("mods");
+        if (!mods.isEmpty()) {
+            String logoFile = Objects.requireNonNullElse(mods.getTable(0).get("logoFile"), "").toString();
+            if (!logoFile.isBlank()) {
+                var ze = file.getEntry(logoFile);
+                if (ze != null) {
+                    try (var is = file.getInputStream(ze)) {
+                        BufferedImage img = ImageIO.read(is);
+                        if (img != null) {
+                            var scaled = img.getScaledInstance(ICON_SIZE, ICON_SIZE, Image.SCALE_SMOOTH);
+                            img.flush();
+                            return new ImageIcon(scaled);
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private CompletableFuture<ImageIcon> computeModIcon(Path path) {
+        if (true) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return CompletableFuture.supplyAsync(() -> {
+            try (ZipFile zf = new ZipFile(path.toFile())) {
+                var forgeMod = zf.getEntry("META-INF/mods.toml");
+                if (forgeMod != null) {
+                    return computeForgeModIcon(forgeMod, zf);
+                }
+                var neoforgeMod = zf.getEntry("META-INF/neoforge.mods.toml");
+                if (neoforgeMod != null) {
+                    return computeForgeModIcon(neoforgeMod, zf);
+                }
+            } catch (Exception e) {
+                LOGGER.error("Error computing mod icon for {}", path.getFileName().toString(), e);
+            }
+            return null;
+        });
     }
 
     private void refreshTableModel() {
@@ -170,7 +227,7 @@ public class ModManagerPanel extends JPanel {
                     if (!enabled) {
                         name = name.substring(0, name.length() - 9);
                     }
-                    var mod = new Mod(enabled, null, name, "unknown", filePath);
+                    var mod = new Mod(enabled, iconFutures.computeIfAbsent(filePath, this::computeModIcon), name, "unknown", filePath);
                     modTableModel.addMod(mod);
                 });
             }
@@ -213,12 +270,12 @@ public class ModManagerPanel extends JPanel {
     // Mod data class
     private static class Mod {
         boolean enabled;
-        ImageIcon icon;
+        CompletableFuture<ImageIcon> icon;
         String name;
         String version;
         Path path;
 
-        public Mod(boolean enabled, ImageIcon icon, String name, String version, Path path) {
+        public Mod(boolean enabled, CompletableFuture<ImageIcon> icon, String name, String version, Path path) {
             this.enabled = enabled;
             this.icon = icon;
             this.name = name;
@@ -229,11 +286,12 @@ public class ModManagerPanel extends JPanel {
 
     // Table model
     private static class ModTableModel extends AbstractTableModel {
-        private record Column(String name, Class<?> clz) {}
-        private final List<Column> columns = List.of(
-                new Column("Enable", Boolean.class),
-                new Column("Name", String.class),
-                new Column("Version", String.class)
+        public record Column(String name, Class<?> clz, boolean fixed) {}
+        public static final List<Column> COLUMNS = List.of(
+                new Column("Enable", Boolean.class, true),
+                new Column("Icon", Icon.class, true),
+                new Column("Name", String.class, false),
+                new Column("Version", String.class, true)
         );
         private final java.util.List<Mod> mods = new ArrayList<>();
 
@@ -268,17 +326,17 @@ public class ModManagerPanel extends JPanel {
 
         @Override
         public int getColumnCount() {
-            return columns.size();
+            return COLUMNS.size();
         }
 
         @Override
         public String getColumnName(int col) {
-            return columns.get(col).name();
+            return COLUMNS.get(col).name();
         }
 
         @Override
         public Class<?> getColumnClass(int col) {
-            return columns.get(col).clz();
+            return COLUMNS.get(col).clz();
         }
 
         @Override
@@ -286,8 +344,9 @@ public class ModManagerPanel extends JPanel {
             Mod mod = mods.get(rowIndex);
             return switch (columnIndex) {
                 case 0 -> mod.enabled;
-                case 1 -> mod.name;
-                case 2 -> mod.version;
+                case 1 -> mod.icon.getNow(null);
+                case 2 -> mod.name;
+                case 3 -> mod.version;
                 default -> null;
             };
         }

@@ -128,6 +128,7 @@ public class InstanceEditView extends JFrame {
                 InstanceEditView.this.saveCurrentConfig();
                 InstanceEditView.this.metadataService.join().close();
                 OPEN_EDIT_VIEWS.remove(instance);
+                panels.values().forEach(p -> p.getParent().remove(p));
                 owner.refreshSidebar();
             }
         });

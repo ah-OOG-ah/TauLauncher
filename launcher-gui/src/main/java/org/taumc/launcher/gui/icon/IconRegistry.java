@@ -27,6 +27,7 @@ public class IconRegistry {
             int scaledWidth = (int) (originalWidth * scale);
 
             Image scaled = img.getScaledInstance(scaledWidth, fixedHeight, Image.SCALE_SMOOTH);
+            img.flush();
             return new ImageIcon(scaled);
         } catch (Exception e) {
             throw new RuntimeException("Failed to load image", e);
