@@ -338,7 +338,7 @@ public class ModManagerPanel extends JPanel {
                         .sorted(Comparator.comparing(u -> u.originalFile().getFileName().toString()))
                         .toList();
                 if (updates.isEmpty()) {
-                    JOptionPane.showMessageDialog(this.owner, "There are no updates available", "Updater", JOptionPane.ERROR_MESSAGE);
+                    JOptionPane.showMessageDialog(this.owner, "There are no updates available", "Updater", JOptionPane.INFORMATION_MESSAGE);
                     return;
                 }
                 var selectedUpdates = ModUpdateDialog.showModUpdateDialog(this.owner, updates);
