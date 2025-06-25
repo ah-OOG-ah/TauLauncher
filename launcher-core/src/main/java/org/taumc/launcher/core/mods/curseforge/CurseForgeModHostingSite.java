@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Semaphore;
 
 public class CurseForgeModHostingSite implements ModHostingSite<Mod, File> {
     public static final CurseForgeAPI API = CurseForgeAPI.INSTANCE;
@@ -49,20 +50,29 @@ public class CurseForgeModHostingSite implements ModHostingSite<Mod, File> {
             }
         }).toList();
         return API.getFingerprintMatches(hashes).thenComposeAsync(result -> {
+            if (result.exactFingerprints().size() != result.exactMatches().size()) {
+                throw new IllegalStateException("Unexpected response size mismatch in fingerprint query");
+            }
             Map<Integer, Integer> hashToIndex = new HashMap<>();
             for (int i = 0; i < hashes.size(); i++) {
                 hashToIndex.put(hashes.get(i), i);
             }
             List<CompletableFuture<ModUpdate>> updates = new ArrayList<>();
+            Semaphore semaphore = new Semaphore(10);
             for (int i = 0; i < result.exactFingerprints().size(); i++) {
                 var fingerprint = result.exactFingerprints().get(i);
+                var match = result.exactMatches().get(i);
                 Integer index = hashToIndex.get(fingerprint.intValue());
                 if (index == null) {
                     throw new IllegalStateException("Received hash that was never sent: " + fingerprint);
                 }
-                var match = result.exactMatches().get(i);
-                var originalPath = modFiles.get(i);
-                updates.add(API.getModFiles(match.file().modId(), searchOptions).thenApply(fileList -> {
+                var originalPath = modFiles.get(index);
+                try {
+                    semaphore.acquire();
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+                updates.add(API.getModFiles(match.file().modId(), searchOptions).whenComplete((c, t) -> semaphore.release()).thenApply(fileList -> {
                     var latest = fileList.stream().filter(f -> f.downloadUrl() != null).findFirst();
                     if (latest.isEmpty() || latest.get().id() == match.file().id()) {
                         return null;

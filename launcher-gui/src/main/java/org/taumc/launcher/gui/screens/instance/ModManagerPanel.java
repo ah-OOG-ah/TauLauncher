@@ -327,10 +327,16 @@ public class ModManagerPanel extends JPanel {
             CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).whenCompleteAsync((c, t) -> {
                 task.close();
                 if (t != null) {
+                    LOGGER.error("Error checking for updates", t);
                     JOptionPane.showMessageDialog(this.owner, t.toString(), "Error checking for updates", JOptionPane.ERROR_MESSAGE);
                     return;
                 }
-                var updates = List.copyOf(futures.stream().map(CompletableFuture::join).flatMap(Collection::stream).collect(Collectors.toMap(ModUpdate::originalFile, Function.identity(), (a, b) -> b)).values());
+                var updates = futures.stream().map(CompletableFuture::join).flatMap(Collection::stream)
+                        .collect(Collectors.toMap(ModUpdate::originalFile, Function.identity(), (a, b) -> b))
+                        .values()
+                        .stream()
+                        .sorted(Comparator.comparing(u -> u.originalFile().getFileName().toString()))
+                        .toList();
                 if (updates.isEmpty()) {
                     JOptionPane.showMessageDialog(this.owner, "There are no updates available", "Updater", JOptionPane.ERROR_MESSAGE);
                     return;
