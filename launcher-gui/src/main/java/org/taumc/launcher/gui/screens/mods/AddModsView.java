@@ -10,6 +10,7 @@ import org.taumc.launcher.core.mods.ModSearchOptions;
 import org.taumc.launcher.core.mods.ProjectType;
 import org.taumc.launcher.core.mods.curseforge.CurseForgeModHostingSite;
 import org.taumc.launcher.core.mods.modrinth.ModrinthModHostingSite;
+import org.taumc.launcher.gui.SwingHelpers;
 import org.taumc.launcher.gui.icon.IconUtil;
 import org.taumc.launcher.gui.launch.ProgressDialog;
 
@@ -239,6 +240,7 @@ public class AddModsView extends JFrame {
     }
 
     private class ModSearchEntryRenderer extends JPanel implements ListCellRenderer<ModEntry<?, ?>> {
+        private static final int ICON_SIZE = 48;
         private final JLabel iconLabel = new JLabel();
         private final JTextArea titleLabel = new JTextArea();
         private final JTextArea summaryLabel = new JTextArea();
@@ -248,7 +250,6 @@ public class AddModsView extends JFrame {
             setLayout(new BorderLayout(10, 0));
             setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
 
-            iconLabel.setPreferredSize(new Dimension(48, 48)); // Square logo
             iconLabel.setHorizontalAlignment(JLabel.CENTER);
             iconLabel.setVerticalAlignment(JLabel.CENTER);
 
@@ -256,6 +257,7 @@ public class AddModsView extends JFrame {
             textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
             textPanel.add(titleLabel);
             textPanel.add(summaryLabel);
+            textPanel.setOpaque(false);
 
             titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD));
             titleLabel.setOpaque(false);
@@ -273,10 +275,11 @@ public class AddModsView extends JFrame {
                                                       boolean isSelected,
                                                       boolean cellHasFocus) {
             var entry = container.mod();
+            iconLabel.setPreferredSize(new Dimension(ICON_SIZE, ICON_SIZE));
             titleLabel.setText(entry.name());
-            summaryLabel.setText(entry.summary());
+            summaryLabel.setText(SwingHelpers.ellipsize(summaryLabel.getFontMetrics(summaryLabel.getFont()), entry.summary(), list.getWidth() - ICON_SIZE - 20 - 20));
             if (!entry.smallIconUrl().isEmpty()) {
-                var future = modIcons.computeIfAbsent(entry.smallIconUrl(), url -> CompletableFuture.supplyAsync(() -> IconUtil.loadIconFromURL(url, 64)).whenCompleteAsync((c, t) -> AddModsView.this.searchResultsList.repaint(), SwingUtilities::invokeLater));
+                var future = modIcons.computeIfAbsent(entry.smallIconUrl(), url -> CompletableFuture.supplyAsync(() -> IconUtil.loadIconFromURL(url, ICON_SIZE)).whenCompleteAsync((c, t) -> AddModsView.this.searchResultsList.repaint(), SwingUtilities::invokeLater));
                 iconLabel.setIcon(future.getNow(null));
             } else {
                 iconLabel.setIcon(null);

@@ -91,4 +91,31 @@ public class SwingHelpers {
         }
         return false;
     }
+
+    public static String ellipsize(FontMetrics fm, String text, int maxWidth) {
+        String ellipsis = "…";
+
+        if (fm.stringWidth(text) <= maxWidth) {
+            return text;
+        }
+
+        int low = 0;
+        int high = text.length();
+
+        while (low < high) {
+            int mid = (low + high) / 2;
+            String candidate = text.substring(0, mid) + ellipsis;
+            int width = fm.stringWidth(candidate);
+
+            if (width <= maxWidth) {
+                low = mid + 1; // try longer substring
+            } else {
+                high = mid;    // try shorter substring
+            }
+        }
+
+        // low is now the first index that *doesn't* fit, so use low-1
+        int cutOff = Math.max(low - 1, 0);
+        return text.substring(0, cutOff) + ellipsis;
+    }
 }
