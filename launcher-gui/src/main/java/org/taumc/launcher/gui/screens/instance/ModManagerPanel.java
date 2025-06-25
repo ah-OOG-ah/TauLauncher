@@ -242,7 +242,15 @@ public class ModManagerPanel extends JPanel {
             var mapper = JsonMapper.builder()
                     .configure(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS, true)
                     .build();
-            List<ModInfo> modInfos = mapper.readValue(is, new TypeReference<>() {});
+            var node = mapper.readTree(is);
+            List<ModInfo> modInfos;
+            if (node.isArray()) {
+                modInfos = mapper.treeToValue(node, new TypeReference<>() {});
+            } else if (node.isObject()) {
+                modInfos = mapper.treeToValue(node.get("modList"), new TypeReference<>() {});
+            } else {
+                return null;
+            }
             if (modInfos.isEmpty()) {
                 return null;
             }
