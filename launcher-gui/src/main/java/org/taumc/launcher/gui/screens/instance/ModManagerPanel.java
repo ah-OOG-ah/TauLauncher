@@ -1,8 +1,13 @@
 package org.taumc.launcher.gui.screens.instance;
 
+import com.fasterxml.jackson.core.json.JsonReadFeature;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.taumc.launcher.core.meta.json.MMCPack;
+import org.taumc.launcher.core.meta.legacyforge.ModInfo;
 import org.taumc.launcher.gui.SwingHelpers;
 import org.taumc.launcher.gui.launch.LaunchHandler;
 import org.taumc.launcher.gui.screens.mods.AddModsView;
@@ -11,12 +16,13 @@ import org.tomlj.TomlParseResult;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
-import javax.swing.filechooser.FileFilter;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.*;
 import java.awt.*;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
@@ -28,6 +34,9 @@ import java.nio.file.StandardCopyOption;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import java.util.jar.Manifest;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
@@ -40,7 +49,7 @@ public class ModManagerPanel extends JPanel {
     private final Path instancePath;
     private final Frame owner;
     private final ListModel<MMCPack.Component> installedComponents;
-    private final Map<Path, CompletableFuture<ImageIcon>> iconFutures = new HashMap<>();
+    private final Map<Path, CompletableFuture<ModMetadata>> iconFutures = new HashMap<>();
 
     private JTable modTable;
     private ModTableModel modTableModel;
@@ -73,19 +82,18 @@ public class ModManagerPanel extends JPanel {
 
         SwingUtilities.invokeLater(() -> {
             TableRowSorter<?> sorter = (TableRowSorter<?>) modTable.getRowSorter();
-            sorter.setSortKeys(List.of(new RowSorter.SortKey(2, SortOrder.ASCENDING)));
+            sorter.setSortKeys(List.of(new RowSorter.SortKey(ModTableModel.NAME_COLUMN_INDEX, SortOrder.ASCENDING)));
             sorter.sort();
         });
 
-        modTable.getColumnModel().getColumn(0).setPreferredWidth(60);
-        modTable.getColumnModel().getColumn(1).setPreferredWidth(40);
-        modTable.getColumnModel().getColumn(2).setPreferredWidth(200);
-        modTable.getColumnModel().getColumn(3).setPreferredWidth(80);
+        IntStream.range(0, ModTableModel.COLUMNS.size()).forEach(i -> modTable.getColumnModel().getColumn(i).setPreferredWidth(ModTableModel.COLUMNS.get(i).preferredWidth()));
 
         // Checkbox editor/renderer already handled by default for Boolean class
 
         // Enable multiple row selection
         modTable.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+
+        modTable.addKeyListener(new TableSearchKeyListener());
 
         JScrollPane tableScrollPane = new JScrollPane(modTable);
 
@@ -97,8 +105,9 @@ public class ModManagerPanel extends JPanel {
         removeButton = new JButton("Remove Selected");
         downloadMoreButton = new JButton("Download More");
         var addFileButton = new JButton("Add Local File");
+        var showInFolder = new JButton("Show In Folder");
 
-        List.of(removeButton, downloadMoreButton, addFileButton).forEach(btn -> {
+        List.of(removeButton, downloadMoreButton, addFileButton, showInFolder).forEach(btn -> {
             btn.setAlignmentX(Component.CENTER_ALIGNMENT);
             sidebar.add(btn);
             sidebar.add(Box.createVerticalStrut(15));
@@ -131,6 +140,12 @@ public class ModManagerPanel extends JPanel {
                     }
                 }
                 this.refreshTableModel();
+            }
+        });
+        showInFolder.addActionListener(e -> {
+            int[] selectedRows = Arrays.stream(modTable.getSelectedRows()).map(modTable::convertRowIndexToModel).toArray();
+            for (int i : selectedRows) {
+                SwingHelpers.showFileInFolder(modTableModel.mods.get(i).path.toFile());
             }
         });
 
@@ -166,51 +181,87 @@ public class ModManagerPanel extends JPanel {
         return LaunchHandler.computeMinecraftFolder(instancePath).resolve("mods");
     }
 
-
-    private ImageIcon computeForgeModIcon(ZipEntry modsToml, ZipFile file) throws IOException {
-        TomlParseResult toml;
-        try (var is = file.getInputStream(modsToml)) {
-            toml = Toml.parse(is);
+    private ImageIcon readIcon(ZipFile file, String iconPath) throws IOException {
+        if (iconPath == null || iconPath.isBlank()) {
+            return null;
         }
-        var mods = toml.getArrayOrEmpty("mods");
-        if (!mods.isEmpty()) {
-            String logoFile = Objects.requireNonNullElse(mods.getTable(0).get("logoFile"), "").toString();
-            if (!logoFile.isBlank()) {
-                var ze = file.getEntry(logoFile);
-                if (ze != null) {
-                    try (var is = file.getInputStream(ze)) {
-                        BufferedImage img = ImageIO.read(is);
-                        if (img != null) {
-                            var scaled = img.getScaledInstance(ICON_SIZE, ICON_SIZE, Image.SCALE_SMOOTH);
-                            img.flush();
-                            return new ImageIcon(scaled);
-                        }
-                    }
+        var ze = file.getEntry(iconPath);
+        if (ze != null) {
+            try (var is = file.getInputStream(ze)) {
+                BufferedImage img = ImageIO.read(is);
+                if (img != null) {
+                    var scaled = img.getScaledInstance(ICON_SIZE, ICON_SIZE, Image.SCALE_SMOOTH);
+                    img.flush();
+                    return new ImageIcon(scaled);
                 }
             }
         }
         return null;
     }
 
-    private CompletableFuture<ImageIcon> computeModIcon(Path path) {
-        if (true) {
-            return CompletableFuture.completedFuture(null);
+    private ModMetadata computeForgeMetadata(ZipEntry modsToml, ZipFile file) throws IOException {
+        TomlParseResult toml;
+        try (var is = file.getInputStream(modsToml)) {
+            toml = Toml.parse(is);
         }
+        var mods = toml.getArrayOrEmpty("mods");
+        ImageIcon icon = null;
+        String name = null, version = null;
+        if (!mods.isEmpty()) {
+            var modData = mods.getTable(0);
+            String logoFile = Objects.requireNonNullElse(modData.get("logoFile"), "").toString();
+            name = Objects.requireNonNullElse(modData.get("displayName"), "").toString();
+            if (name.isBlank()) {
+                name = null;
+            }
+            version = Objects.requireNonNullElse(modData.get("version"), "").toString();
+            if (version.equals("${file.jarVersion}") && file.getEntry("META-INF/MANIFEST.MF") instanceof ZipEntry me) {
+                try (var is = file.getInputStream(me)) {
+                    Manifest manifest = new Manifest(is);
+                    version = Objects.requireNonNullElse(manifest.getMainAttributes().getValue("Implementation-Version"), "");
+                }
+            }
+            icon = readIcon(file, logoFile);
+        }
+        return new ModMetadata(icon, name, version);
+    }
+
+    private ModMetadata computeLegacyForgeMetadata(ZipEntry mcmodInfo, ZipFile file) throws IOException {
+        try (var is = file.getInputStream(mcmodInfo)) {
+            var mapper = JsonMapper.builder()
+                    .configure(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS, true)
+                    .build();
+            List<ModInfo> modInfos = mapper.readValue(is, new TypeReference<>() {});
+            if (modInfos.isEmpty()) {
+                return null;
+            }
+            var modInfo = modInfos.getFirst();
+            return new ModMetadata(readIcon(file, modInfo.logoFile()), modInfo.name(), modInfo.version());
+        }
+    }
+
+    private record ModMetadata(ImageIcon icon, String name, String version) {}
+
+    private CompletableFuture<ModMetadata> computeMetadata(Path path) {
         return CompletableFuture.supplyAsync(() -> {
             try (ZipFile zf = new ZipFile(path.toFile())) {
                 var forgeMod = zf.getEntry("META-INF/mods.toml");
                 if (forgeMod != null) {
-                    return computeForgeModIcon(forgeMod, zf);
+                    return computeForgeMetadata(forgeMod, zf);
                 }
                 var neoforgeMod = zf.getEntry("META-INF/neoforge.mods.toml");
                 if (neoforgeMod != null) {
-                    return computeForgeModIcon(neoforgeMod, zf);
+                    return computeForgeMetadata(neoforgeMod, zf);
+                }
+                var legacyForgeMod = zf.getEntry("mcmod.info");
+                if (legacyForgeMod != null) {
+                    return computeLegacyForgeMetadata(legacyForgeMod, zf);
                 }
             } catch (Exception e) {
-                LOGGER.error("Error computing mod icon for {}", path.getFileName().toString(), e);
+                LOGGER.error("Error computing mod metadata for {}", path.getFileName().toString(), e);
             }
             return null;
-        });
+        }).whenCompleteAsync((m, t) -> this.modTable.repaint(), SwingUtilities::invokeLater);
     }
 
     private void refreshTableModel() {
@@ -222,12 +273,7 @@ public class ModManagerPanel extends JPanel {
 
             try(Stream<Path> stream = Files.list(modsFolder)) {
                 stream.filter(p -> !Files.isDirectory(p)).forEach(filePath -> {
-                    String name = filePath.getFileName().toString();
-                    boolean enabled = !name.endsWith(".disabled");
-                    if (!enabled) {
-                        name = name.substring(0, name.length() - 9);
-                    }
-                    var mod = new Mod(enabled, iconFutures.computeIfAbsent(filePath, this::computeModIcon), name, "unknown", filePath);
+                    var mod = new Mod(filePath);
                     modTableModel.addMod(mod);
                 });
             }
@@ -268,31 +314,39 @@ public class ModManagerPanel extends JPanel {
     }
 
     // Mod data class
-    private static class Mod {
-        boolean enabled;
-        CompletableFuture<ImageIcon> icon;
-        String name;
-        String version;
-        Path path;
+    private class Mod {
+        private final CompletableFuture<ModMetadata> metadata;
+        private final Path path;
 
-        public Mod(boolean enabled, CompletableFuture<ImageIcon> icon, String name, String version, Path path) {
-            this.enabled = enabled;
-            this.icon = icon;
-            this.name = name;
-            this.version = version;
+        public Mod(Path path) {
+            this.metadata = iconFutures.computeIfAbsent(path, ModManagerPanel.this::computeMetadata);
             this.path = path;
+        }
+
+        public boolean enabled() {
+            return !path.getFileName().toString().endsWith(".disabled");
+        }
+
+        public ModMetadata metadata() {
+            var meta = metadata.getNow(null);
+            if (meta == null) {
+                return new ModMetadata(null, path.getFileName().toString(), "");
+            } else {
+                return meta;
+            }
         }
     }
 
     // Table model
     private static class ModTableModel extends AbstractTableModel {
-        public record Column(String name, Class<?> clz, boolean fixed) {}
+        public record Column(String name, Class<?> clz, boolean fixed, int preferredWidth, Function<Mod, Object> valueGetter) {}
         public static final List<Column> COLUMNS = List.of(
-                new Column("Enable", Boolean.class, true),
-                new Column("Icon", Icon.class, true),
-                new Column("Name", String.class, false),
-                new Column("Version", String.class, true)
+                new Column("Enable", Boolean.class, true, 60, m -> m.enabled()),
+                new Column("Icon", Icon.class, true, 40, m -> m.metadata().icon()),
+                new Column("Name", String.class, false, 200, m -> m.metadata().name()),
+                new Column("Version", String.class, true, 80, m -> m.metadata().version())
         );
+        public static final int NAME_COLUMN_INDEX = IntStream.range(0, COLUMNS.size()).filter(i -> COLUMNS.get(i).name().equals("Name")).findFirst().orElseThrow();
         private final java.util.List<Mod> mods = new ArrayList<>();
 
         public void addMod(Mod mod) {
@@ -342,13 +396,7 @@ public class ModManagerPanel extends JPanel {
         @Override
         public Object getValueAt(int rowIndex, int columnIndex) {
             Mod mod = mods.get(rowIndex);
-            return switch (columnIndex) {
-                case 0 -> mod.enabled;
-                case 1 -> mod.icon.getNow(null);
-                case 2 -> mod.name;
-                case 3 -> mod.version;
-                default -> null;
-            };
+            return COLUMNS.get(columnIndex).valueGetter().apply(mod);
         }
 
         @Override
@@ -362,8 +410,37 @@ public class ModManagerPanel extends JPanel {
             if (rowIndex < 0 || rowIndex >= mods.size()) return;
             Mod mod = mods.get(rowIndex);
             if (colIndex == 0 && value instanceof Boolean) {
-                mod.enabled = (Boolean) value;
                 fireTableCellUpdated(rowIndex, colIndex);
+            }
+        }
+    }
+
+    private class TableSearchKeyListener extends KeyAdapter {
+        private final StringBuilder typed = new StringBuilder();
+        private long lastType = 0;
+        private static final long SEARCH_TIMEOUT = TimeUnit.SECONDS.toNanos(1);
+
+        @Override
+        public void keyTyped(KeyEvent e) {
+            char ch = e.getKeyChar();
+            if (Character.isISOControl(ch))
+                return;
+
+            if ((System.nanoTime() - lastType) >= SEARCH_TIMEOUT) {
+                typed.setLength(0);
+            }
+
+            lastType = System.nanoTime();
+
+            typed.append(ch);
+
+            String prefix = typed.toString().toLowerCase(Locale.ROOT);
+            for (int row = 0; row < modTable.getRowCount(); row++) {
+                Object val = modTable.getValueAt(row, ModTableModel.NAME_COLUMN_INDEX);
+                if (val != null && val.toString().toLowerCase(Locale.ROOT).startsWith(prefix)) {
+                    modTable.changeSelection(row, ModTableModel.NAME_COLUMN_INDEX, false, false);
+                    break;
+                }
             }
         }
     }

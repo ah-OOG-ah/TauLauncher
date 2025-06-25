@@ -3,6 +3,8 @@ package org.taumc.launcher.gui;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import java.io.File;
+import java.io.IOException;
 import java.util.List;
 
 public class SwingHelpers {
@@ -46,5 +48,38 @@ public class SwingHelpers {
             elements[i] = listModel.getElementAt(i);
         }
         return (List<T>)List.of(elements);
+    }
+
+    public static void showFileInFolder(File file) {
+        if (!file.exists()) {
+            System.err.println("File does not exist: " + file);
+            return;
+        }
+
+        try {
+            // Try platform-specific methods
+            String os = System.getProperty("os.name").toLowerCase();
+
+            if (os.contains("win")) {
+                // Windows: explorer /select,"C:\path\to\file.txt"
+                new ProcessBuilder("explorer.exe", "/select,", file.getAbsolutePath()).start();
+
+            } else if (os.contains("mac")) {
+                // macOS: open -R /path/to/file
+                new ProcessBuilder("open", "-R", file.getAbsolutePath()).start();
+
+            } else if (os.contains("nux") || os.contains("nix")) {
+                // Linux: best effort
+                File parent = file.getParentFile();
+                if (parent != null && parent.exists()) {
+                    new ProcessBuilder("xdg-open", parent.getAbsolutePath()).start();
+                }
+            } else {
+                // Fallback
+                Desktop.getDesktop().open(file.getParentFile());
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }
