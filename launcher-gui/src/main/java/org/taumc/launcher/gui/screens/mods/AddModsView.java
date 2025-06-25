@@ -276,8 +276,9 @@ public class AddModsView extends JFrame {
                                                       boolean cellHasFocus) {
             var entry = container.mod();
             iconLabel.setPreferredSize(new Dimension(ICON_SIZE, ICON_SIZE));
-            titleLabel.setText(entry.name());
-            summaryLabel.setText(SwingHelpers.ellipsize(summaryLabel.getFontMetrics(summaryLabel.getFont()), entry.summary(), list.getWidth() - ICON_SIZE - 20 - 20));
+            int labelWidth = list.getWidth() - ICON_SIZE - 20 - 20;
+            titleLabel.setText(SwingHelpers.ellipsize(titleLabel.getFontMetrics(titleLabel.getFont()), entry.name(), labelWidth));
+            summaryLabel.setText(SwingHelpers.ellipsize(summaryLabel.getFontMetrics(summaryLabel.getFont()), entry.summary(), labelWidth));
             if (!entry.smallIconUrl().isEmpty()) {
                 var future = modIcons.computeIfAbsent(entry.smallIconUrl(), url -> CompletableFuture.supplyAsync(() -> IconUtil.loadIconFromURL(url, ICON_SIZE)).whenCompleteAsync((c, t) -> AddModsView.this.searchResultsList.repaint(), SwingUtilities::invokeLater));
                 iconLabel.setIcon(future.getNow(null));
