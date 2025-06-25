@@ -6,6 +6,11 @@ import org.slf4j.LoggerFactory;
 import org.taumc.launcher.core.auth.Account;
 import org.taumc.launcher.core.auth.microsoft.MicrosoftAccount;
 import org.taumc.launcher.core.importer.InstanceImporter;
+import org.taumc.launcher.core.mods.ProjectType;
+import org.taumc.launcher.core.mods.curseforge.CurseForgeAPI;
+import org.taumc.launcher.core.mods.curseforge.CurseForgeInstanceCreator;
+import org.taumc.launcher.core.mods.curseforge.File;
+import org.taumc.launcher.core.nio.PathUtils;
 import org.taumc.launcher.gui.Main;
 import org.taumc.launcher.gui.SwingHelpers;
 import org.taumc.launcher.gui.components.WrapLayout;
@@ -13,16 +18,18 @@ import org.taumc.launcher.gui.icon.IconRegistry;
 import org.taumc.launcher.gui.launch.LaunchHandler;
 import org.taumc.launcher.gui.launch.ProgressDialog;
 import org.taumc.launcher.gui.screens.instance.InstanceEditView;
+import org.taumc.launcher.gui.screens.mods.AddModsView;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
+import java.nio.file.Files;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -178,12 +185,90 @@ public class HomeView extends JFrame {
     }
 
     private void showImportInstanceDialog() {
+        Object[] options = {
+                "Import from Mod Site",
+                "Import from Local File",
+                "Cancel"
+        };
+
+        int choice = JOptionPane.showOptionDialog(
+                null,
+                "Choose how you want to import the instance:",
+                "Import Instance",
+                JOptionPane.DEFAULT_OPTION,
+                JOptionPane.QUESTION_MESSAGE,
+                null,
+                options,
+                options[0]
+        );
+
+        var future = switch (choice) {
+            case 0 -> showModHostingImportInstanceDialog();
+            case 1 -> showLocalFileImportInstanceDialog();
+            default -> CompletableFuture.completedFuture(null);
+        };
+
+        future.whenCompleteAsync((c, t) -> {
+            if (t != null) {
+                Throwable realCause;
+                if (t instanceof CompletionException && t.getCause() != null) {
+                    realCause = t.getCause();
+                } else {
+                    realCause = t;
+                }
+                LOGGER.error("Error importing", realCause);
+                JOptionPane.showMessageDialog(null, realCause.toString(), "Error", JOptionPane.ERROR_MESSAGE);
+            }
+            model.updateInstanceFolders();
+            this.refreshInstanceButtons();
+        }, SwingUtilities::invokeLater);
+    }
+
+    private CompletableFuture<Void> showModHostingImportInstanceDialog() {
+        var future = new CompletableFuture<Void>();
+        new AddModsView(this, List.of(), ProjectType.MODPACK, pack -> {
+            CompletableFuture<Void> innerFuture;
+            if (!pack.isEmpty()) {
+                var thePack = pack.getFirst();
+                if (!(thePack instanceof File file)) {
+                    JOptionPane.showMessageDialog(this, "Can only import CurseForge packs", "Error", JOptionPane.ERROR_MESSAGE);
+                    innerFuture = CompletableFuture.completedFuture(null);
+                } else {
+                    innerFuture = CompletableFuture.runAsync(() -> {
+                        var creator = new CurseForgeInstanceCreator(CurseForgeAPI.INSTANCE);
+                        String baseInstanceName = file.displayName();
+                        if (baseInstanceName.isBlank()) {
+                            baseInstanceName = "CurseForge Modpack";
+                        }
+                        var path = model.getInstancePath(PathUtils.findNonexistentName(baseInstanceName, s -> Files.exists(model.getInstancePath(s))));
+                        try {
+                            creator.createInstance(path, file.modId(), file.id(), this.progressDialog);
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    });
+                }
+            } else {
+                innerFuture = CompletableFuture.completedFuture(null);
+            }
+            return innerFuture.whenComplete((c, t) -> {
+                if (t != null) {
+                    future.completeExceptionally(t);
+                } else {
+                    future.complete(c);
+                }
+            });
+        });
+        return future;
+    }
+
+    private CompletableFuture<Void> showLocalFileImportInstanceDialog() {
         JFileChooser fileChooser = new JFileChooser();
         int result = fileChooser.showOpenDialog(null); // or use a parent component
 
         if (result == JFileChooser.APPROVE_OPTION) {
             var path = fileChooser.getSelectedFile().toPath();
-            CompletableFuture.runAsync(() -> {
+            return CompletableFuture.runAsync(() -> {
                 String instanceName = path.getFileName().toString();
                 int lastDot = instanceName.lastIndexOf('.');
                 if (lastDot != -1) {
@@ -199,20 +284,9 @@ public class HomeView extends JFrame {
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
-            }).whenCompleteAsync((c, t) -> {
-                if (t != null) {
-                    Throwable realCause;
-                    if (t instanceof CompletionException && t.getCause() != null) {
-                        realCause = t.getCause();
-                    } else {
-                        realCause = t;
-                    }
-                    LOGGER.error("Error importing", realCause);
-                    JOptionPane.showMessageDialog(null, realCause.toString(), "Error", JOptionPane.ERROR_MESSAGE);
-                }
-                model.updateInstanceFolders();
-                this.refreshInstanceButtons();
-            }, SwingUtilities::invokeLater);
+            });
+        } else {
+            return CompletableFuture.completedFuture(null);
         }
     }
 

@@ -9,6 +9,7 @@ import org.taumc.launcher.core.http.URIBuilder;
 import org.taumc.launcher.core.meta.json.JsonDecoder;
 import org.taumc.launcher.core.meta.json.MMCPack;
 import org.taumc.launcher.core.mods.ModSearchOptions;
+import org.taumc.launcher.core.mods.ProjectType;
 import org.taumc.launcher.core.util.StreamUtils;
 
 import java.io.Closeable;
@@ -75,11 +76,19 @@ public class CurseForgeAPI implements Closeable {
         }
     }
 
+    public static int getClassId(ProjectType type) {
+        return switch (type) {
+            case MOD -> 6;
+            case MODPACK -> 4471;
+        };
+    }
+
     public CompletableFuture<List<Mod>> searchForMods(ModSearchOptions modSearchOptions) {
         var params = new HashMap<String, Object>();
         params.put("gameId", "432");
         params.put("sortField", 1);
         params.put("sortOrder", "desc");
+        params.put("classId", getClassId(modSearchOptions.projectType));
         if (!modSearchOptions.filterText.isBlank()) {
             params.put("searchFilter", modSearchOptions.filterText);
         }

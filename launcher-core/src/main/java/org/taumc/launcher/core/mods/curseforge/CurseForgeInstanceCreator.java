@@ -15,6 +15,8 @@ import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -179,15 +181,18 @@ public class CurseForgeInstanceCreator {
         Path modpackZip = tmpDir.resolve("modpack.zip");
         try {
             var modpackFile = cfApi.getModFile(modpackId, fileId).join();
-            try (var client = Methanol.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build()) {
-                var response = client.send(HttpRequest.newBuilder().GET().uri(new URI(modpackFile.downloadUrl())).build(), HttpResponse.BodyHandlers.ofFile(modpackZip));
+            try (var task = progressProvider.addTask("Downloading modpack..."); var client = Methanol.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build()) {
+                var handler = DownloadProgressTracker.track(HttpResponse.BodyHandlers.ofFile(modpackZip), task);
+                var response = client.send(HttpRequest.newBuilder().GET().uri(new URI(modpackFile.downloadUrl())).build(), handler);
                 if (response.statusCode() != 200) {
                     throw new IOException("Unexpected status code retrieving modpack: " + response.statusCode());
                 }
             } catch (URISyntaxException | InterruptedException e) {
                 throw new IOException("Unexpected error", e);
             }
-            createInstance(target, modpackZip, progressProvider);
+            try (FileSystem zipfs = FileSystems.newFileSystem(modpackZip, Map.of("create", "false"))) {
+                createInstance(target, zipfs.getRootDirectories().iterator().next(), progressProvider);
+            }
         } finally {
             Files.deleteIfExists(modpackZip);
         }

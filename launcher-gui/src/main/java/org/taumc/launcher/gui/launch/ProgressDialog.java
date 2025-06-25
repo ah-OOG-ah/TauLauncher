@@ -1,6 +1,7 @@
 package org.taumc.launcher.gui.launch;
 
 import org.taumc.launcher.core.progress.ProgressProvider;
+import org.taumc.launcher.gui.SwingHelpers;
 
 import javax.swing.*;
 import java.awt.*;
@@ -12,7 +13,7 @@ public class ProgressDialog extends JDialog implements ProgressProvider {
     private final Map<String, JProgressBar> taskMap = new ConcurrentHashMap<>();
 
     public ProgressDialog(Frame owner) {
-        super(owner, "Working...", false);
+        super(owner, "Working...", true);
         setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
         setLayout(new BorderLayout());
         setResizable(false);
@@ -44,6 +45,13 @@ public class ProgressDialog extends JDialog implements ProgressProvider {
 
             if (!isVisible()) {
                 setVisible(true);
+
+                if (SwingHelpers.isAnyWindowFocused()) {
+                    setAlwaysOnTop(true);
+                    toFront();
+                    requestFocus();
+                    setAlwaysOnTop(false);
+                }
             }
         });
     }

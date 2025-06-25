@@ -274,7 +274,7 @@ public class InstanceEditView extends JFrame {
     }
 
     private JPanel createModsPanel() {
-        return new ModManagerPanel(instancePath, this.owner, this.componentList);
+        return new ModManagerPanel(instancePath, this, this.componentList);
     }
 
     private JPanel mountLogsPanel() {

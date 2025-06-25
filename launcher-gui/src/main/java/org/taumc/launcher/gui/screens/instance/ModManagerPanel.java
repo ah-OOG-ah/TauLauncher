@@ -4,12 +4,16 @@ import com.fasterxml.jackson.core.json.JsonReadFeature;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.github.mizosoft.methanol.Methanol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.taumc.launcher.core.http.DownloadProgressTracker;
 import org.taumc.launcher.core.meta.json.MMCPack;
 import org.taumc.launcher.core.meta.legacyforge.ModInfo;
+import org.taumc.launcher.core.mods.ProjectType;
 import org.taumc.launcher.gui.SwingHelpers;
 import org.taumc.launcher.gui.launch.LaunchHandler;
+import org.taumc.launcher.gui.launch.ProgressDialog;
 import org.taumc.launcher.gui.screens.mods.AddModsView;
 import org.tomlj.Toml;
 import org.tomlj.TomlParseResult;
@@ -28,6 +32,11 @@ import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -55,10 +64,12 @@ public class ModManagerPanel extends JPanel {
     private ModTableModel modTableModel;
     private JButton removeButton;
     private JButton downloadMoreButton;
+    private final ProgressDialog progressDialog;
 
     public ModManagerPanel(Path instancePath, Frame owner, ListModel<MMCPack.Component> installedComponents) {
         this.instancePath = instancePath;
         this.owner = owner;
+        this.progressDialog = new ProgressDialog(owner);
         this.installedComponents = installedComponents;
         initUI();
     }
@@ -304,7 +315,22 @@ public class ModManagerPanel extends JPanel {
     }
 
     private void downloadMoreMods() {
-        var addModsView = new AddModsView(this.owner, this.getModsFolder(), SwingHelpers.immutableListOf(this.installedComponents));
+        var addModsView = new AddModsView(this.owner, SwingHelpers.immutableListOf(this.installedComponents), ProjectType.MOD, files -> {
+            var client = Methanol.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
+            List<CompletableFuture<?>> futures = new ArrayList<>();
+            for (var file : files) {
+                try {
+                    URI uri = new URI(file.downloadUrl());
+                    var task = this.progressDialog.addTask(file.fileName());
+                    Path destination = this.getModsFolder().resolve(file.fileName());
+                    var handler = DownloadProgressTracker.track(HttpResponse.BodyHandlers.ofFile(destination), task);
+                    futures.add(client.sendAsync(HttpRequest.newBuilder().uri(uri).build(), handler).whenComplete((c, t) -> task.close()));
+                } catch (Exception e) {
+                    futures.add(CompletableFuture.failedFuture(e));
+                }
+            }
+            return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).whenComplete((c, t) -> client.close());
+        });
         addModsView.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosed(WindowEvent e) {

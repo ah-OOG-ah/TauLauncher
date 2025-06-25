@@ -1,12 +1,13 @@
 package org.taumc.launcher.gui.screens.mods;
 
-import com.github.mizosoft.methanol.Methanol;
-import org.taumc.launcher.core.http.DownloadProgressTracker;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.taumc.launcher.core.meta.json.MMCPack;
 import org.taumc.launcher.core.mods.DownloadableFile;
 import org.taumc.launcher.core.mods.Mod;
 import org.taumc.launcher.core.mods.ModHostingSite;
 import org.taumc.launcher.core.mods.ModSearchOptions;
+import org.taumc.launcher.core.mods.ProjectType;
 import org.taumc.launcher.core.mods.curseforge.CurseForgeModHostingSite;
 import org.taumc.launcher.core.mods.modrinth.ModrinthModHostingSite;
 import org.taumc.launcher.gui.icon.IconUtil;
@@ -16,12 +17,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -29,14 +24,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-public class AddModsView extends JDialog {
-    private static final Methanol CLIENT = Methanol.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
-    private final Path modsFolder;
+public class AddModsView extends JFrame {
+    private static final Logger LOGGER = LoggerFactory.getLogger(AddModsView.class);
     private final Map<String, CompletableFuture<ImageIcon>> modIcons = new HashMap<>();
     private final List<MMCPack.Component> installedComponents;
+    private final ProjectType projectType;
+    private final Function<List<DownloadableFile>, CompletableFuture<Void>> filesConsumer;
 
     private record ModEntry<M extends Mod, F extends DownloadableFile>(ModHostingSite<M, F> site, M mod, ModSearchOptions searchOptions) {
         CompletableFuture<String> getDescription() {
@@ -58,11 +55,11 @@ public class AddModsView extends JDialog {
 
     private final ProgressDialog progressDialog;
 
-
-    public AddModsView(Frame owner, Path modsFolder, List<MMCPack.Component> installedComponents) {
-        super(owner, "Mod Search", true);
-        this.modsFolder = modsFolder;
+    public AddModsView(Frame owner, List<MMCPack.Component> installedComponents, ProjectType projectType, Function<List<DownloadableFile>, CompletableFuture<Void>> filesConsumer) {
+        super("Mod Search");
         this.installedComponents = installedComponents;
+        this.projectType = projectType;
+        this.filesConsumer = filesConsumer;
         initUI();
         setSize(800, 500);
         setLocationRelativeTo(owner);
@@ -218,7 +215,8 @@ public class AddModsView extends JDialog {
         model.clear();
         var searchOptions = new ModSearchOptions();
         searchOptions.filterText = searchField.getText();
-        searchOptions.componentFilter = this.installedComponents;
+        searchOptions.componentFilter = this.installedComponents.isEmpty() ? null : this.installedComponents;
+        searchOptions.projectType = this.projectType;
         site.searchForMods(searchOptions)
                 .thenApply(l -> l.stream().sorted(Comparator.comparingInt(Mod::downloadCount).reversed()).map(m -> new ModEntry<>(site, m, searchOptions)).toList())
                 .thenAcceptAsync(model::addAll, SwingUtilities::invokeLater);
@@ -226,23 +224,18 @@ public class AddModsView extends JDialog {
 
     private void downloadSelectedMods() {
         var model = this.downloadModsPanel.modListModel;
-        List<CompletableFuture<?>> futures = new ArrayList<>();
+        List<DownloadableFile> files = new ArrayList<>();
 
         for (int i = 0; i < model.size(); i++) {
-            var file = model.getElementAt(i);
-            URI uri;
-            try {
-                uri = new URI(file.downloadUrl());
-            } catch (URISyntaxException e) {
-                throw new RuntimeException(e);
-            }
-            var task = this.progressDialog.addTask(file.fileName());
-            Path destination = modsFolder.resolve(file.fileName());
-            var handler = DownloadProgressTracker.track(HttpResponse.BodyHandlers.ofFile(destination), task);
-            futures.add(CLIENT.sendAsync(HttpRequest.newBuilder().uri(uri).build(), handler).whenComplete((c, t) -> task.close()));
+            files.add(model.getElementAt(i));
         }
 
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).whenCompleteAsync((v, t) -> this.dispose(), SwingUtilities::invokeLater);
+        this.filesConsumer.apply(files).whenCompleteAsync((v, t) -> {
+            if (t != null) {
+                LOGGER.error("Error downloading mods", t);
+            }
+            this.dispose();
+        }, SwingUtilities::invokeLater);
     }
 
     private class ModSearchEntryRenderer extends JPanel implements ListCellRenderer<ModEntry<?, ?>> {

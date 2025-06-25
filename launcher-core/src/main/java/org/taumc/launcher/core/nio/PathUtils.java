@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.function.Predicate;
 
 public class PathUtils {
     public static void deleteRecursively(Path path) throws IOException {
@@ -50,5 +51,14 @@ public class PathUtils {
                 task.setProgress(100.0f * copiedBytes / totalBytes);
             }
         }
+    }
+
+    public static String findNonexistentName(String baseName, Predicate<String> existenceCheck) {
+        String name = baseName;
+        int i = 0;
+        while (existenceCheck.test(name)) {
+            name = baseName + "(" + i++ + ")";
+        }
+        return name;
     }
 }

@@ -9,6 +9,7 @@ import java.util.stream.Stream;
 public class ModSearchOptions {
     public String filterText = "";
     public List<MMCPack.Component> componentFilter;
+    public ProjectType projectType = ProjectType.MOD;
 
     public Stream<MMCPack.Component> componentStream() {
         if (componentFilter == null) {

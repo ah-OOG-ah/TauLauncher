@@ -82,4 +82,13 @@ public class SwingHelpers {
             e.printStackTrace();
         }
     }
+
+    public static boolean isAnyWindowFocused() {
+        for (Window window : Window.getWindows()) {
+            if (window.isVisible() && window.isFocused()) {
+                return true;
+            }
+        }
+        return false;
+    }
 }

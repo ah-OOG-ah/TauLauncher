@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.taumc.launcher.core.mods.ModSearchOptions;
+import org.taumc.launcher.core.mods.ProjectType;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -80,5 +81,14 @@ public class CurseForgeAPITest {
         var resolvedFiles = api.getFilesBulk(manifest.files().stream().map(PackManifest.File::fileID).toList()).join();
         var create = resolvedFiles.stream().filter(f -> f.modId() == 328085).findFirst().orElseThrow();
         Assertions.assertEquals("create-1.21.1-6.0.5.jar", create.fileName());
+    }
+
+    @Test
+    void testModpackSearch() throws Exception {
+        var searchOptions = new ModSearchOptions();
+        searchOptions.filterText = "craftoria";
+        searchOptions.projectType = ProjectType.MODPACK;
+        var firstMod = api.searchForMods(searchOptions).join().getFirst();
+        Assertions.assertEquals(1039252, firstMod.id());
     }
 }
