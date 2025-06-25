@@ -11,10 +11,13 @@ import org.taumc.launcher.core.http.URIBuilder;
 import org.taumc.launcher.core.meta.json.JsonDecoder;
 import org.taumc.launcher.core.mods.ModHostingSite;
 import org.taumc.launcher.core.mods.ModSearchOptions;
+import org.taumc.launcher.core.mods.ModUpdate;
+import org.taumc.launcher.core.progress.ProgressProvider;
 
 import java.net.URI;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -71,6 +74,11 @@ public class ModrinthModHostingSite implements ModHostingSite<Project, Version> 
 
     @Override
     public CompletableFuture<List<Version>> getDependencies(Version file, ModSearchOptions searchOptions) {
+        return CompletableFuture.completedFuture(List.of());
+    }
+
+    @Override
+    public CompletableFuture<List<ModUpdate>> getModUpdates(List<Path> modFiles, ModSearchOptions searchOptions, ProgressProvider progressProvider) {
         return CompletableFuture.completedFuture(List.of());
     }
 

@@ -1,5 +1,6 @@
 package org.taumc.launcher.core.importer;
 
+import lombok.Setter;
 import org.taumc.launcher.core.mods.curseforge.CurseForgeAPI;
 import org.taumc.launcher.core.mods.curseforge.CurseForgeInstanceCreator;
 import org.taumc.launcher.core.nio.PathUtils;
@@ -22,13 +23,16 @@ import java.util.stream.Stream;
 public class InstanceImporter {
     @FunctionalInterface
     private interface ImportHandler {
-        void doImport(Path rootPath, Path targetPath, ProgressProvider progressProvider) throws IOException;
+        void doImport(InstanceImporter importer, Path rootPath, Path targetPath, ProgressProvider progressProvider) throws IOException;
     }
 
     private static final Map<String, ImportHandler> IMPORT_KEYS = Map.of(
             "mmc-pack.json", InstanceImporter::importNativeInstance,
             "manifest.json", InstanceImporter::importCfInstance
     );
+
+    @Setter
+    private CurseForgeInstanceCreator.ManualDownloadService curseForgeManualDownloadService;
 
     private static Path findBaseFolder(Path rootPath) {
         Queue<Path> queue = new ArrayDeque<>();
@@ -57,7 +61,7 @@ public class InstanceImporter {
         return null;
     }
 
-    public static void importInstance(Path rootPath, Path targetPath, ProgressProvider progressProvider) throws IOException {
+    public void importInstance(Path rootPath, Path targetPath, ProgressProvider progressProvider) throws IOException {
         rootPath = findBaseFolder(rootPath);
         if (rootPath == null) {
             throw new IOException("Don't understand how to import this instance");
@@ -71,16 +75,16 @@ public class InstanceImporter {
                 .orElseThrow(() -> new IOException("Instance does not contain one of the following files: " + String.join(", ", IMPORT_KEYS.keySet())));
         Files.createDirectories(targetPath);
         try (var task = progressProvider.addTask("Importing instance...")) {
-            importHandler.doImport(rootPath, targetPath, progressProvider);
+            importHandler.doImport(this, rootPath, targetPath, progressProvider);
         }
     }
 
-    private static void importCfInstance(Path rootPath, Path targetPath, ProgressProvider progressProvider) throws IOException {
-        CurseForgeInstanceCreator creator = new CurseForgeInstanceCreator(CurseForgeAPI.INSTANCE);
+    private void importCfInstance(Path rootPath, Path targetPath, ProgressProvider progressProvider) throws IOException {
+        CurseForgeInstanceCreator creator = new CurseForgeInstanceCreator(CurseForgeAPI.INSTANCE, this.curseForgeManualDownloadService);
         creator.createInstance(targetPath, rootPath, progressProvider);
     }
 
-    private static void importNativeInstance(Path rootPath, Path targetPath, ProgressProvider progressProvider) throws IOException {
+    private void importNativeInstance(Path rootPath, Path targetPath, ProgressProvider progressProvider) throws IOException {
         // Copy everything into the target path
         long expectedBytes;
         try (Stream<Path> stream = Files.find(rootPath, Integer.MAX_VALUE, (p, a) -> !a.isDirectory())) {

@@ -2,10 +2,16 @@ package org.taumc.launcher.core.mods.curseforge;
 
 import org.taumc.launcher.core.mods.ModHostingSite;
 import org.taumc.launcher.core.mods.ModSearchOptions;
+import org.taumc.launcher.core.mods.ModUpdate;
+import org.taumc.launcher.core.progress.ProgressProvider;
 
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 public class CurseForgeModHostingSite implements ModHostingSite<Mod, File> {
@@ -31,6 +37,41 @@ public class CurseForgeModHostingSite implements ModHostingSite<Mod, File> {
     @Override
     public CompletableFuture<List<File>> getDependencies(File file, ModSearchOptions searchOptions) {
         return CompletableFuture.completedFuture(List.of());
+    }
+
+    @Override
+    public CompletableFuture<List<ModUpdate>> getModUpdates(List<Path> modFiles, ModSearchOptions searchOptions, ProgressProvider progressProvider) {
+        var hashes = modFiles.parallelStream().map(p -> {
+            try {
+                return FingerprintHasher.computeHash(p);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }).toList();
+        return API.getFingerprintMatches(hashes).thenComposeAsync(result -> {
+            Map<Integer, Integer> hashToIndex = new HashMap<>();
+            for (int i = 0; i < hashes.size(); i++) {
+                hashToIndex.put(hashes.get(i), i);
+            }
+            List<CompletableFuture<ModUpdate>> updates = new ArrayList<>();
+            for (int i = 0; i < result.exactFingerprints().size(); i++) {
+                var fingerprint = result.exactFingerprints().get(i);
+                Integer index = hashToIndex.get(fingerprint.intValue());
+                if (index == null) {
+                    throw new IllegalStateException("Received hash that was never sent: " + fingerprint);
+                }
+                var match = result.exactMatches().get(i);
+                var originalPath = modFiles.get(i);
+                updates.add(API.getModFiles(match.file().modId(), searchOptions).thenApply(fileList -> {
+                    var latest = fileList.stream().filter(f -> f.downloadUrl() != null).findFirst();
+                    if (latest.isEmpty() || latest.get().id() == match.file().id()) {
+                        return null;
+                    }
+                    return new ModUpdate(originalPath, latest.get());
+                }));
+            }
+            return CompletableFuture.allOf(updates.toArray(new CompletableFuture[0])).thenApply($ -> updates.stream().map(CompletableFuture::join).filter(Objects::nonNull).toList());
+        });
     }
 
     @Override

@@ -17,6 +17,7 @@ import org.taumc.launcher.gui.components.WrapLayout;
 import org.taumc.launcher.gui.icon.IconRegistry;
 import org.taumc.launcher.gui.launch.LaunchHandler;
 import org.taumc.launcher.gui.launch.ProgressDialog;
+import org.taumc.launcher.gui.screens.curseforge.ManualDownloadDialog;
 import org.taumc.launcher.gui.screens.instance.InstanceEditView;
 import org.taumc.launcher.gui.screens.mods.AddModsView;
 
@@ -235,7 +236,7 @@ public class HomeView extends JFrame {
                     innerFuture = CompletableFuture.completedFuture(null);
                 } else {
                     innerFuture = CompletableFuture.runAsync(() -> {
-                        var creator = new CurseForgeInstanceCreator(CurseForgeAPI.INSTANCE);
+                        var creator = new CurseForgeInstanceCreator(CurseForgeAPI.INSTANCE, new ManualDownloadDialog());
                         String baseInstanceName = file.displayName();
                         if (baseInstanceName.isBlank()) {
                             baseInstanceName = "CurseForge Modpack";
@@ -280,7 +281,9 @@ public class HomeView extends JFrame {
                     adjustedInstanceName = instanceName + "(" + i++ + ")";
                 }
                 try (FileSystem zipfs = FileSystems.newFileSystem(path, Map.of("create", "false"))) {
-                    InstanceImporter.importInstance(zipfs.getRootDirectories().iterator().next(), model.getInstancePath(adjustedInstanceName), this.progressDialog);
+                    var importer = new InstanceImporter();
+                    importer.setCurseForgeManualDownloadService(new ManualDownloadDialog());
+                    importer.importInstance(zipfs.getRootDirectories().iterator().next(), model.getInstancePath(adjustedInstanceName), this.progressDialog);
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }

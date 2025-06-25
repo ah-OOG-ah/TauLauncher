@@ -10,11 +10,18 @@ import org.slf4j.LoggerFactory;
 import org.taumc.launcher.core.http.DownloadProgressTracker;
 import org.taumc.launcher.core.meta.json.MMCPack;
 import org.taumc.launcher.core.meta.legacyforge.ModInfo;
+import org.taumc.launcher.core.mods.DownloadableFile;
+import org.taumc.launcher.core.mods.ModHostingSite;
+import org.taumc.launcher.core.mods.ModSearchOptions;
+import org.taumc.launcher.core.mods.ModUpdate;
 import org.taumc.launcher.core.mods.ProjectType;
+import org.taumc.launcher.core.mods.curseforge.CurseForgeModHostingSite;
+import org.taumc.launcher.core.mods.modrinth.ModrinthModHostingSite;
 import org.taumc.launcher.gui.SwingHelpers;
 import org.taumc.launcher.gui.launch.LaunchHandler;
 import org.taumc.launcher.gui.launch.ProgressDialog;
 import org.taumc.launcher.gui.screens.mods.AddModsView;
+import org.taumc.launcher.gui.screens.mods.ModUpdateDialog;
 import org.tomlj.Toml;
 import org.tomlj.TomlParseResult;
 
@@ -46,6 +53,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.jar.Manifest;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
@@ -54,6 +62,7 @@ import java.util.zip.ZipFile;
 public class ModManagerPanel extends JPanel {
     private static final int ICON_SIZE = 24;
     private static final Logger LOGGER = LoggerFactory.getLogger(ModManagerPanel.class);
+    public static final List<ModHostingSite<?, ?>> SITES = List.of(new CurseForgeModHostingSite(), new ModrinthModHostingSite());
 
     private final Path instancePath;
     private final Frame owner;
@@ -117,8 +126,9 @@ public class ModManagerPanel extends JPanel {
         downloadMoreButton = new JButton("Download More");
         var addFileButton = new JButton("Add Local File");
         var showInFolder = new JButton("Show In Folder");
+        var checkForUpdates = new JButton("Check For Updates");
 
-        List.of(removeButton, downloadMoreButton, addFileButton, showInFolder).forEach(btn -> {
+        List.of(removeButton, downloadMoreButton, addFileButton, showInFolder, checkForUpdates).forEach(btn -> {
             btn.setAlignmentX(Component.CENTER_ALIGNMENT);
             sidebar.add(btn);
             sidebar.add(Box.createVerticalStrut(15));
@@ -159,6 +169,7 @@ public class ModManagerPanel extends JPanel {
                 SwingHelpers.showFileInFolder(modTableModel.mods.get(i).path.toFile());
             }
         });
+        checkForUpdates.addActionListener(e -> this.checkForModUpdates());
 
         this.addComponentListener(new ComponentAdapter() {
             @Override
@@ -300,6 +311,41 @@ public class ModManagerPanel extends JPanel {
             modTableModel.clear();
         }
         modTable.clearSelection();
+    }
+
+    private void checkForModUpdates() {
+        var modFiles = modTableModel.mods.stream().map(m -> m.path).toList();
+        List<CompletableFuture<List<ModUpdate>>> futures = new ArrayList<>();
+        ModSearchOptions searchOptions = new ModSearchOptions();
+        searchOptions.componentFilter = SwingHelpers.immutableListOf(this.installedComponents);
+        searchOptions.projectType = ProjectType.MOD;
+        var task = this.progressDialog.addTask("Checking for updates");
+        try {
+            for (var site : SITES) {
+                futures.add(site.getModUpdates(modFiles, searchOptions, this.progressDialog));
+            }
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).whenCompleteAsync((c, t) -> {
+                task.close();
+                if (t != null) {
+                    JOptionPane.showMessageDialog(this.owner, t.toString(), "Error checking for updates", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                var updates = List.copyOf(futures.stream().map(CompletableFuture::join).flatMap(Collection::stream).collect(Collectors.toMap(ModUpdate::originalFile, Function.identity(), (a, b) -> b)).values());
+                if (updates.isEmpty()) {
+                    JOptionPane.showMessageDialog(this.owner, "There are no updates available", "Updater", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                var selectedUpdates = ModUpdateDialog.showModUpdateDialog(this.owner, updates);
+                ModUpdate.applyUpdates(selectedUpdates, this.progressDialog).whenCompleteAsync(($, t2) -> {
+                    this.refreshTableModel();
+                    if (t2 != null) {
+                        JOptionPane.showMessageDialog(this.owner, t2.toString(), "Error downloading updates", JOptionPane.ERROR_MESSAGE);
+                    }
+                }, SwingUtilities::invokeLater);
+            }, SwingUtilities::invokeLater);
+        } catch (Exception e) {
+            task.close();
+        }
     }
 
     private void removeSelectedMods() {

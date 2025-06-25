@@ -13,6 +13,7 @@ import org.taumc.launcher.core.mods.modrinth.ModrinthModHostingSite;
 import org.taumc.launcher.gui.SwingHelpers;
 import org.taumc.launcher.gui.icon.IconUtil;
 import org.taumc.launcher.gui.launch.ProgressDialog;
+import org.taumc.launcher.gui.screens.instance.ModManagerPanel;
 
 import javax.swing.*;
 import java.awt.*;
@@ -80,9 +81,8 @@ public class AddModsView extends JFrame {
         sidebar.setPreferredSize(new Dimension(150, 0));
 
         // Create entries with icons
-        List<ModHostingSite<?, ?>> sites = List.of(new CurseForgeModHostingSite(), new ModrinthModHostingSite());
 
-        sourceList = new JList<>(sites.toArray(new ModHostingSite[0]));
+        sourceList = new JList<>(ModManagerPanel.SITES.toArray(new ModHostingSite[0]));
         sourceList.setCellRenderer(new SourceEntryRenderer());
         sourceList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         sourceList.setSelectedIndex(0);

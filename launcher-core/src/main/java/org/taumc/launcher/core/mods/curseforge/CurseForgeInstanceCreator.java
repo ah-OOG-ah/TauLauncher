@@ -44,10 +44,11 @@ public class CurseForgeInstanceCreator {
     private static final int MAX_CONCURRENT_DOWNLOADS = 10;
 
     private final CurseForgeAPI cfApi;
-    private final ManualDownloadService manualDownloadService = ServiceLoader.load(ManualDownloadService.class).findFirst().orElseThrow();
+    private final ManualDownloadService manualDownloadService;
 
-    public CurseForgeInstanceCreator(CurseForgeAPI cfApi) {
+    public CurseForgeInstanceCreator(CurseForgeAPI cfApi, ManualDownloadService manualDownloadService) {
         this.cfApi = cfApi;
+        this.manualDownloadService = manualDownloadService;
     }
 
     private CompletableFuture<Void> downloadAllMods(Methanol methanol, Path instanceFolder, List<File> fileInfos,
