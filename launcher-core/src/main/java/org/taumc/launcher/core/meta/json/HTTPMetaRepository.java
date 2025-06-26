@@ -9,13 +9,14 @@ import org.taumc.launcher.core.storage.LauncherPaths;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Duration;
 import java.util.function.Predicate;
 
 public record HTTPMetaRepository(String url, Predicate<String> uidFilter) implements MetaRepository {
     private static final HttpCache CACHE = HttpCache.newBuilder().cacheOnDisk(LauncherPaths.getLauncherCache().resolve("caches").resolve("mmc_meta"), 100 * 1024 * 1024).build();
     private static final Methanol CLIENT = Methanol.newBuilder()
             .cache(CACHE)
-            .defaultHeader("Cache-Control", CacheControl.newBuilder().anyMaxStale().build().toString())
+            .defaultHeader("Cache-Control", CacheControl.newBuilder().maxStale(Duration.ofMinutes(5)).staleIfError(Duration.ofSeconds(Long.MAX_VALUE)).build().toString())
             .build();
     private static final ObjectMapper MAPPER = JsonDecoder.make();
 

@@ -16,6 +16,7 @@ import org.taumc.launcher.core.meta.json.Requirement;
 import org.taumc.launcher.core.storage.LauncherPaths;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -28,7 +29,7 @@ public class OrnitheIntermediaryMetaRepository extends InMemoryMetaRepository {
     private static final HttpCache CACHE = HttpCache.newBuilder().cacheOnDisk(LauncherPaths.getLauncherCache().resolve("caches").resolve("fabric_meta"), 100 * 1024 * 1024).build();
     private static final Methanol CLIENT = Methanol.newBuilder()
             .cache(CACHE)
-            .defaultHeader("Cache-Control", CacheControl.newBuilder().anyMaxStale().build().toString())
+            .defaultHeader("Cache-Control", CacheControl.newBuilder().maxStale(Duration.ofMinutes(5)).staleIfError(Duration.ofSeconds(Long.MAX_VALUE)).build().toString())
             .build();
     private static final ObjectMapper MAPPER = JsonDecoder.make();
 
