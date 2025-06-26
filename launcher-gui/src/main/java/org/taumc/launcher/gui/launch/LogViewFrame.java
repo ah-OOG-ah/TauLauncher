@@ -18,6 +18,7 @@ import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Pattern;
 
 public class LogViewFrame extends JPanel {
     private static final Logger LOGGER = LoggerFactory.getLogger(LogViewFrame.class);
@@ -29,9 +30,17 @@ public class LogViewFrame extends JPanel {
     public LogViewFrame() {
         this.setLayout(new BorderLayout());
 
-        this.logPane = new JTextPane();
+        this.logPane = new JTextPane() {
+            @Override
+            public boolean getScrollableTracksViewportWidth() {
+                // Causes text to wrap instead of expanding horizontally
+                return true;
+            }
+        };
+
         logPane.setEditable(false);
         logPane.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        logPane.setCursor(Cursor.getPredefinedCursor(Cursor.TEXT_CURSOR));
 
         StyledDocument doc = logPane.getStyledDocument();
 
@@ -50,6 +59,8 @@ public class LogViewFrame extends JPanel {
         StyleConstants.setForeground(systemStyle, new Color(180, 140, 255)); // or your chosen color
 
         this.scrollPane = new JScrollPane(logPane);
+        this.scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+
         this.add(scrollPane, BorderLayout.CENTER);
 
         this.setSize(800, 600);
@@ -171,6 +182,8 @@ public class LogViewFrame extends JPanel {
     }
 
     private class LogReaderThread extends Thread {
+        private static final Pattern ANSI_PATTERN = Pattern.compile("\u001B\\[[0-9;]*m");
+
         private final InputStream stream;
 
         LogReaderThread(InputStream stream) {
@@ -184,11 +197,16 @@ public class LogViewFrame extends JPanel {
             return defaultStyle;
         }
 
+        private static String sanitize(String line) {
+            return ANSI_PATTERN.matcher(line).replaceAll("");
+        }
+
         @Override
         public void run() {
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
+                    line = sanitize(line);
                     var style = determineStyle(line);
                     String finalLine = line;
                     SwingUtilities.invokeLater(() -> appendLog(finalLine, style));
