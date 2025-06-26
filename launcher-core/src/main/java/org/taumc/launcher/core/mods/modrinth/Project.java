@@ -14,6 +14,11 @@ public record Project(String slug, String title, String description, String proj
     }
 
     @Override
+    public String modId() {
+        return project_id;
+    }
+
+    @Override
     public String summary() {
         return description;
     }

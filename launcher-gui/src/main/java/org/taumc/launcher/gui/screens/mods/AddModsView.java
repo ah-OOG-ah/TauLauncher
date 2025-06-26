@@ -16,6 +16,8 @@ import org.taumc.launcher.gui.launch.ProgressDialog;
 import org.taumc.launcher.gui.screens.instance.ModManagerPanel;
 
 import javax.swing.*;
+import javax.swing.event.ListDataEvent;
+import javax.swing.event.ListDataListener;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -52,8 +54,11 @@ public class AddModsView extends JFrame {
     private JEditorPane modInfoTextArea;
     private JScrollPane infoScrollPane;
     private JComboBox<DownloadableFile> filesComboBox;
+    private JButton downloadSelectButton;
     private JTextField searchField;
     private DownloadModsPanel downloadModsPanel;
+
+    private boolean allowMultipleSelection = true;
 
     private final ProgressDialog progressDialog;
 
@@ -112,8 +117,60 @@ public class AddModsView extends JFrame {
         filesComboBox = new JComboBox<>(new DefaultComboBoxModel<>());
         filesComboBox.setEditable(false);
         filesComboBox.setRenderer(new DownloadableFileCellRenderer());
+
+        downloadSelectButton = new JButton();
+        downloadSelectButton.setEnabled(false);
+
+        updateDownloadButton();
+
+        downloadSelectButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+        downloadSelectButton.addActionListener(e -> {
+            if (filesComboBox.getSelectedItem() instanceof DownloadableFile file) {
+                String ourId = file.getParentModId();
+                boolean didRemove = false;
+                for (int i = downloadModsPanel.modListModel.size() - 1; i >= 0; i--) {
+                    if (downloadModsPanel.modListModel.getElementAt(i).getParentModId().equals(ourId)) {
+                        downloadModsPanel.modListModel.remove(i);
+                        didRemove = true;
+                    }
+                }
+                if (!didRemove) {
+                    if (!downloadModsPanel.modListModel.isEmpty() && !allowMultipleSelection) {
+                        JOptionPane.showMessageDialog(this, "Can only add one item at a time", "Error", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+                    downloadModsPanel.modListModel.addElement(file);
+                    Set<String> existingDeps = IntStream.range(0, downloadModsPanel.modListModel.size())
+                            .mapToObj(downloadModsPanel.modListModel::getElementAt)
+                            .map(DownloadableFile::getParentModId)
+                            .collect(Collectors.toSet());
+                    var depFuture = file.getDependencies(installedComponents, existingDeps);
+                    if (!depFuture.isDone()) {
+                        var depTask = progressDialog.addTask("Locating dependencies");
+                        depFuture.whenComplete((l, t) -> depTask.close());
+                    }
+                    depFuture.whenCompleteAsync((extraFiles, t) -> {
+                        if (extraFiles != null) {
+                            downloadModsPanel.modListModel.addAll(extraFiles);
+                            updateDownloadButton();
+                        }
+                    }, SwingUtilities::invokeLater);
+                }
+                updateDownloadButton();
+            }
+        });
+        downloadSelectButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, downloadSelectButton.getPreferredSize().height));
+
+        JPanel fileControls = new JPanel();
+        fileControls.setLayout(new BorderLayout());
+
+        fileControls.add(filesComboBox, BorderLayout.NORTH);
+        fileControls.add(downloadSelectButton, BorderLayout.CENTER);
+
+        filesComboBox.addActionListener(e -> this.updateDownloadButton());
+
         infoAndFilesDropdownPanel.add(infoScrollPane, BorderLayout.CENTER);
-        infoAndFilesDropdownPanel.add(filesComboBox, BorderLayout.SOUTH);
+        infoAndFilesDropdownPanel.add(fileControls, BorderLayout.SOUTH);
         searchSplitPane.setRightComponent(infoAndFilesDropdownPanel);
 
         JPanel searchAndModListPanel = new JPanel(new BorderLayout());
@@ -128,7 +185,7 @@ public class AddModsView extends JFrame {
         JPanel searchBar = new JPanel(new BorderLayout(5, 5));
         searchBar.add(searchField, BorderLayout.CENTER);
         searchBar.add(searchButton, BorderLayout.EAST);
-        searchBar.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        searchBar.setBorder(BorderFactory.createEmptyBorder(5, 0, 5, 0));
 
         searchAndModListPanel.add(searchBar, BorderLayout.NORTH);
         searchAndModListPanel.add(searchSplitPane, BorderLayout.CENTER);
@@ -138,6 +195,23 @@ public class AddModsView extends JFrame {
         this.downloadModsPanel = new DownloadModsPanel();
         this.downloadModsPanel.cancelButton.addActionListener(e -> this.dispose());
         this.downloadModsPanel.downloadButton.addActionListener(e -> this.downloadSelectedMods());
+        this.downloadModsPanel.modListModel.addListDataListener(new ListDataListener() {
+            @Override
+            public void intervalAdded(ListDataEvent e) {
+                searchResultsList.repaint();
+            }
+
+            @Override
+            public void intervalRemoved(ListDataEvent e) {
+                searchResultsList.repaint();
+
+            }
+
+            @Override
+            public void contentsChanged(ListDataEvent e) {
+                searchResultsList.repaint();
+            }
+        });
         contentPane.add(this.downloadModsPanel, BorderLayout.SOUTH);
 
         sourceList.addListSelectionListener(e -> {
@@ -173,33 +247,34 @@ public class AddModsView extends JFrame {
                 if (e.getClickCount() == 2 && SwingUtilities.isLeftMouseButton(e)) {
                     int index = searchResultsList.locationToIndex(e.getPoint());
                     if (index != -1 && index == searchResultsList.getSelectedIndex()) {
-                        if (filesComboBox.getSelectedItem() instanceof DownloadableFile file) {
-                            if (downloadModsPanel.modListModel.contains(file)) {
-                                downloadModsPanel.modListModel.removeElement(file);
-                            } else {
-                                downloadModsPanel.modListModel.addElement(file);
-                                Set<String> existingDeps = IntStream.range(0, downloadModsPanel.modListModel.size())
-                                        .mapToObj(downloadModsPanel.modListModel::getElementAt)
-                                        .map(DownloadableFile::getParentModId)
-                                        .collect(Collectors.toSet());
-                                var depFuture = file.getDependencies(installedComponents, existingDeps);
-                                if (!depFuture.isDone()) {
-                                    var depTask = progressDialog.addTask("Locating dependencies");
-                                    depFuture.whenComplete((l, t) -> depTask.close());
-                                }
-                                depFuture.whenCompleteAsync((extraFiles, t) -> {
-                                    if (extraFiles != null) {
-                                        downloadModsPanel.modListModel.addAll(extraFiles);
-                                    }
-                                }, SwingUtilities::invokeLater);
-                            }
-                        }
+                        downloadSelectButton.doClick();
                     }
                 }
             }
         });
 
         triggerSearch();
+    }
+
+    public void setAllowMultipleSelection(boolean flag) {
+        this.allowMultipleSelection = flag;
+    }
+
+    private void updateDownloadButton() {
+        DownloadableFile file = (DownloadableFile)filesComboBox.getSelectedItem();
+        downloadSelectButton.setEnabled(file != null && (allowMultipleSelection || isModInSelectedDownloadList(file.getParentModId()) || downloadModsPanel.modListModel.isEmpty()));
+        downloadSelectButton.setText((file != null && isModInSelectedDownloadList(file.getParentModId())) ? "Remove from downloads" : "Select file for download");
+    }
+
+    private boolean isModInSelectedDownloadList(String modId) {
+        boolean isInDownloadList = false;
+        for (int i = 0; i < downloadModsPanel.modListModel.size(); i++) {
+            if (downloadModsPanel.modListModel.getElementAt(i).getParentModId().equals(modId)) {
+                isInDownloadList = true;
+                break;
+            }
+        }
+        return isInDownloadList;
     }
 
     private void triggerSearch() {
@@ -244,6 +319,7 @@ public class AddModsView extends JFrame {
         private final JLabel iconLabel = new JLabel();
         private final JTextArea titleLabel = new JTextArea();
         private final JTextArea summaryLabel = new JTextArea();
+        private final Font normalTitleFont, selectedTitleFont;
         private final JPanel textPanel;
 
         public ModSearchEntryRenderer() {
@@ -259,7 +335,10 @@ public class AddModsView extends JFrame {
             textPanel.add(summaryLabel);
             textPanel.setOpaque(false);
 
-            titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD));
+            normalTitleFont = titleLabel.getFont().deriveFont(Font.BOLD);
+            selectedTitleFont = normalTitleFont.deriveFont(Font.BOLD | Font.ITALIC);
+
+            titleLabel.setFont(normalTitleFont);
             titleLabel.setOpaque(false);
             summaryLabel.setFont(summaryLabel.getFont().deriveFont(Font.PLAIN, 12f));
             summaryLabel.setOpaque(false);
@@ -277,6 +356,7 @@ public class AddModsView extends JFrame {
             var entry = container.mod();
             iconLabel.setPreferredSize(new Dimension(ICON_SIZE, ICON_SIZE));
             int labelWidth = list.getWidth() - ICON_SIZE - 20 - 20;
+            titleLabel.setFont(isModInSelectedDownloadList(container.mod().modId()) ? selectedTitleFont : normalTitleFont);
             titleLabel.setText(SwingHelpers.ellipsize(titleLabel.getFontMetrics(titleLabel.getFont()), entry.name(), labelWidth));
             summaryLabel.setText(SwingHelpers.ellipsize(summaryLabel.getFontMetrics(summaryLabel.getFont()), entry.summary(), labelWidth));
             if (!entry.smallIconUrl().isEmpty()) {

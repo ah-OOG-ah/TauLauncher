@@ -227,7 +227,7 @@ public class HomeView extends JFrame {
 
     private CompletableFuture<Void> showModHostingImportInstanceDialog() {
         var future = new CompletableFuture<Void>();
-        new AddModsView(this, List.of(), ProjectType.MODPACK, pack -> {
+        var addModsView = new AddModsView(this, List.of(), ProjectType.MODPACK, pack -> {
             CompletableFuture<Void> innerFuture;
             if (!pack.isEmpty()) {
                 var thePack = pack.getFirst();
@@ -260,6 +260,7 @@ public class HomeView extends JFrame {
                 }
             });
         });
+        addModsView.setAllowMultipleSelection(false);
         return future;
     }
 

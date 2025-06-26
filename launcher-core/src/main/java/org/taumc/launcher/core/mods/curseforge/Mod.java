@@ -15,6 +15,11 @@ public record Mod(int id, int classId, String name, String slug, Links links, St
         }
     }
 
+    @Override
+    public String modId() {
+        return String.valueOf(id);
+    }
+
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Links(String websiteUrl, String wikiUrl, String issuesUrl, String sourceUrl) { }
 
