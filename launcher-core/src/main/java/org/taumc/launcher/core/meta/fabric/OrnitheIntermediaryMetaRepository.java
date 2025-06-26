@@ -47,7 +47,7 @@ public class OrnitheIntermediaryMetaRepository extends InMemoryMetaRepository {
         List<GameVersion> intermediaryVersions = MAPPER.readValue(HttpUtils.obtainFile(CLIENT, getIntermediaryEndpoint()), new TypeReference<>() {});
         var packageIndex = new PackageIndex(NAME, UID,
                 intermediaryVersions.stream().filter(gv -> !gv.version().contains("server")).map(gv -> new PackageIndex.Version(false, null, buildRequirements(gv.unsidedVersion()), gv.version(), null, null))
-                        .toList());
+                        .toList(), null);
         this.addPackage(packageIndex);
     }
     

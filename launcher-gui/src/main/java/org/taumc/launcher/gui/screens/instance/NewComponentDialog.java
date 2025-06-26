@@ -1,5 +1,6 @@
 package org.taumc.launcher.gui.screens.instance;
 
+import org.taumc.launcher.core.meta.json.MetadataService;
 import org.taumc.launcher.gui.Main;
 import org.taumc.launcher.core.meta.json.ComponentCoordinate;
 import org.taumc.launcher.core.meta.json.MMCPack;
@@ -9,6 +10,8 @@ import javax.swing.*;
 import javax.swing.event.ListSelectionEvent;
 import java.awt.*;
 
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -20,7 +23,8 @@ import java.util.function.Predicate;
 public class NewComponentDialog extends JDialog {
     private final List<MMCPack.Component> existingComponents;
 
-    private static final Set<String> IGNORED_DEPENDENCIES = Set.of("org.lwjgl", "org.lwjgl3");
+    private static final Set<String> TOP_LEVEL_COMPONENTS = Set.of("net.minecraft", "net.minecraftforge", "net.fabricmc.fabric-loader", "net.neoforged");
+    private static final Set<String> IGNORED_REQUIREMENTS = Set.of("org.lwjgl", "org.lwjgl3", "net.fabricmc.intermediary");
 
     public NewComponentDialog(Frame parent, List<MMCPack.Component> existingComponents, Consumer<ComponentCoordinate> onAdd) {
         this(parent, existingComponents, onAdd, null);
@@ -35,11 +39,17 @@ public class NewComponentDialog extends JDialog {
         Predicate<Requirement> requirementsSatisfied = r -> r.isSatisfied(existingComponents, Main.METADATA);
         // Compute the valid components to add
         for (String pkg : Main.METADATA.getKnownPackages()) {
+            if (existingComponents.stream().anyMatch(c -> c.uid().equals(pkg))) {
+                continue;
+            }
+            boolean isTopLevel = TOP_LEVEL_COMPONENTS.contains(pkg) || Main.METADATA.getPackageIndexes(pkg).stream().map(MetadataService.DiscoveredPackageIndex::index).anyMatch(i -> i.tauMetadata() != null && i.tauMetadata().isUserInstallable());
+            if (!isTopLevel) {
+                continue;
+            }
             LinkedHashSet<String> versions = new LinkedHashSet<>();
-            boolean ignoringRequirements = pkg.equals("net.minecraft");
             for (var idx : Main.METADATA.getPackageIndexes(pkg)) {
                 for (var version : idx.index().versions()) {
-                    if (ignoringRequirements || version.requires() == null || version.requires().stream().allMatch(requirementsSatisfied)) {
+                    if (version.requires() == null || version.requires().stream().filter(r -> !IGNORED_REQUIREMENTS.contains(r.uid())).allMatch(requirementsSatisfied)) {
                         versions.add(version.version());
                     }
                 }
@@ -50,8 +60,9 @@ public class NewComponentDialog extends JDialog {
         }
 
         DefaultListModel<String> componentModel = new DefaultListModel<>();
-        options.keySet().forEach(componentModel::addElement);
+        options.keySet().stream().sorted().forEach(componentModel::addElement);
         JList<String> componentList = new JList<>(componentModel);
+        componentList.setCellRenderer(new ComponentCellRenderer());
         componentList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         JScrollPane componentScroll = new JScrollPane(componentList);
 
@@ -95,6 +106,15 @@ public class NewComponentDialog extends JDialog {
             this.dispose();
         });
 
+        versionList.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2 && SwingUtilities.isLeftMouseButton(e) && versionList.getSelectedValue() != null && componentList.getSelectedValue() != null) {
+                    okBtn.doClick();
+                }
+            }
+        });
+
         cancelBtn.addActionListener(e -> this.dispose());
 
         buttons.add(okBtn);
@@ -111,5 +131,18 @@ public class NewComponentDialog extends JDialog {
         this.pack();
         this.setLocationRelativeTo(parent);
         this.setVisible(true);
+    }
+
+    private static class ComponentCellRenderer extends DefaultListCellRenderer {
+        @Override
+        public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+            super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+
+            if (value instanceof String pkg) {
+                Main.METADATA.getPackageIndexes(pkg).stream().map(d -> d.index().name()).findFirst().ifPresent(this::setText);
+            }
+
+            return this;
+        }
     }
 }

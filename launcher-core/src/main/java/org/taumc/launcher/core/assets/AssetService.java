@@ -70,11 +70,10 @@ public class AssetService {
                 existingHashes = stream.map(p -> p.getFileName().toString()).collect(Collectors.toSet());
             }
             entry.getValue().removeIf(e -> existingHashes.contains(e.hash()));
-            assetTotal += entry.getValue().size();
+            assetTotal += entry.getValue().stream().mapToInt(AssetInfo::size).sum();
         }
         int finalAssetTotal = assetTotal;
         if (finalAssetTotal > 0) {
-
             try (Methanol client = Methanol.newBuilder().build(); var progressTask = progressProvider.addTask("Downloading assets...")) {
                 Semaphore concurrencyLimiter = new Semaphore(16);
                 try (ExecutorService executor = Executors.newThreadPerTaskExecutor(DOWNLOAD_THREAD_FACTORY)) {
@@ -91,7 +90,7 @@ public class AssetService {
                                     String url = "https://resources.download.minecraft.net/" + bucketStr + "/" + info.hash();
                                     LOGGER.info("Download {}", url);
                                     client.send(HttpRequest.newBuilder().uri(URI.create(url)).GET().build(), HttpResponse.BodyHandlers.ofFile(targetPath));
-                                    int completed = completedAssets.incrementAndGet();
+                                    int completed = completedAssets.addAndGet(info.size());
                                     progressTask.setProgress((float)completed / finalAssetTotal);
                                 } catch(IOException | InterruptedException e) {
                                     LOGGER.error("Failed to download asset", e);

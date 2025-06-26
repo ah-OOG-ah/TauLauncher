@@ -26,10 +26,12 @@ public class BuiltinMetaRepository extends InMemoryMetaRepository {
     @Override
     protected void populateRepository() throws IOException {
         this.addPackage(new PackageIndex("Legacy LWJGL", "org.taumc.legacy-lwjgl",
-                List.of(PackageIndex.Version.simple("1.0.0", List.of(Requirement.approximately("org.lwjgl3", "3.3.3"))))
+                List.of(PackageIndex.Version.simple("1.0.0", List.of(Requirement.approximately("org.lwjgl3", "3.3.3")))),
+                null
         ));
         this.addPackage(new PackageIndex("RFB Launch Args", "org.taumc.rfb-args",
-                Stream.of("java8", "java9").map(v -> PackageIndex.Version.simple(v, List.of())).toList()
+                Stream.of("java8", "java9").map(v -> PackageIndex.Version.simple(v, List.of())).toList(),
+                null
         ));
     }
 

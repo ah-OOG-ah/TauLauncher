@@ -34,7 +34,7 @@ public record PatchesFolderMetaRepository(Path patchesFolder) implements MetaRep
                 component.version(),
                 "",
                 Map.of()
-        )));
+        )), null);
     }
 
     @Override

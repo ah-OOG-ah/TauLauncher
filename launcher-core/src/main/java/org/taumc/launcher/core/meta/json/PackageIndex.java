@@ -9,7 +9,9 @@ import java.util.Map;
 import java.util.Optional;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record PackageIndex(String name, String uid, List<Version> versions) {
+public record PackageIndex(String name, String uid, List<Version> versions, Metadata tauMetadata) {
+    public record Metadata(boolean isUserInstallable) {}
+
     public Optional<Version> version(String version) {
         return versions.stream().filter(v -> version.equals(v.version)).findFirst();
     }

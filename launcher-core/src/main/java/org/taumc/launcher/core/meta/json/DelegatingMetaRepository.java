@@ -23,7 +23,7 @@ public class DelegatingMetaRepository implements MetaRepository {
     @Override
     public PackageIndex getPackageIndex(String pkgName) throws IOException {
         var pkg = this.delegate.getPackageIndex(pkgName);
-        return new PackageIndex(pkg.name(), pkg.uid(), pkg.versions().stream().map(v -> v.withRequires(transformRequirements(v.requires()))).toList());
+        return new PackageIndex(pkg.name(), pkg.uid(), pkg.versions().stream().map(v -> v.withRequires(transformRequirements(v.requires()))).toList(), null);
     }
 
     protected Component.ComponentBuilder transformComponent(Component.ComponentBuilder builder, Component original) {

@@ -48,7 +48,7 @@ public record HTTPMetaRepository(String url, Predicate<String> uidFilter) implem
         if (uidFilter != null && !uidFilter.test(pkgName)) {
             throw new IOException("Filtered");
         }
-        return MAPPER.readValue(obtainFile(url + "/" + pkgName + "/" + version + ".json"), Component.class);
+        return MAPPER.readValue(obtainFile(url + "/" + pkgName + "/" + version.replace(" ", "%20") + ".json"), Component.class);
     }
 
     @Override

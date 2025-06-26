@@ -258,7 +258,15 @@ public class RuntimeInstance {
                 if (component.isPresent()) {
                     throw new IllegalStateException("Component " + complainingComponent.uid() + " has requirement " + r + ", but version " + component.get().version() + " is already added");
                 }
-                String version = r.recommendedVersion().orElseGet(() -> this.getMetadataService().getKnownVersions(r.uid()).getLast());
+                String version;
+                if (r.recommendedVersion().isPresent()) {
+                    version = r.recommendedVersion().get();
+                } else if (r.uid().equals("net.fabricmc.intermediary")) {
+                    // Match with Minecraft version
+                    version = this.components.stream().filter(c -> c.uid().equals("net.minecraft")).findFirst().orElseThrow(() -> new IllegalArgumentException("Minecraft must be present to use Fabric")).version();
+                } else {
+                    version = this.getMetadataService().getKnownVersions(r.uid()).getLast();
+                }
                 LOGGER.info("Adding missing component {} with version {}", r.uid(), version);
                 this.addComponent(new MMCPack.Component(r.uid(), version));
             }
@@ -390,6 +398,10 @@ public class RuntimeInstance {
     }
 
     public void launch() throws Exception {
+        if (this.components.isEmpty()) {
+            throw new IllegalArgumentException("Cannot launch game with no components added");
+        }
+
         Objects.requireNonNull(this.instancePath, "Instance path must be set");
 
         this.launchAccount.refresh(this.progressProvider);
