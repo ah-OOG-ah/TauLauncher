@@ -1,6 +1,7 @@
 package org.taumc.launcher.core.meta.json;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.mizosoft.methanol.CacheControl;
 import com.github.mizosoft.methanol.HttpCache;
 import com.github.mizosoft.methanol.Methanol;
 import org.taumc.launcher.core.http.HttpUtils;
@@ -12,7 +13,10 @@ import java.util.function.Predicate;
 
 public record HTTPMetaRepository(String url, Predicate<String> uidFilter) implements MetaRepository {
     private static final HttpCache CACHE = HttpCache.newBuilder().cacheOnDisk(LauncherPaths.getLauncherCache().resolve("caches").resolve("mmc_meta"), 100 * 1024 * 1024).build();
-    private static final Methanol CLIENT = Methanol.newBuilder().cache(CACHE).build();
+    private static final Methanol CLIENT = Methanol.newBuilder()
+            .cache(CACHE)
+            .defaultHeader("Cache-Control", CacheControl.newBuilder().anyMaxStale().build().toString())
+            .build();
     private static final ObjectMapper MAPPER = JsonDecoder.make();
 
     public static HTTPMetaRepository prism() {

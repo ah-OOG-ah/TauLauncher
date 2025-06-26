@@ -2,6 +2,7 @@ package org.taumc.launcher.core.meta.fabric;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.mizosoft.methanol.CacheControl;
 import com.github.mizosoft.methanol.HttpCache;
 import com.github.mizosoft.methanol.Methanol;
 import com.vdurmont.semver4j.Semver;
@@ -25,7 +26,10 @@ public class OrnitheIntermediaryMetaRepository extends InMemoryMetaRepository {
     private static final String NAME = "Ornithe Intermediary";
     private static final String META_URL = "https://meta.ornithemc.net";
     private static final HttpCache CACHE = HttpCache.newBuilder().cacheOnDisk(LauncherPaths.getLauncherCache().resolve("caches").resolve("fabric_meta"), 100 * 1024 * 1024).build();
-    private static final Methanol CLIENT = Methanol.newBuilder().cache(CACHE).build();
+    private static final Methanol CLIENT = Methanol.newBuilder()
+            .cache(CACHE)
+            .defaultHeader("Cache-Control", CacheControl.newBuilder().anyMaxStale().build().toString())
+            .build();
     private static final ObjectMapper MAPPER = JsonDecoder.make();
 
     public OrnitheIntermediaryMetaRepository() {
