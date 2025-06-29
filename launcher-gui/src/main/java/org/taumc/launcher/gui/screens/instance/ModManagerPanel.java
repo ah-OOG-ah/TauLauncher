@@ -34,6 +34,8 @@ import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
@@ -116,6 +118,16 @@ public class ModManagerPanel extends JPanel {
         modTable.addKeyListener(new TableSearchKeyListener());
 
         JScrollPane tableScrollPane = new JScrollPane(modTable);
+
+        // Deselect table items when anything else in panel is clicked
+        this.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                if (SwingUtilities.getDeepestComponentAt(ModManagerPanel.this, e.getX(), e.getY()) instanceof JPanel) {
+                    modTable.clearSelection();
+                }
+            }
+        });
 
         // Sidebar on the right with buttons
         JPanel sidebar = new JPanel();
