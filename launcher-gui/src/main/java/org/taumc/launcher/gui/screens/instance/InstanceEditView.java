@@ -14,6 +14,7 @@ import org.taumc.launcher.core.qsettings.Settings;
 import org.taumc.launcher.gui.Main;
 import org.taumc.launcher.gui.UIPaths;
 import org.taumc.launcher.core.meta.json.MMCPack;
+import org.taumc.launcher.gui.icon.IconRegistry;
 import org.taumc.launcher.gui.launch.LaunchHandler;
 import org.taumc.launcher.gui.launch.LogViewFrame;
 import org.taumc.launcher.gui.screens.home.HomeView;
@@ -74,6 +75,10 @@ public class InstanceEditView extends JFrame {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+
+        var icon = IconRegistry.findIcon(this.instanceCfg.getValue("iconKey").orElse("default_instance"),this.instancePath);
+
+        this.setIconImage(icon.getImage());
 
         // Build a metadata service for the instance
         this.metadataService = CompletableFuture.supplyAsync(() -> {

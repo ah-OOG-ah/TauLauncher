@@ -23,6 +23,8 @@ import org.taumc.launcher.gui.screens.mods.AddModsView;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
@@ -77,6 +79,16 @@ public class HomeView extends JFrame {
         var buttonLayout = new WrapLayout(FlowLayout.LEFT);
         buttonLayout.setAlignOnBaseline(false);
         this.instanceGridPanel = new JPanel(buttonLayout);
+        this.instanceGridPanel.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                if (model.getSelectedInstance() != null && SwingUtilities.getDeepestComponentAt(instanceGridPanel, e.getX(), e.getY()) == instanceGridPanel) {
+                    model.setSelectedInstance(null);
+                    refreshInstanceButtons();
+                    refreshSidebar();
+                }
+            }
+        });
         // Sidebar with add/remove controls
         this.sidebar = new JPanel();
         sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));
@@ -303,7 +315,7 @@ public class HomeView extends JFrame {
 
         for (String name : model.getInstanceFolders()) {
             var settings = model.getSettings(name);
-            var icon = IconRegistry.findIcon(settings.getValue("iconKey").orElse("gear"), model.getInstancePath(name));
+            var icon = IconRegistry.findIcon(settings.getValue("iconKey").orElse("default_instance"), model.getInstancePath(name));
             ToggleIconButton toggle = new ToggleIconButton(icon, name);
             toggle.setName(name);
 

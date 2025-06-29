@@ -39,7 +39,7 @@ public class IconRegistry {
         try {
             return loadAndScaleImageIcon(Files.newInputStream(path), ICON_HEIGHT);
         } catch (Exception e) {
-            return loadAndScaleImageIcon(IconRegistry.class.getResourceAsStream("/taulauncher/icons/gear.png"), ICON_HEIGHT);
+            return loadAndScaleImageIcon(IconRegistry.class.getResourceAsStream("/taulauncher/icons/" + iconName + ".png"), ICON_HEIGHT);
         }
     }
 
