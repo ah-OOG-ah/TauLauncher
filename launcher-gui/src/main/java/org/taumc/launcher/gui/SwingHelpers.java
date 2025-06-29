@@ -50,6 +50,29 @@ public class SwingHelpers {
         return (List<T>)List.of(elements);
     }
 
+    private static void openFileWithDbus(File file) throws IOException {
+        if (!file.exists()) {
+            System.err.println("File does not exist.");
+            return;
+        }
+
+        String uri = "file://" + file.getAbsolutePath();
+
+        String[] command = {
+                "dbus-send",
+                "--session",
+                "--dest=org.freedesktop.FileManager1",
+                "--type=method_call",
+                "--print-reply",
+                "/org/freedesktop/FileManager1",
+                "org.freedesktop.FileManager1.ShowItems",
+                "array:string:" + uri,
+                "string:\"\""
+        };
+
+        new ProcessBuilder(command).start();
+    }
+
     public static void showFileInFolder(File file) {
         if (!file.exists()) {
             System.err.println("File does not exist: " + file);
@@ -69,10 +92,13 @@ public class SwingHelpers {
                 new ProcessBuilder("open", "-R", file.getAbsolutePath()).start();
 
             } else if (os.contains("nux") || os.contains("nix")) {
-                // Linux: best effort
-                File parent = file.getParentFile();
-                if (parent != null && parent.exists()) {
-                    new ProcessBuilder("xdg-open", parent.getAbsolutePath()).start();
+                try {
+                    openFileWithDbus(file);
+                } catch (Exception e) {
+                    File parent = file.getParentFile();
+                    if (parent != null && parent.exists()) {
+                        new ProcessBuilder("xdg-open", parent.getAbsolutePath()).start();
+                    }
                 }
             } else {
                 // Fallback
