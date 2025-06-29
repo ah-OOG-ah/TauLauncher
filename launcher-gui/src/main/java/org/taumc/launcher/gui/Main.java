@@ -26,7 +26,7 @@ public class Main {
         return Boolean.getBoolean("tau.launcher.production");
     }
 
-    public static void main(String[] args) throws Exception {
+    static void start(String[] args) throws Exception {
         FlatDarkLaf.setup();
 
         SwingUtilities.invokeLater(() -> {

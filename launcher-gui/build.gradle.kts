@@ -21,7 +21,7 @@ dependencies {
 }
 
 application {
-    mainClass = "org.taumc.launcher.gui.Main"
+    mainClass = "org.taumc.launcher.gui.TauLauncherEntryPoint"
     applicationName = "TauLauncher"
     applicationDefaultJvmArgs = listOf("-Dfile.encoding=UTF-8", "-Dtau.launcher.production=true", "-Xmx256m")
 }

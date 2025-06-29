@@ -1,13 +1,28 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Configuration status="WARN">
+    <Properties>
+        <Property name="log.pattern">[%d{HH:mm:ss}] [%t/%level]: %msg%n</Property>
+    </Properties>
+
     <Appenders>
         <Console name="Console" target="SYSTEM_OUT">
-            <PatternLayout pattern="[%d{HH:mm:ss}] [%t/%level]: %msg%n"/>
+            <PatternLayout pattern="${log.pattern}"/>
         </Console>
+        <RollingFile name="RollingFile"
+                     fileName="${sys:taulauncher.logdir}/taulauncher.log"
+                     filePattern="${sys:taulauncher.logdir}/taulauncher-%d{yyyy-MM-dd}.log.gz">
+            <PatternLayout pattern="${log.pattern}"/>
+            <Policies>
+                <OnStartupTriggeringPolicy />
+                <SizeBasedTriggeringPolicy size="10MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="5"/>
+        </RollingFile>
     </Appenders>
     <Loggers>
         <Root level="info">
             <AppenderRef ref="Console"/>
+            <AppenderRef ref="RollingFile"/>
         </Root>
     </Loggers>
 </Configuration>
