@@ -287,13 +287,13 @@ public class ModManagerPanel extends JPanel {
     private CompletableFuture<ModMetadata> computeMetadata(Path path) {
         return CompletableFuture.supplyAsync(() -> {
             try (ZipFile zf = new ZipFile(path.toFile())) {
-                var forgeMod = zf.getEntry("META-INF/mods.toml");
-                if (forgeMod != null) {
-                    return computeForgeMetadata(forgeMod, zf);
-                }
                 var neoforgeMod = zf.getEntry("META-INF/neoforge.mods.toml");
                 if (neoforgeMod != null) {
                     return computeForgeMetadata(neoforgeMod, zf);
+                }
+                var forgeMod = zf.getEntry("META-INF/mods.toml");
+                if (forgeMod != null) {
+                    return computeForgeMetadata(forgeMod, zf);
                 }
                 var legacyForgeMod = zf.getEntry("mcmod.info");
                 if (legacyForgeMod != null) {
@@ -326,7 +326,16 @@ public class ModManagerPanel extends JPanel {
     }
 
     private void checkForModUpdates() {
-        var modFiles = modTableModel.mods.stream().map(m -> m.path).toList();
+        Stream<Mod> modStream;
+        if (modTable.getSelectedRowCount() == 0) {
+            modStream = modTableModel.mods.stream();
+        } else {
+            modStream = IntStream.of(modTable.getSelectedRows()).map(modTable::convertRowIndexToModel).mapToObj(i -> modTableModel.mods.get(i));
+        }
+
+        var modFiles = modStream.map(m -> m.path).toList();
+        int numModsToCheckForUpdates = modFiles.size();
+
         List<CompletableFuture<List<ModUpdate>>> futures = new ArrayList<>();
         ModSearchOptions searchOptions = new ModSearchOptions();
         searchOptions.componentFilter = SwingHelpers.immutableListOf(this.installedComponents);
@@ -350,7 +359,7 @@ public class ModManagerPanel extends JPanel {
                         .sorted(Comparator.comparing(u -> u.originalFile().getFileName().toString()))
                         .toList();
                 if (updates.isEmpty()) {
-                    JOptionPane.showMessageDialog(this.owner, "There are no updates available", "Updater", JOptionPane.INFORMATION_MESSAGE);
+                    JOptionPane.showMessageDialog(this.owner, "There are no updates available for all " + numModsToCheckForUpdates + " selected mods", "Updater", JOptionPane.INFORMATION_MESSAGE);
                     return;
                 }
                 var selectedUpdates = ModUpdateDialog.showModUpdateDialog(this.owner, updates);
@@ -433,6 +442,14 @@ public class ModManagerPanel extends JPanel {
                 return meta;
             }
         }
+
+        public String friendlyName() {
+            var meta = metadata();
+            if (meta.name == null) {
+                return path.getFileName().toString();
+            }
+            return meta.name;
+        }
     }
 
     // Table model
@@ -441,7 +458,7 @@ public class ModManagerPanel extends JPanel {
         public static final List<Column> COLUMNS = List.of(
                 new Column("Enable", Boolean.class, true, 60, m -> m.enabled()),
                 new Column("Icon", Icon.class, true, 40, m -> m.metadata().icon()),
-                new Column("Name", String.class, false, 200, m -> m.metadata().name()),
+                new Column("Name", String.class, false, 200, m -> m.friendlyName()),
                 new Column("Version", String.class, true, 80, m -> m.metadata().version())
         );
         public static final int NAME_COLUMN_INDEX = IntStream.range(0, COLUMNS.size()).filter(i -> COLUMNS.get(i).name().equals("Name")).findFirst().orElseThrow();
