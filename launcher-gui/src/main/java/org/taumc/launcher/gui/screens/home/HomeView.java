@@ -72,6 +72,7 @@ public class HomeView extends JFrame {
 
     public HomeView(HomeModel model) {
         this.model = model;
+        this.setTitle("TauLauncher");
         this.instanceButtonGroup = new ButtonGroup();
         var buttonLayout = new WrapLayout(FlowLayout.LEFT);
         buttonLayout.setAlignOnBaseline(false);
