@@ -9,6 +9,7 @@ import org.taumc.launcher.core.meta.json.MMCPack;
 import org.taumc.launcher.core.nio.PathUtils;
 import org.taumc.launcher.core.progress.Counter;
 import org.taumc.launcher.core.progress.ProgressProvider;
+import org.taumc.launcher.core.qsettings.Settings;
 
 import java.io.IOException;
 import java.net.URI;
@@ -186,19 +187,31 @@ public class CurseForgeInstanceCreator {
         Path tmpDir = Files.createTempDirectory("taulauncher-modpack");
         Path modpackZip = tmpDir.resolve("modpack.zip");
         try {
-            var modpackFile = cfApi.getModFile(modpackId, fileId).join();
+            var modpackFuture = cfApi.getMod(modpackId);
+            var modpackFile = cfApi.getModFile(modpackId, fileId);
             try (var task = progressProvider.addTask("Downloading modpack..."); var client = Methanol.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build()) {
                 var handler = DownloadProgressTracker.track(HttpResponse.BodyHandlers.ofFile(modpackZip), task);
-                var response = client.send(HttpRequest.newBuilder().GET().uri(new URI(modpackFile.downloadUrl())).build(), handler);
+                var response = client.send(HttpRequest.newBuilder().GET().uri(new URI(modpackFile.join().downloadUrl())).build(), handler);
                 if (response.statusCode() != 200) {
                     throw new IOException("Unexpected status code retrieving modpack: " + response.statusCode());
                 }
-            } catch (URISyntaxException | InterruptedException e) {
-                throw new IOException("Unexpected error", e);
             }
             try (FileSystem zipfs = FileSystems.newFileSystem(modpackZip, Map.of("create", "false"))) {
                 createInstance(target, zipfs.getRootDirectories().iterator().next(), progressProvider);
             }
+            var modpack = modpackFuture.join();
+            if (modpack.logo() != null && modpack.logo().url() != null) {
+                String iconKey = "cf_" + modpackId;
+                try (var task = progressProvider.addTask("Downloading logo..."); var client = Methanol.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build()) {
+                    var handler = DownloadProgressTracker.track(HttpResponse.BodyHandlers.ofFile(target.resolve(iconKey + ".png")), task);
+                    client.send(HttpRequest.newBuilder().GET().uri(new URI(modpack.logo().url())).build(), handler);
+                }
+                var settings = new Settings();
+                settings.setValue("iconKey", iconKey);
+                settings.writeTo(target.resolve("instance.cfg"));
+            }
+        } catch (URISyntaxException | InterruptedException e) {
+            throw new IOException("Unexpected error", e);
         } finally {
             Files.deleteIfExists(modpackZip);
         }

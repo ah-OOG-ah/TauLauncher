@@ -223,6 +223,7 @@ public class HomeView extends JFrame {
         };
 
         future.whenCompleteAsync((c, t) -> {
+            IconRegistry.resetCache();
             if (t != null) {
                 Throwable realCause;
                 if (t instanceof CompletionException && t.getCause() != null) {

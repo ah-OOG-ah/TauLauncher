@@ -16,6 +16,11 @@ public class IconRegistry {
     private record IconKey(String name, Path instance) {}
     private static final Map<IconKey, ImageIcon> CACHE = new HashMap<>();
 
+    public static void resetCache() {
+        CACHE.values().forEach(i -> i.getImage().flush());
+        CACHE.clear();
+    }
+
     private static ImageIcon loadAndScaleImageIcon(InputStream is, int fixedHeight) {
         try {
             BufferedImage img = ImageIO.read(is);
@@ -39,7 +44,12 @@ public class IconRegistry {
         try {
             return loadAndScaleImageIcon(Files.newInputStream(path), ICON_HEIGHT);
         } catch (Exception e) {
-            return loadAndScaleImageIcon(IconRegistry.class.getResourceAsStream("/taulauncher/icons/" + iconName + ".png"), ICON_HEIGHT);
+            var iconStream = IconRegistry.class.getResourceAsStream("/taulauncher/icons/" + iconName + ".png");
+            if (iconStream != null) {
+                return loadAndScaleImageIcon(iconStream, ICON_HEIGHT);
+            } else {
+                return loadAndScaleImageIcon(IconRegistry.class.getResourceAsStream("/taulauncher/icons/default_instance.png"), ICON_HEIGHT);
+            }
         }
     }
 
