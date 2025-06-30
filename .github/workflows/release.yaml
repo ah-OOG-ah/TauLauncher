@@ -45,7 +45,7 @@ jobs:
       - name: Upload version artifact
         uses: actions/upload-artifact@v4
         with:
-          name: runtime-image
+          name: runtime-image-${{ matrix.os }}
           path: launcher-gui/build/taulauncher-${{ matrix.os }}.zip
   publish:
     runs-on: ubuntu-latest
