@@ -217,7 +217,61 @@ public class InstanceEditView extends JFrame {
 
         panel.add(sidebar, BorderLayout.EAST);
 
-        JList<MMCPack.Component> components = new JList<>(componentList);
+        JList<MMCPack.Component> components = new JList<>(componentList) {
+            final String[] messageLines = {
+                    "No components are currently installed.",
+                    "Add components using the + button on the right."
+            };
+
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                if (getModel().getSize() == 0) {
+                    Graphics2D g2d = (Graphics2D) g.create();
+                    g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+                    // Use the current UI font and foreground color
+                    Font font = UIManager.getFont("Label.font").deriveFont(Font.BOLD, 18f);
+                    Color fg = UIManager.getColor("Label.foreground");
+                    g2d.setFont(font);
+                    g2d.setColor(fg);
+                    FontMetrics fm = g2d.getFontMetrics();
+
+                    int lineHeight = fm.getHeight();
+                    int extraHeight = 20;
+                    int totalHeight = lineHeight * messageLines.length + extraHeight;
+                    int maxWidth = 0;
+                    for (String line : messageLines) {
+                        maxWidth = Math.max(maxWidth, fm.stringWidth(line));
+                    }
+
+                    int boxWidth = maxWidth + 40;
+                    int boxHeight = totalHeight;
+                    int boxX = (getWidth() - boxWidth) / 2;
+                    int boxY = (getHeight() - boxHeight) / 2;
+
+                    // Draw background using FlatLaf-style color
+                    Color bg = UIManager.getColor("TextField.background");
+                    Color border = UIManager.getColor("Component.borderColor");
+
+                    g2d.setColor(bg != null ? bg : new Color(240, 240, 240));
+                    g2d.fillRoundRect(boxX, boxY, boxWidth, boxHeight, 16, 16);
+                    g2d.setColor(border != null ? border : Color.GRAY);
+                    g2d.drawRoundRect(boxX, boxY, boxWidth, boxHeight, 16, 16);
+
+                    // Draw text
+                    g2d.setColor(fg);
+                    int y = boxY + extraHeight / 2 + fm.getAscent();
+                    for (String line : messageLines) {
+                        int x = (getWidth() - fm.stringWidth(line)) / 2;
+                        g2d.drawString(line, x, y);
+                        y += lineHeight;
+                    }
+
+                    g2d.dispose();
+                }
+            }
+        };
 
         components.setCellRenderer(new DefaultListCellRenderer() {
             @Override
