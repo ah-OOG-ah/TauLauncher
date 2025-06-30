@@ -1,6 +1,5 @@
 plugins {
     id("org.taumc.gradle.versioning")
-    id("org.taumc.gradle.publishing")
 }
 
 group = "org.taumc"
@@ -10,17 +9,14 @@ subprojects {
     project.version = rootProject.version
 }
 
-val tauGradlePublish = tau.publishing.publish {
-    useTauGradleVersioning()
+tasks.register("showReleaseTag") {
+    doLast {
+        println(tau.versioning.releaseTag)
+    }
+}
 
-    changelog = tau.versioning.commitChangeLog
-
-    github("GitHub") {
-        supportAllChannels()
-        uploadArtifacts = false
-
-        accessToken = System.getenv("GITHUB_TOKEN")
-        repository = "TauMC/TauLauncher"
-        tagName = tau.versioning.releaseTag
+tasks.register("showVersion") {
+    doLast {
+        println(tau.versioning.version)
     }
 }

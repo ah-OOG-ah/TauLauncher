@@ -17,7 +17,12 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
+      fail-fast: false
+
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout code
@@ -32,6 +37,57 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Publish artifacts
-        if: ${{ inputs.release_type != 'DRY_RUN' }}
-        run: ./gradlew :taugradle_publish -Prelease_channel=${{ inputs.release_type }} --stacktrace
+      - name: Build and test with Gradle
+        run: ./gradlew :launcher-gui:runtimeZip -Prelease_channel=${{ inputs.release_type }} --stacktrace --no-daemon
+
+      - name: Rename artifact
+        run: mv build/image.zip build/taulauncher-${{ matrix.os }}.zip
+      - name: Upload version artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-image
+          path: build/taulauncher-${{ matrix.os }}.zip
+  publish:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Get release tag
+        id: release-tag
+        run: |
+          RELEASE_TAG=$(./gradlew showReleaseTag --quiet)
+          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Get version
+        id: version
+        run: |
+          VERSION=$(./gradlew showVersion --quiet)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./release-artifacts
+
+      - name: Show downloaded files
+        run: ls -R ./release-artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release-tag.outputs.release_tag }}
+          name: "${{ steps.version.outputs.version }}"
+          files: |
+            release-artifacts/**/*
