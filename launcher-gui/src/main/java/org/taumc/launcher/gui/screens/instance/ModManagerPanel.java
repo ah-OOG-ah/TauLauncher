@@ -55,6 +55,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.jar.Manifest;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -109,7 +110,14 @@ public class ModManagerPanel extends JPanel {
             sorter.sort();
         });
 
-        IntStream.range(0, ModTableModel.COLUMNS.size()).forEach(i -> modTable.getColumnModel().getColumn(i).setPreferredWidth(ModTableModel.COLUMNS.get(i).preferredWidth()));
+        IntStream.range(0, ModTableModel.COLUMNS.size()).forEach(i -> {
+            var column = modTable.getColumnModel().getColumn(i);
+            var columnSpec = ModTableModel.COLUMNS.get(i);
+            column.setPreferredWidth(columnSpec.preferredWidth());
+            if (columnSpec.renderer() != null) {
+                column.setCellRenderer(columnSpec.renderer().get());
+            }
+        });
 
         // Checkbox editor/renderer already handled by default for Boolean class
 
@@ -480,16 +488,43 @@ public class ModManagerPanel extends JPanel {
             }
             return meta.name;
         }
+
+        public long size() {
+            try {
+                return Files.size(path);
+            } catch (IOException e) {
+                LOGGER.error("Error reading file size", e);
+                return 0;
+            }
+        }
     }
 
     // Table model
     private static class ModTableModel extends AbstractTableModel {
-        public record Column(String name, Class<?> clz, boolean fixed, int preferredWidth, Function<Mod, Object> valueGetter) {}
+        public record Column(String name, Class<?> clz, boolean fixed, int preferredWidth, Function<Mod, Object> valueGetter, Supplier<TableCellRenderer> renderer) { }
         public static final List<Column> COLUMNS = List.of(
-                new Column("Enable", Boolean.class, true, 60, m -> m.enabled()),
-                new Column("Icon", Icon.class, true, 40, m -> m.metadata().icon()),
-                new Column("Name", String.class, false, 200, m -> m.friendlyName()),
-                new Column("Version", String.class, true, 80, m -> m.metadata().version())
+                new Column("Enable", Boolean.class, true, 60, m -> m.enabled(), null),
+                new Column("Icon", Icon.class, true, 40, m -> m.metadata().icon(), null),
+                new Column("Name", String.class, false, 200, m -> m.friendlyName(), null),
+                new Column("Version", String.class, true, 80, m -> m.metadata().version(), null),
+                new Column("Size", Long.class, true, 80, m -> m.size(), () -> new DefaultTableCellRenderer() {
+                    private static String formatSize(long bytes) {
+                        if (bytes < 1024) return bytes + " B";
+                        int exp = (int) (Math.log(bytes) / Math.log(1024));
+                        return String.format("%.1f %sB", bytes / Math.pow(1024, exp), "KMGTPE".charAt(exp - 1));
+                    }
+
+                    @Override
+                    public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+                        super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+
+                        if (value instanceof Long size) {
+                            this.setText(formatSize(size));
+                        }
+
+                        return this;
+                    }
+                })
         );
         public static final int NAME_COLUMN_INDEX = IntStream.range(0, COLUMNS.size()).filter(i -> COLUMNS.get(i).name().equals("Name")).findFirst().orElseThrow();
         private final java.util.List<Mod> mods = new ArrayList<>();
