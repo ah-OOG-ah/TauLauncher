@@ -1,3 +1,5 @@
+import java.util.UUID
+
 plugins {
     id("java-library")
 }
@@ -37,5 +39,20 @@ dependencies {
 }
 
 tasks.test {
+    val tmpDir = project.layout.buildDirectory.dir("tmp/${UUID.randomUUID()}").get().asFile
+
+    doFirst {
+        tmpDir.mkdirs()
+        workingDir = tmpDir
+    }
+
+    doLast {
+        if (tmpDir.exists()) {
+            tmpDir.deleteRecursively()
+        }
+    }
+
     useJUnitPlatform()
+
+    systemProperty("tau.launcher.portable", "true")
 }
