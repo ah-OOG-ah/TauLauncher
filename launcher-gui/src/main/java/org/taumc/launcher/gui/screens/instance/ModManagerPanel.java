@@ -2,7 +2,6 @@ package org.taumc.launcher.gui.screens.instance;
 
 import com.fasterxml.jackson.core.json.JsonReadFeature;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.github.mizosoft.methanol.Methanol;
 import org.slf4j.Logger;
@@ -10,7 +9,6 @@ import org.slf4j.LoggerFactory;
 import org.taumc.launcher.core.http.DownloadProgressTracker;
 import org.taumc.launcher.core.meta.json.MMCPack;
 import org.taumc.launcher.core.meta.legacyforge.ModInfo;
-import org.taumc.launcher.core.mods.DownloadableFile;
 import org.taumc.launcher.core.mods.ModHostingSite;
 import org.taumc.launcher.core.mods.ModSearchOptions;
 import org.taumc.launcher.core.mods.ModUpdate;
@@ -32,6 +30,8 @@ import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.*;
 import java.awt.*;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.Transferable;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.KeyAdapter;
@@ -44,7 +44,6 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -119,6 +118,30 @@ public class ModManagerPanel extends JPanel {
 
         modTable.addKeyListener(new TableSearchKeyListener());
 
+        // Enable drop target
+        modTable.setFillsViewportHeight(true);
+        modTable.setTransferHandler(new TransferHandler() {
+            @Override
+            public boolean canImport(TransferSupport support) {
+                return support.isDataFlavorSupported(DataFlavor.javaFileListFlavor);
+            }
+
+            @Override
+            public boolean importData(TransferSupport support) {
+                if (!canImport(support)) return false;
+
+                try {
+                    Transferable t = support.getTransferable();
+                    List<File> files = (List<File>) t.getTransferData(DataFlavor.javaFileListFlavor);
+                    addModFiles(files);
+                    return true;
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    return false;
+                }
+            }
+        });
+
         JScrollPane tableScrollPane = new JScrollPane(modTable);
 
         // Deselect table items when anything else in panel is clicked
@@ -166,16 +189,7 @@ public class ModManagerPanel extends JPanel {
 
             var files = chooser.showFilePicker();
             if (!files.isEmpty()) {
-                Path modsFolder = getModsFolder();
-                for (var f : files) {
-                    var path = f.toPath();
-                    try {
-                        Files.copy(path, modsFolder.resolve(path.getFileName()), StandardCopyOption.REPLACE_EXISTING);
-                    } catch (IOException ex) {
-                        JOptionPane.showMessageDialog(null, ex.getMessage(), "Error copying mod", JOptionPane.ERROR_MESSAGE);
-                    }
-                }
-                this.refreshTableModel();
+                addModFiles(files);
             }
         });
         showInFolder.addActionListener(e -> {
@@ -212,6 +226,19 @@ public class ModManagerPanel extends JPanel {
                 modTable.doLayout();
             }
         });
+    }
+
+    private void addModFiles(List<File> files) {
+        Path modsFolder = getModsFolder();
+        for (var f : files) {
+            var path = f.toPath();
+            try {
+                Files.copy(path, modsFolder.resolve(path.getFileName()), StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException ex) {
+                JOptionPane.showMessageDialog(null, ex.getMessage(), "Error copying mod", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+        this.refreshTableModel();
     }
 
     private Path getModsFolder() {
