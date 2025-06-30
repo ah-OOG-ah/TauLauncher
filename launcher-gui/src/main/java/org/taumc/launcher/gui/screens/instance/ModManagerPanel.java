@@ -18,6 +18,8 @@ import org.taumc.launcher.core.mods.ProjectType;
 import org.taumc.launcher.core.mods.curseforge.CurseForgeModHostingSite;
 import org.taumc.launcher.core.mods.modrinth.ModrinthModHostingSite;
 import org.taumc.launcher.gui.SwingHelpers;
+import org.taumc.launcher.gui.components.FileChooser;
+import org.taumc.launcher.gui.components.SwingFileChooser;
 import org.taumc.launcher.gui.launch.LaunchHandler;
 import org.taumc.launcher.gui.launch.ProgressDialog;
 import org.taumc.launcher.gui.screens.mods.AddModsView;
@@ -156,14 +158,15 @@ public class ModManagerPanel extends JPanel {
         removeButton.addActionListener(e -> removeSelectedMods());
         downloadMoreButton.addActionListener(e -> downloadMoreMods());
         addFileButton.addActionListener(e -> {
-            JFileChooser fileChooser = new JFileChooser();
-            fileChooser.setMultiSelectionEnabled(true);
-            fileChooser.setFileFilter(new FileNameExtensionFilter("Mods", "jar"));
-            int result = fileChooser.showOpenDialog(null); // or use a parent component
+            FileChooser chooser = FileChooser.getInstance();
+            chooser.setAllowMultiSelection(true);
+            if (chooser instanceof SwingFileChooser sfc) {
+                sfc.fileChooser.setFileFilter(new FileNameExtensionFilter("Mods", "jar"));
+            }
 
-            if (result == JFileChooser.APPROVE_OPTION) {
+            var files = chooser.showFilePicker();
+            if (!files.isEmpty()) {
                 Path modsFolder = getModsFolder();
-                File[] files = fileChooser.getSelectedFiles();
                 for (var f : files) {
                     var path = f.toPath();
                     try {

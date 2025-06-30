@@ -13,6 +13,7 @@ import org.taumc.launcher.core.mods.curseforge.File;
 import org.taumc.launcher.core.nio.PathUtils;
 import org.taumc.launcher.gui.Main;
 import org.taumc.launcher.gui.SwingHelpers;
+import org.taumc.launcher.gui.components.FileChooser;
 import org.taumc.launcher.gui.components.WrapLayout;
 import org.taumc.launcher.gui.icon.IconRegistry;
 import org.taumc.launcher.gui.launch.LaunchHandler;
@@ -279,11 +280,12 @@ public class HomeView extends JFrame {
     }
 
     private CompletableFuture<Void> showLocalFileImportInstanceDialog() {
-        JFileChooser fileChooser = new JFileChooser();
-        int result = fileChooser.showOpenDialog(null); // or use a parent component
+        FileChooser fileChooser = FileChooser.getInstance();
+        var selectedFiles = fileChooser.showFilePicker();
 
-        if (result == JFileChooser.APPROVE_OPTION) {
-            var path = fileChooser.getSelectedFile().toPath();
+        if (!selectedFiles.isEmpty()) {
+            var path = selectedFiles.getFirst().toPath();
+
             return CompletableFuture.runAsync(() -> {
                 String instanceName = path.getFileName().toString();
                 int lastDot = instanceName.lastIndexOf('.');
