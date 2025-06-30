@@ -1,0 +1,33 @@
+# Used when a commit is pushed to the repository
+# This makes use of caching for faster builds and uploads the resulting artifacts
+name: build-snapshot
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        type: choice
+        description: Release type
+        options:
+          - DRY_RUN
+          - DEV_BUILD
+          - PRERELEASE
+          - RELEASE
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Publish artifacts
+        if: ${{ inputs.release_type != 'DRY_RUN' }}
+        run: ./gradlew :taugradle_publish -Prelease_channel=${{ inputs.release_type }} --stacktrace

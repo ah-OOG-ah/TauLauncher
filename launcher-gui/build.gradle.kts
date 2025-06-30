@@ -20,6 +20,21 @@ dependencies {
     implementation("org.apache.logging.log4j:log4j-slf4j2-impl:2.20.0") // SLF4J to Log4j2 bridge
 }
 
+val generateVersionFile by tasks.registering {
+    val outputDir = layout.buildDirectory.dir("generated/version")
+    inputs.property("version", project.version)  // Declare version as input
+    outputs.dir(outputDir)
+    doLast {
+        val file = outputDir.get().file("taulauncher_version.properties").asFile
+        file.parentFile.mkdirs()
+        file.writeText("version=${project.version}")
+    }
+}
+
+sourceSets.main {
+    resources.srcDir(generateVersionFile.map { it.outputs.files.singleFile })
+}
+
 application {
     mainClass = "org.taumc.launcher.gui.TauLauncherEntryPoint"
     applicationName = "TauLauncher"
@@ -32,6 +47,12 @@ tasks.named<JavaExec>("run") {
         runDir.mkdirs()
     }
     workingDir = runDir
+}
+
+tasks.jar {
+    manifest {
+        attributes["Implementation-Version"] = project.version
+    }
 }
 
 runtime {
