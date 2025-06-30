@@ -46,6 +46,9 @@ public class NewComponentDialog extends JDialog {
             if (!isTopLevel) {
                 continue;
             }
+            if (this.existingComponents.isEmpty() && !pkg.equals("net.minecraft")) {
+                continue;
+            }
             LinkedHashSet<String> versions = new LinkedHashSet<>();
             for (var idx : Main.METADATA.getPackageIndexes(pkg)) {
                 for (var version : idx.index().versions()) {
