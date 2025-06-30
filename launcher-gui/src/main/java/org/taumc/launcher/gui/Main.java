@@ -1,6 +1,7 @@
 package org.taumc.launcher.gui;
 
 import com.formdev.flatlaf.FlatDarkLaf;
+import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.taumc.launcher.core.auth.AccountService;
@@ -27,6 +28,13 @@ public class Main {
     }
 
     static void start(String[] args) throws Exception {
+        if (SystemUtils.IS_OS_MAC) {
+            System.setProperty("apple.laf.useScreenMenuBar", "true");
+            System.setProperty("com.apple.mrj.application.apple.menu.about.name", "TauLauncher");
+            System.setProperty("apple.awt.application.name", "TauLauncher");
+            System.setProperty("apple.awt.application.appearance", "dark");
+        }
+
         FlatDarkLaf.setup();
 
         SwingUtilities.invokeLater(() -> {
