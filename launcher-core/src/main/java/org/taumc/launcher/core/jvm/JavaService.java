@@ -173,7 +173,12 @@ public class JavaService {
 
     public String provisionJVMBinary(int version, ProgressProvider progressProvider) throws IOException, InterruptedException {
         var jvmPath = JVM_CACHE.resolve("java" + version);
-        var jvmBinPath = jvmPath.resolve("bin");
+        Path jvmBinPath;
+        if (SystemUtils.IS_OS_MAC) {
+            jvmBinPath = jvmPath.resolve("Contents").resolve("Home").resolve("bin");
+        } else {
+            jvmBinPath = jvmPath.resolve("bin");
+        }
         if (JVM_EXECUTABLE_NAMES.stream().noneMatch(s -> Files.exists(jvmBinPath.resolve(s)))) {
             downloadJVM(version, jvmPath, progressProvider);
         }
