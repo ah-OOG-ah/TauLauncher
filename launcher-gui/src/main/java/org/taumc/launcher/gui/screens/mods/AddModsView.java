@@ -310,6 +310,7 @@ public class AddModsView extends JFrame {
             files.add(model.getElementAt(i));
         }
 
+        this.setVisible(false);
         this.filesConsumer.apply(files).whenCompleteAsync((v, t) -> {
             if (t != null) {
                 LOGGER.error("Error downloading mods", t);
