@@ -7,7 +7,6 @@ on:
         type: choice
         description: Release type
         options:
-          - DRY_RUN
           - DEV_BUILD
           - PRERELEASE
           - RELEASE
@@ -23,6 +22,10 @@ jobs:
       fail-fast: false
 
     runs-on: ${{ matrix.os }}
+
+    outputs:
+      release_tag: ${{ steps.release-tag.outputs.release_tag }}
+      release_version: ${{ steps.version.outputs.version }}
 
     steps:
       - name: Checkout sources
@@ -41,7 +44,19 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build and test with Gradle
-        run: ./gradlew :launcher-gui:runtimeZip -Prelease_channel=${{ inputs.release_type }} --stacktrace --no-daemon
+        run: ./gradlew :launcher-gui:runtimeZip -Prelease_channel=${{ inputs.release_type }} --stacktrace
+
+      - name: Get release tag
+        id: release-tag
+        run: |
+          RELEASE_TAG=$(./gradlew showReleaseTag -Prelease_channel=${{ inputs.release_type }} --quiet)
+          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Get version
+        id: version
+        run: |
+          VERSION=$(./gradlew showVersion -Prelease_channel=${{ inputs.release_type }} --quiet)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Rename artifact
         run: mv launcher-gui/build/image.zip launcher-gui/build/taulauncher-${{ matrix.os }}.zip
@@ -57,30 +72,6 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          fetch-tags: true
-
-      - name: Set up JDK
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '21'
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Get release tag
-        id: release-tag
-        run: |
-          RELEASE_TAG=$(./gradlew showReleaseTag -Prelease_channel=${{ inputs.release_type }} --quiet)
-          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
-
-      - name: Get version
-        id: version
-        run: |
-          VERSION=$(./gradlew showVersion -Prelease_channel=${{ inputs.release_type }} --quiet)
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -93,7 +84,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.release-tag.outputs.release_tag }}
-          name: "${{ steps.version.outputs.version }}"
+          tag_name: ${{ needs.build.outputs.release_tag }}
+          name: "${{ needs.build.outputs.release_version }}"
           files: |
             release-artifacts/**/*
