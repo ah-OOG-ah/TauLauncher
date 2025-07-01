@@ -151,7 +151,7 @@ public class CurseForgeInstanceCreator {
     }
 
     public interface ManualDownloadService {
-        record Download(File file, Mod mod, Path destination) {}
+        record Download(File file, Mod mod, Path cacheDestination, Path destination) {}
 
         void trackFileForManualDownload(Download download);
         CompletableFuture<Void> downloadManualFiles();

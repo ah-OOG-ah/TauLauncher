@@ -260,6 +260,7 @@ public class ManualDownloadDialog extends JFrame implements CurseForgeInstanceCr
                 Files.delete(download.destination());
                 throw new IOException("Size on disk of " + file.getFileName().toString() + " is not expected, should be " + expectedSize+ " but was " + newSize);
             }
+            Files.copy(download.destination(), download.cacheDestination(), StandardCopyOption.REPLACE_EXISTING);
             Files.delete(file);
             return true;
         }
