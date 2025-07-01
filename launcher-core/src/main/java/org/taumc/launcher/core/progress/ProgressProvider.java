@@ -41,9 +41,17 @@ public interface ProgressProvider {
         public Task addTask(String taskName) {
             LOGGER.info("Start task '{}'", taskName);
             return new Task() {
+                private String lastProgressString;
+
                 @Override
                 public void setProgress(float progress) {
-                    LOGGER.info("Task '{}' has progress {}%", taskName, String.format("%.1f", progress * 100));
+                    String progressStr = String.format("%.1f", progress * 100);
+                    synchronized (this) {
+                        if (!progressStr.equals(lastProgressString)) {
+                            LOGGER.info("Task '{}' has progress {}%", taskName, progressStr);
+                            lastProgressString = progressStr;
+                        }
+                    }
                 }
 
                 @Override
