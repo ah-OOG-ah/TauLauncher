@@ -217,8 +217,10 @@ public class AddModsView extends JFrame {
         contentPane.add(this.downloadModsPanel, BorderLayout.SOUTH);
 
         sourceList.addListSelectionListener(e -> {
-            resultsModel.clear();
-            triggerSearch();
+            if (!e.getValueIsAdjusting()) {
+                resultsModel.clear();
+                triggerSearch();
+            }
         });
 
         searchResultsList.addListSelectionListener(e -> {
