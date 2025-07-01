@@ -4,13 +4,14 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.taumc.launcher.core.meta.json.MMCPack;
 import org.taumc.launcher.core.mods.DownloadableFile;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record Version(String name, String version_number, List<String> game_versions, String version_type, String id, String project_id, int downloads, List<File> files) implements DownloadableFile {
+public record Version(String name, String version_number, List<String> game_versions, Instant date_published, String version_type, String id, String project_id, int downloads, List<File> files) implements DownloadableFile {
     private File getPrimaryFile() {
         if (files.size() == 1) {
             return files.getFirst();
@@ -31,6 +32,11 @@ public record Version(String name, String version_number, List<String> game_vers
     @Override
     public String fileName() {
         return getPrimaryFile().filename;
+    }
+
+    @Override
+    public Instant releaseTime() {
+        return date_published;
     }
 
     @Override

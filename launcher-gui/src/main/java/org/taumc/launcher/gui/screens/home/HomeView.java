@@ -10,6 +10,8 @@ import org.taumc.launcher.core.mods.ProjectType;
 import org.taumc.launcher.core.mods.curseforge.CurseForgeAPI;
 import org.taumc.launcher.core.mods.curseforge.CurseForgeInstanceCreator;
 import org.taumc.launcher.core.mods.curseforge.File;
+import org.taumc.launcher.core.mods.modpacksch.DownloadableModpackVersion;
+import org.taumc.launcher.core.mods.modpacksch.ModpacksCHInstanceCreator;
 import org.taumc.launcher.core.nio.PathUtils;
 import org.taumc.launcher.gui.Main;
 import org.taumc.launcher.gui.SwingHelpers;
@@ -247,10 +249,7 @@ public class HomeView extends JFrame {
             CompletableFuture<Void> innerFuture;
             if (!pack.isEmpty()) {
                 var thePack = pack.getFirst();
-                if (!(thePack instanceof File file)) {
-                    JOptionPane.showMessageDialog(this, "Can only import CurseForge packs", "Error", JOptionPane.ERROR_MESSAGE);
-                    innerFuture = CompletableFuture.completedFuture(null);
-                } else {
+                if (thePack instanceof File file) {
                     innerFuture = CompletableFuture.runAsync(() -> {
                         var creator = new CurseForgeInstanceCreator(CurseForgeAPI.INSTANCE, new ManualDownloadDialog());
                         String baseInstanceName = file.displayName();
@@ -264,6 +263,23 @@ public class HomeView extends JFrame {
                             throw new RuntimeException(e);
                         }
                     });
+                } else if (thePack instanceof DownloadableModpackVersion ftbModpackVersion) {
+                    innerFuture = CompletableFuture.runAsync(() -> {
+                        var creator = new ModpacksCHInstanceCreator(new ManualDownloadDialog());
+                        String baseInstanceName = ftbModpackVersion.modpackName();
+                        if (baseInstanceName.isBlank()) {
+                            baseInstanceName = "FTB Modpack";
+                        }
+                        var path = model.getInstancePath(PathUtils.findNonexistentName(baseInstanceName, s -> Files.exists(model.getInstancePath(s))));
+                        try {
+                            creator.createInstance(path, ftbModpackVersion, this.progressDialog);
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    });
+                } else {
+                    JOptionPane.showMessageDialog(this, "Cannot import pack type " + thePack.getClass().getName() + " right now", "Error", JOptionPane.ERROR_MESSAGE);
+                    innerFuture = CompletableFuture.completedFuture(null);
                 }
             } else {
                 innerFuture = CompletableFuture.completedFuture(null);

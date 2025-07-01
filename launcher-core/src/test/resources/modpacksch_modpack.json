@@ -1,0 +1,79 @@
+{
+    "files": [
+        {
+            "version": "0",
+            "path": "./config/Mekanism/",
+            "url": "https://dist.modpacks.ch/modpacks/0/FTB%20University%201.16-1.4.0/config/Mekanism/549b9df06b30c6a3abacff82d5b0d7b462da6520",
+            "mirrors": [],
+            "sha1": "549b9df06b30c6a3abacff82d5b0d7b462da6520",
+            "size": 274,
+            "tags": [],
+            "clientonly": false,
+            "serveronly": false,
+            "optional": false,
+            "id": 297841,
+            "name": "additions-client.toml",
+            "type": "config",
+            "updated": 1640452173
+        },
+        {
+            "version": "unknown",
+            "path": "./mods/",
+            "sha1": "3d599bbeb57469552b6abe8e1067917718f9e1aa",
+            "size": 251119,
+            "tags": [],
+            "clientonly": false,
+            "serveronly": false,
+            "optional": false,
+            "id": 358306,
+            "name": "Placebo-1.21-9.3.4.jar",
+            "type": "mod",
+            "updated": 1721505021,
+            "curseforge": {
+                "project": 283644,
+                "file": 5547234
+            }
+        }
+    ],
+    "specs": {
+        "id": 896,
+        "minimum": 4096,
+        "recommended": 6144
+    },
+    "targets": [
+        {
+            "version": "21.0.157",
+            "id": 10258,
+            "name": "neoforge",
+            "type": "modloader",
+            "updated": 0
+        },
+        {
+            "version": "1.21",
+            "id": 10049,
+            "name": "minecraft",
+            "type": "game",
+            "updated": 0
+        },
+        {
+            "version": "21.0.4+7-LTS",
+            "id": 10200,
+            "name": "java",
+            "type": "runtime",
+            "updated": 1721296182
+        }
+    ],
+    "installs": 95,
+    "plays": 128,
+    "refreshed": 1751333488,
+    "changelog": "https://api.modpacks.ch/public/modpack/124/12350/changelog",
+    "parent": 124,
+    "notification": "",
+    "links": [],
+    "status": "success",
+    "id": 12350,
+    "name": "1.0.0",
+    "type": "release",
+    "updated": 1722874920,
+    "private": false
+}

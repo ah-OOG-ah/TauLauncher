@@ -14,6 +14,7 @@ import org.taumc.launcher.core.mods.ModSearchOptions;
 import org.taumc.launcher.core.mods.ModUpdate;
 import org.taumc.launcher.core.mods.ProjectType;
 import org.taumc.launcher.core.mods.curseforge.CurseForgeModHostingSite;
+import org.taumc.launcher.core.mods.modpacksch.ModpacksCHHostingSite;
 import org.taumc.launcher.core.mods.modrinth.ModrinthModHostingSite;
 import org.taumc.launcher.gui.SwingHelpers;
 import org.taumc.launcher.gui.components.FileChooser;
@@ -66,7 +67,7 @@ import java.util.zip.ZipFile;
 public class ModManagerPanel extends JPanel {
     private static final int ICON_SIZE = 24;
     private static final Logger LOGGER = LoggerFactory.getLogger(ModManagerPanel.class);
-    public static final List<ModHostingSite<?, ?>> SITES = List.of(new CurseForgeModHostingSite(), new ModrinthModHostingSite());
+    public static final List<ModHostingSite<?, ?>> SITES = List.of(new CurseForgeModHostingSite(), new ModrinthModHostingSite(), new ModpacksCHHostingSite());
 
     private final Path instancePath;
     private final Frame owner;

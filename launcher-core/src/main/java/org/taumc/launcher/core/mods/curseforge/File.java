@@ -31,6 +31,11 @@ public record File(int id, int gameId, int modId, boolean isAvailable, String do
     }
 
     @Override
+    public Instant releaseTime() {
+        return fileDate;
+    }
+
+    @Override
     public String getParentModId() {
         return String.valueOf(modId);
     }

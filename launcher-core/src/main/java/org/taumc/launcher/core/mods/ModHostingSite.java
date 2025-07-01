@@ -3,10 +3,15 @@ package org.taumc.launcher.core.mods;
 import org.taumc.launcher.core.progress.ProgressProvider;
 
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 public interface ModHostingSite<M extends Mod, F extends DownloadableFile> {
+    default Collection<ProjectType> getProjectTypes() {
+        return ProjectType.ALL_TYPES;
+    }
+
     String name();
 
     CompletableFuture<List<M>> searchForMods(ModSearchOptions searchOptions);

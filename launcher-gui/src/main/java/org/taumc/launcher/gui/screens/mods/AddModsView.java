@@ -45,7 +45,9 @@ public class AddModsView extends JFrame {
         }
 
         CompletableFuture<List<F>> getAvailableFiles() {
-            return site.getModFiles(mod, searchOptions);
+            return site.getModFiles(mod, searchOptions).thenApply(list -> {
+                return list.stream().sorted(Comparator.comparing(DownloadableFile::releaseTime).reversed()).toList();
+            });
         }
     }
 
@@ -87,7 +89,7 @@ public class AddModsView extends JFrame {
 
         // Create entries with icons
 
-        sourceList = new JList<>(ModManagerPanel.SITES.toArray(new ModHostingSite[0]));
+        sourceList = new JList<>(ModManagerPanel.SITES.stream().filter(s -> s.getProjectTypes().contains(ProjectType.MODPACK)).toArray(ModHostingSite[]::new));
         sourceList.setCellRenderer(new SourceEntryRenderer());
         sourceList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         sourceList.setSelectedIndex(0);

@@ -39,7 +39,7 @@ public class ModrinthModHostingSite implements ModHostingSite<Project, Version> 
 
     public ModrinthModHostingSite() {
         this.mapper = JsonDecoder.make();
-        this.client = Methanol.newBuilder().userAgent("TauLauncher/0.1.0").build();
+        this.client = Methanol.newBuilder().userAgent("TauLauncher/" + System.getProperty("taulauncher.version")).build();
     }
 
     @Override
