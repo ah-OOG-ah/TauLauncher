@@ -81,6 +81,8 @@ public class RuntimeInstance {
     private OptionalInt minimumMemoryMB = OptionalInt.empty(), maximumMemoryMB = OptionalInt.empty();
     private List<String> extraJvmArguments = new ArrayList<>();
 
+    private Optional<String> javaPath = Optional.empty();
+
     private final Map<String, String> systemProperties = new LinkedHashMap<>();
 
     public void addComponent(MMCPack.Component coordinate) throws IOException, InterruptedException {
@@ -286,6 +288,11 @@ public class RuntimeInstance {
     }
 
     private CompletableFuture<String> computeJavaVersion() {
+        if (this.javaPath.isPresent()) {
+            LOGGER.info("Selected JVM from {} by user request", this.javaPath.get());
+            return CompletableFuture.completedFuture(this.javaPath.get());
+        }
+
         int javaVersion;
 
         if (this.mainComponent.compatibleJavaMajors() != null) {
@@ -485,5 +492,9 @@ public class RuntimeInstance {
 
     public MetadataService getMetadataService() {
         return this.service;
+    }
+
+    public void setJavaPath(String javaPath) {
+        this.javaPath = Optional.of(javaPath);
     }
 }

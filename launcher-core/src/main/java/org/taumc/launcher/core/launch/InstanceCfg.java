@@ -53,6 +53,9 @@ public class InstanceCfg {
                 line.addArguments(finalArgs, false);
                 instance.setExtraJvmArguments(List.of(line.getArguments()));
             });
+            generalSettings.getValue("OverrideJavaLocation").flatMap(InstanceCfg::tryParseBool).filter(Boolean::booleanValue).flatMap($ -> generalSettings.getValue("JavaPath")).filter(p -> !p.isBlank()).ifPresent(path -> {
+                instance.setJavaPath(path);
+            });
         });
     }
 }

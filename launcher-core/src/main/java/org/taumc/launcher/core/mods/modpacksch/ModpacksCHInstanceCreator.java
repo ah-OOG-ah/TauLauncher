@@ -50,10 +50,7 @@ public class ModpacksCHInstanceCreator {
             };
             String version = target.version();
             if (target.name().equals("java")) {
-                if (version.startsWith("1.")) {
-                    version = version.substring(2);
-                }
-                version = "java" + version.substring(0, version.indexOf('.'));
+                continue;
             }
             components.add(new MMCPack.Component(uid, version));
         }

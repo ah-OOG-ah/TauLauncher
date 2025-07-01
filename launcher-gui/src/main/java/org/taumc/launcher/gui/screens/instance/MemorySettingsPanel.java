@@ -1,28 +1,51 @@
 package org.taumc.launcher.gui.screens.instance;
 
+import com.sun.management.OperatingSystemMXBean;
 import org.apache.commons.text.StringEscapeUtils;
+import org.taumc.launcher.core.jvm.JavaScanner;
 import org.taumc.launcher.core.launch.InstanceCfg;
 import org.taumc.launcher.core.qsettings.Settings;
+import org.taumc.launcher.gui.screens.settings.JvmSelectionDialog;
 
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.*;
+import java.lang.management.ManagementFactory;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 
 public class MemorySettingsPanel extends JPanel {
-    private static final int MEMORY_STEP_SIZE = 1;
+    private static final int MEMORY_STEP_SIZE = 128;
     private static final int MEMORY_MINIMUM = 1;
-    private static final int MEMORY_MAXIMUM = 32768;
+    private static final int MEMORY_MAXIMUM = findSystemMemorySizeMB();
 
     private final JSpinner minMemorySpinner;
     private final JSpinner maxMemorySpinner;
     private final JTextArea jvmArgsArea;
+    private final JTextArea jvmPath;
     private final Settings instanceCfg;
+
+    private JavaScanner.JvmInstallation selectedJvmInstallation;
 
     public MemorySettingsPanel(Settings instanceCfg) {
         this.instanceCfg = instanceCfg;
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        // Panel for memory spinners
+        JPanel jvmChoicePanel = new JPanel();
+        jvmChoicePanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
+        jvmChoicePanel.setLayout(new GridLayout(2, 2, 10, 5));
+
+        jvmChoicePanel.add(new JLabel("Java Version:"));
+        jvmPath = new JTextArea();
+        jvmPath.setEditable(false);
+        jvmChoicePanel.add(jvmPath);
+        jvmChoicePanel.add(new JLabel());
+        var chooseButton = new JButton("Choose");
+        chooseButton.addActionListener(e -> this.showJvmDialog());
+        jvmChoicePanel.add(chooseButton);
 
         // Panel for memory spinners
         JPanel memoryPanel = new JPanel();
@@ -52,6 +75,7 @@ public class MemorySettingsPanel extends JPanel {
         jvmArgsPanel.add(scrollPane, BorderLayout.CENTER);
 
         // Add all to main panel
+        add(jvmChoicePanel);
         add(memoryPanel);
         add(jvmArgsPanel);
 
@@ -65,6 +89,8 @@ public class MemorySettingsPanel extends JPanel {
         });
         generalCategory.getValue("MinMemAlloc").flatMap(InstanceCfg::tryParseInt).ifPresent(minMemorySpinner::setValue);
         generalCategory.getValue("MaxMemAlloc").flatMap(InstanceCfg::tryParseInt).ifPresent(maxMemorySpinner::setValue);
+        selectedJvmInstallation = generalCategory.getValue("JavaLocation").filter(p -> !p.isBlank()).map(p -> new JavaScanner.JvmInstallation(p, Paths.get(p))).orElse(null);
+        updateJvmPath();
 
         minMemorySpinner.addChangeListener(ev -> {
             if (getMinMemory() > getMaxMemory()) {
@@ -96,12 +122,50 @@ public class MemorySettingsPanel extends JPanel {
         });
     }
 
+    private static int findSystemMemorySizeMB() {
+        OperatingSystemMXBean os = (OperatingSystemMXBean)
+                ManagementFactory.getOperatingSystemMXBean();
+
+        long totalPhysical = os.getTotalMemorySize();
+
+        return (int)(totalPhysical / 1000000L);
+    }
+
     private void updateInstanceCfg() {
         var general = instanceCfg.getOrCreateNested("General");
         general.setValue("MaxMemAlloc", String.valueOf(getMaxMemory()));
         general.setValue("MinMemAlloc", String.valueOf(getMinMemory()));
         general.setValue("JvmArgs", "\"" + StringEscapeUtils.escapeJava(getJvmArgs()) + "\"");
         general.setValue("OverrideJavaArgs", "true");
+        if (selectedJvmInstallation != null) {
+            general.setValue("JavaPath", selectedJvmInstallation.javaExecutable().toAbsolutePath().toString());
+            general.setValue("OverrideJavaLocation", "true");
+        } else {
+            general.setValue("OverrideJavaLocation", "false");
+        }
+    }
+
+    private void updateJvmPath() {
+        if (selectedJvmInstallation != null) {
+            jvmPath.setText(selectedJvmInstallation.javaExecutable().toString());
+        } else {
+            jvmPath.setText("<launcher provisioned>");
+        }
+    }
+
+    private void showJvmDialog() {
+        var discovered = new ArrayList<>(JavaScanner.discoverInstalledJvms());
+        var autoselect = new JavaScanner.JvmInstallation("Launcher provisioned", null);
+        discovered.addFirst(autoselect);
+        var jvms = new JvmSelectionDialog(null, discovered);
+        jvms.setVisible(true);
+
+        selectedJvmInstallation = jvms.getSelectedJvm();
+        if (autoselect.equals(selectedJvmInstallation)) {
+            selectedJvmInstallation = null;
+        }
+        updateJvmPath();
+        updateInstanceCfg();
     }
 
     // Getters for retrieving values
