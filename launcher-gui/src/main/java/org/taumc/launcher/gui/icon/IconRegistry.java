@@ -4,6 +4,7 @@ import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -21,10 +22,14 @@ public class IconRegistry {
         CACHE.clear();
     }
 
-    private static ImageIcon loadAndScaleImageIcon(InputStream is, int fixedHeight) {
+    public static ImageIcon loadAndScaleImageIcon(InputStream is, int fixedHeight) {
         try {
             BufferedImage img = ImageIO.read(is);
             if (img == null) throw new IllegalArgumentException("Unsupported image format");
+
+            if (img.getHeight() == fixedHeight) {
+                return new ImageIcon(img);
+            }
 
             int originalWidth = img.getWidth();
             int originalHeight = img.getHeight();
@@ -36,6 +41,11 @@ public class IconRegistry {
             return new ImageIcon(scaled);
         } catch (Exception e) {
             throw new RuntimeException("Failed to load image", e);
+        } finally {
+            try {
+                is.close();
+            } catch (IOException ignored) {
+            }
         }
     }
 

@@ -76,6 +76,7 @@ public class HomeView extends JFrame {
     public HomeView(HomeModel model) {
         this.model = model;
         this.setTitle("TauLauncher " + System.getProperty("taulauncher.version"));
+        this.setIconImage(IconRegistry.loadAndScaleImageIcon(HomeView.class.getResourceAsStream("/taulauncher/icons/tau_logo.png"), 64).getImage());
         this.instanceButtonGroup = new ButtonGroup();
         var buttonLayout = new WrapLayout(FlowLayout.LEFT);
         buttonLayout.setAlignOnBaseline(false);
