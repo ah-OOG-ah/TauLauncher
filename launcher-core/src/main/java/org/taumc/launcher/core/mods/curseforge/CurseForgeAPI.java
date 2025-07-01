@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.mizosoft.methanol.Methanol;
+import org.taumc.launcher.core.constants.APIKeys;
 import org.taumc.launcher.core.http.JacksonBodyHandler;
 import org.taumc.launcher.core.http.URIBuilder;
 import org.taumc.launcher.core.meta.json.JsonDecoder;
@@ -30,8 +31,7 @@ import java.util.concurrent.CompletableFuture;
 public class CurseForgeAPI implements Closeable {
     private static final String API_BASE = "https://api.curseforge.com";
     private static final URIBuilder API_BUILDER = new URIBuilder(API_BASE);
-    // You must change this if forking the launcher.
-    private static final String API_KEY = "$2a$10$i6iAcI6XXzv53fKRksUk2u1Tz8zYPHOvD0xgPxnDB/ZKKdy73xFSi";
+    private static final String API_KEY = APIKeys.CURSEFORGE;
 
     public static final Map<String, ModLoaderType> MOD_LOADER_TYPE_MAP = new HashMap<>();
 
