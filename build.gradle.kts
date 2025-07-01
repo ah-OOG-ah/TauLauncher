@@ -20,3 +20,9 @@ tasks.register("showVersion") {
         println(tau.versioning.version)
     }
 }
+
+tasks.register("showCommitChangelog") {
+    doLast {
+        println(tau.versioning.commitChangeLog)
+    }
+}
