@@ -39,7 +39,10 @@ public class NewComponentDialog extends JDialog {
         Predicate<Requirement> requirementsSatisfied = r -> r.isSatisfied(existingComponents, Main.METADATA);
         // Compute the valid components to add
         for (String pkg : Main.METADATA.getKnownPackages()) {
-            if (existingComponents.stream().anyMatch(c -> c.uid().equals(pkg))) {
+            if (initialSelection == null && existingComponents.stream().anyMatch(c -> c.uid().equals(pkg))) {
+                continue;
+            }
+            if (initialSelection != null && !initialSelection.uid().equals(pkg)) {
                 continue;
             }
             boolean isTopLevel = TOP_LEVEL_COMPONENTS.contains(pkg) || Main.METADATA.getPackageIndexes(pkg).stream().map(MetadataService.DiscoveredPackageIndex::index).anyMatch(i -> i.tauMetadata() != null && i.tauMetadata().isUserInstallable());
@@ -87,13 +90,19 @@ public class NewComponentDialog extends JDialog {
             }
         });
 
+        if (initialSelection != null && options.containsKey(initialSelection.uid())) {
+            componentList.setSelectedValue(initialSelection.uid(), true);
+            if (options.getOrDefault(initialSelection.uid(), List.of()).contains(initialSelection.version())) {
+                versionList.setSelectedValue(initialSelection.version(), true);
+            }
+        }
+
         // Layout
         JSplitPane splitPane = new JSplitPane(
                 JSplitPane.HORIZONTAL_SPLIT,
                 componentScroll,
                 versionScroll
         );
-        splitPane.setDividerLocation(150);
         splitPane.setResizeWeight(0.3);
 
         // Create a modal dialog with the custom panel
@@ -122,13 +131,6 @@ public class NewComponentDialog extends JDialog {
 
         buttons.add(okBtn);
         buttons.add(cancelBtn);
-
-        if (initialSelection != null && options.containsKey(initialSelection.uid())) {
-            componentList.setSelectedValue(initialSelection.uid(), true);
-            if (options.getOrDefault(initialSelection.uid(), List.of()).contains(initialSelection.version())) {
-                versionList.setSelectedValue(initialSelection.version(), true);
-            }
-        }
 
         this.getContentPane().add(buttons, BorderLayout.SOUTH);
         this.pack();
