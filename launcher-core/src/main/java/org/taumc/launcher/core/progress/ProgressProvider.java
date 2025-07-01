@@ -43,7 +43,7 @@ public interface ProgressProvider {
             return new Task() {
                 @Override
                 public void setProgress(float progress) {
-
+                    LOGGER.info("Task '{}' has progress {}%", taskName, String.format("%.1f", progress * 100));
                 }
 
                 @Override
