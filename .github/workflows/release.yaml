@@ -12,6 +12,8 @@ on:
           - RELEASE
 
 env:
+  MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
+  MAVEN_SECRET: ${{ secrets.MAVEN_SECRET }}
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
@@ -64,6 +66,11 @@ jobs:
       - name: Rename artifact
         shell: bash
         run: mv launcher-gui/build/image.zip launcher-gui/build/taulauncher-${{ matrix.os }}.zip
+
+      - name: Publish core module
+        if: runner.os == 'Linux'
+        shell: bash
+        run: ./gradlew :launcher-core:publishToMavenLocal -Prelease_channel=${{ inputs.release_type }} --stacktrace
 
       - name: Upload version artifact
         uses: actions/upload-artifact@v4
