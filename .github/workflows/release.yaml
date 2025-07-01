@@ -70,7 +70,7 @@ jobs:
       - name: Publish core module
         if: runner.os == 'Linux'
         shell: bash
-        run: ./gradlew :launcher-core:publishToMavenLocal -Prelease_channel=${{ inputs.release_type }} --stacktrace
+        run: ./gradlew :launcher-core:publish -Prelease_channel=${{ inputs.release_type }} --stacktrace
 
       - name: Upload version artifact
         uses: actions/upload-artifact@v4
