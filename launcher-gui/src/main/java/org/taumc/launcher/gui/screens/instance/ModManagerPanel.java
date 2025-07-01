@@ -173,8 +173,9 @@ public class ModManagerPanel extends JPanel {
         var addFileButton = new JButton("Add Local File");
         var showInFolder = new JButton("Show In Folder");
         var checkForUpdates = new JButton("Check For Updates");
+        var viewConfigs = new JButton("View Configs");
 
-        List.of(removeButton, downloadMoreButton, addFileButton, showInFolder, checkForUpdates).forEach(btn -> {
+        List.of(removeButton, downloadMoreButton, addFileButton, showInFolder, checkForUpdates, viewConfigs).forEach(btn -> {
             btn.setAlignmentX(Component.CENTER_ALIGNMENT);
             sidebar.add(btn);
             sidebar.add(Box.createVerticalStrut(15));
@@ -201,13 +202,28 @@ public class ModManagerPanel extends JPanel {
                 addModFiles(files);
             }
         });
-        showInFolder.addActionListener(e -> {
+        showInFolder.addActionListener(ev -> {
             int[] selectedRows = Arrays.stream(modTable.getSelectedRows()).map(modTable::convertRowIndexToModel).toArray();
-            for (int i : selectedRows) {
-                SwingHelpers.showFileInFolder(modTableModel.mods.get(i).path.toFile());
+            if (selectedRows.length == 0) {
+                try {
+                    Desktop.getDesktop().open(getModsFolder().toFile());
+                } catch (IOException e) {
+                    LOGGER.error("Error opening folder", e);
+                }
+            } else {
+                for (int i : selectedRows) {
+                    SwingHelpers.showFileInFolder(modTableModel.mods.get(i).path.toFile());
+                }
             }
         });
         checkForUpdates.addActionListener(e -> this.checkForModUpdates());
+        viewConfigs.addActionListener(ev -> {
+            try {
+                Desktop.getDesktop().open(getModsFolder().getParent().resolve("config").toFile());
+            } catch (IOException e) {
+                LOGGER.error("Error opening folder", e);
+            }
+        });
 
         this.addComponentListener(new ComponentAdapter() {
             @Override
