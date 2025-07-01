@@ -250,31 +250,45 @@ public class HomeView extends JFrame {
             if (!pack.isEmpty()) {
                 var thePack = pack.getFirst();
                 if (thePack instanceof File file) {
+                    String baseInstanceName = file.displayName();
+                    if (baseInstanceName.isBlank()) {
+                        baseInstanceName = "CurseForge Modpack";
+                    }
+                    var path = model.getInstancePath(PathUtils.findNonexistentName(baseInstanceName, s -> Files.exists(model.getInstancePath(s))));
                     innerFuture = CompletableFuture.runAsync(() -> {
                         var creator = new CurseForgeInstanceCreator(CurseForgeAPI.INSTANCE, new ManualDownloadDialog());
-                        String baseInstanceName = file.displayName();
-                        if (baseInstanceName.isBlank()) {
-                            baseInstanceName = "CurseForge Modpack";
-                        }
-                        var path = model.getInstancePath(PathUtils.findNonexistentName(baseInstanceName, s -> Files.exists(model.getInstancePath(s))));
                         try {
                             creator.createInstance(path, file.modId(), file.id(), this.progressDialog);
                         } catch (IOException e) {
                             throw new RuntimeException(e);
                         }
+                    }).whenCompleteAsync((c, t) -> {
+                        if (t != null) {
+                            try {
+                                PathUtils.deleteRecursively(path);
+                            } catch (IOException ignored) {
+                            }
+                        }
                     });
                 } else if (thePack instanceof DownloadableModpackVersion ftbModpackVersion) {
+                    String baseInstanceName = ftbModpackVersion.modpackName();
+                    if (baseInstanceName.isBlank()) {
+                        baseInstanceName = "FTB Modpack";
+                    }
+                    var path = model.getInstancePath(PathUtils.findNonexistentName(baseInstanceName, s -> Files.exists(model.getInstancePath(s))));
                     innerFuture = CompletableFuture.runAsync(() -> {
                         var creator = new ModpacksCHInstanceCreator(new ManualDownloadDialog());
-                        String baseInstanceName = ftbModpackVersion.modpackName();
-                        if (baseInstanceName.isBlank()) {
-                            baseInstanceName = "FTB Modpack";
-                        }
-                        var path = model.getInstancePath(PathUtils.findNonexistentName(baseInstanceName, s -> Files.exists(model.getInstancePath(s))));
                         try {
                             creator.createInstance(path, ftbModpackVersion, this.progressDialog);
                         } catch (IOException e) {
                             throw new RuntimeException(e);
+                        }
+                    }).whenCompleteAsync((c, t) -> {
+                        if (t != null) {
+                            try {
+                                PathUtils.deleteRecursively(path);
+                            } catch (IOException ignored) {
+                            }
                         }
                     });
                 } else {
