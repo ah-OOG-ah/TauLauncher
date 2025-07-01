@@ -452,7 +452,10 @@ public class HomeView extends JFrame {
 
             JButton editButton = makeSidebarButton("Edit");
             editButton.addActionListener(ev -> {
-                InstanceEditView.createOrShow(this, selectedInstance);
+                var view = InstanceEditView.createOrShow(this, selectedInstance);
+                if (existingLaunchHandler != null) {
+                    view.setCurrentPage("Logs");
+                }
                 refreshSidebar();
             });
             sidebar.add(editButton);
