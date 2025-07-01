@@ -58,6 +58,7 @@ tasks.jar {
 runtime {
     modules = listOf(
         "java.base",
+        "java.rmi",
         "java.desktop",
         "jdk.crypto.ec",
         "jdk.crypto.cryptoki",
