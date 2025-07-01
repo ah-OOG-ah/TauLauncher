@@ -105,6 +105,7 @@ public class ModpacksCHInstanceCreator {
                         continue;
                     }
                     downloadLock.acquire();
+                    LOGGER.info("Downloading {}", file.path() + "/" + file.name());
                     try {
                         futures.add(client.sendAsync(HttpRequest.newBuilder().uri(uri).build(), handler).whenComplete((c, t) -> downloadLock.release()).thenCompose(response -> {
                             if (response.statusCode() != 200) {
