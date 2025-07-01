@@ -2,6 +2,7 @@ import java.util.UUID
 
 plugins {
     id("java-library")
+    id("maven-publish")
 }
 
 dependencies {
@@ -38,6 +39,10 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
+java {
+    withSourcesJar()
+}
+
 tasks.test {
     val tmpDir = project.layout.buildDirectory.dir("tmp/${UUID.randomUUID()}").get().asFile
 
@@ -55,4 +60,24 @@ tasks.test {
     useJUnitPlatform()
 
     systemProperty("tau.launcher.portable", "true")
+}
+
+publishing {
+    publications {
+        create<MavenPublication>("mavenJava") {
+            from(components["java"])
+        }
+    }
+
+    repositories {
+        mavenLocal()
+        maven {
+            name = "taumcRepository"
+            url = uri("https://maven.taumc.org/releases")
+            credentials {
+                username = System.getenv("MAVEN_USERNAME")
+                password = System.getenv("MAVEN_SECRET")
+            }
+        }
+    }
 }

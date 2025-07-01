@@ -68,7 +68,7 @@ public class RuntimeInstance {
     private Optional<Artifact> assetIndex;
     private Path mainJarPath;
     private Process currentProcess;
-    private String mainClassName;
+    protected String mainClassName;
     private Component mainComponent;
     private ProgressProvider progressProvider = ProgressProvider.NONE;
 
@@ -76,7 +76,7 @@ public class RuntimeInstance {
     private Path instancePath;
     private Account launchAccount = new OfflineAccount("Dev");
 
-    private CompletableFuture<String> javaBinaryFuture;
+    protected CompletableFuture<String> javaBinaryFuture;
 
     private OptionalInt minimumMemoryMB = OptionalInt.empty(), maximumMemoryMB = OptionalInt.empty();
     private List<String> extraJvmArguments = new ArrayList<>();
@@ -85,7 +85,11 @@ public class RuntimeInstance {
 
     private final Map<String, String> systemProperties = new LinkedHashMap<>();
 
-    public void addComponent(MMCPack.Component coordinate) throws IOException, InterruptedException {
+    public void addComponent(String uid, String version) {
+        addComponent(new MMCPack.Component(uid, version));
+    }
+
+    public void addComponent(MMCPack.Component coordinate) {
         var component = this.service.getComponent(coordinate.uid(), coordinate.version());
         if (component == null) {
             throw new NullPointerException("Component " + coordinate + " does not exist in any meta repositories");
@@ -97,7 +101,7 @@ public class RuntimeInstance {
         this.components.add(component);
     }
 
-    public void addComponents(List<MMCPack.Component> components) throws IOException, InterruptedException {
+    public void addComponents(List<MMCPack.Component> components) {
         for (var component : components) {
             this.addComponent(component);
         }
@@ -287,7 +291,7 @@ public class RuntimeInstance {
         this.libraryPaths.add(bootstrapFile);
     }
 
-    private CompletableFuture<String> computeJavaVersion() {
+    protected CompletableFuture<String> computeJavaVersion() {
         if (this.javaPath.isPresent()) {
             LOGGER.info("Selected JVM from {} by user request", this.javaPath.get());
             return CompletableFuture.completedFuture(this.javaPath.get());
@@ -317,39 +321,33 @@ public class RuntimeInstance {
     }
 
     private void startGame() {
-        ProcessBuilder builder = new ProcessBuilder();
-        builder.directory(null);
+        List<String> javaExecArguments = new ArrayList<>();
 
-        List<String> command = new ArrayList<>();
-        command.add(this.javaBinaryFuture.join());
+        javaExecArguments.add("-Duser.language=en");
+        javaExecArguments.add("-Djava.library.path=" + this.instancePath.resolve("natives").toAbsolutePath().toString());
 
-        command.add("-Duser.language=en");
-        command.add("-Djava.library.path=" + this.instancePath.resolve("natives").toAbsolutePath().toString());
-
-        command.add("-cp");
-        command.add(this.libraryPaths.stream().map(p -> p.toAbsolutePath().toString()).distinct().collect(Collectors.joining(File.pathSeparator)) + File.pathSeparator + this.mainJarPath.toAbsolutePath().toString());
+        javaExecArguments.add("-cp");
+        javaExecArguments.add(this.libraryPaths.stream().map(p -> p.toAbsolutePath().toString()).distinct().collect(Collectors.joining(File.pathSeparator)) + File.pathSeparator + this.mainJarPath.toAbsolutePath().toString());
 
         this.components.stream().map(c -> c.extraProperty("+jvmArgs")).filter(Objects::nonNull).forEach(extraArgs -> {
-            command.addAll((List<String>)extraArgs);
+            javaExecArguments.addAll((List<String>)extraArgs);
         });
 
-        this.agents.forEach(p -> command.add("-javaagent:" + p.toAbsolutePath().toString()));
+        this.agents.forEach(p -> javaExecArguments.add("-javaagent:" + p.toAbsolutePath().toString()));
 
         for (var prop : this.systemProperties.entrySet()) {
-            command.add("-D" + prop.getKey() + "=" + prop.getValue());
+            javaExecArguments.add("-D" + prop.getKey() + "=" + prop.getValue());
         }
 
         if (this.minimumMemoryMB.isPresent() && this.minimumMemoryMB.getAsInt() > 0) {
-            command.add("-Xms" + this.minimumMemoryMB.getAsInt() + "M");
+            javaExecArguments.add("-Xms" + this.minimumMemoryMB.getAsInt() + "M");
         }
 
         if (this.maximumMemoryMB.isPresent() && this.maximumMemoryMB.getAsInt() > 0) {
-            command.add("-Xmx" + this.maximumMemoryMB.getAsInt() + "M");
+            javaExecArguments.add("-Xmx" + this.maximumMemoryMB.getAsInt() + "M");
         }
 
-        command.addAll(this.extraJvmArguments);
-
-        command.add(this.mainClassName);
+        javaExecArguments.addAll(this.extraJvmArguments);
 
         Map<String, String> templateParameters = new HashMap<>();
 
@@ -370,6 +368,8 @@ public class RuntimeInstance {
 
         var subsitutor = new StringSubstitutor(templateParameters);
 
+        List<String> gameArguments = new ArrayList<>();
+
         Optional<String> minecraftArguments = this.components.stream()
                 .map(c -> (String)c.extraProperty("minecraftArguments"))
                 .filter(Objects::nonNull)
@@ -377,7 +377,7 @@ public class RuntimeInstance {
 
         if (minecraftArguments.isPresent()) {
             for(String arg :minecraftArguments.get().split(" ")) {
-                command.add(subsitutor.replace(arg));
+                gameArguments.add(subsitutor.replace(arg));
             }
         }
 
@@ -386,15 +386,28 @@ public class RuntimeInstance {
                 .filter(Objects::nonNull)
                 .flatMap(l -> ((List<String>)l).stream())
                 .forEach(t -> {
-                    command.add("--tweakClass");
-                    command.add(t);
+                    gameArguments.add("--tweakClass");
+                    gameArguments.add(t);
                 });
 
+        this.currentProcess = startProcess(javaExecArguments, gameArguments, workingDir);
+    }
+
+    protected Process startProcess(List<String> jvmArguments, List<String> gameArguments, Path workingDir) {
+        ProcessBuilder builder = new ProcessBuilder();
+        builder.directory(null);
+
+        List<String> command = new ArrayList<>();
+        command.add(this.javaBinaryFuture.join());
+        command.addAll(jvmArguments);
+        command.add(this.mainClassName);
+        command.addAll(gameArguments);
+
+        LOGGER.info("Launching {}", String.join(" ", builder.command()).replace(launchAccount.accessToken(), "<redacted>"));
         builder.command(command);
         builder.directory(workingDir.toFile());
-        LOGGER.info("Launching {}", String.join(" ", builder.command()).replace(launchAccount.accessToken(), "<redacted>"));
         try {
-            this.currentProcess = builder.start();
+            return builder.start();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
