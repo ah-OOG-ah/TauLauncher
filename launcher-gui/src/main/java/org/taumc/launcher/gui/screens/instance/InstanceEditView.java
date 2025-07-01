@@ -113,8 +113,7 @@ public class InstanceEditView extends JFrame {
         sidebar.addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
                 String selected = sidebar.getSelectedValue();
-                CardLayout cl = (CardLayout) cardPanel.getLayout();
-                cl.show(cardPanel, selected);
+                setCurrentPage(selected);
             }
         });
 
@@ -143,13 +142,22 @@ public class InstanceEditView extends JFrame {
         return OPEN_EDIT_VIEWS.containsKey(instance);
     }
 
-    public static void createOrShow(HomeView owner, String instance) {
+    public static InstanceEditView createOrShow(HomeView owner, String instance) {
         var view = OPEN_EDIT_VIEWS.get(instance);
         if (view != null) {
             view.toFront();
+            return view;
         } else {
-            new InstanceEditView(owner, instance);
+            return new InstanceEditView(owner, instance);
         }
+    }
+
+    public void setCurrentPage(String page) {
+        if (!PAGES.containsKey(page)) {
+            throw new IllegalArgumentException();
+        }
+        CardLayout cl = (CardLayout) cardPanel.getLayout();
+        cl.show(cardPanel, page);
     }
 
     private void readCurrentConfig() throws IOException {

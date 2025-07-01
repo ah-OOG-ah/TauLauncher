@@ -399,7 +399,13 @@ public class HomeView extends JFrame {
                         JOptionPane.showMessageDialog(null, error.toString(), "Error launching game", JOptionPane.ERROR_MESSAGE);
                     }
                     SwingUtilities.invokeLater(this::refreshSidebar);
-                    handler.exitFuture().whenCompleteAsync((p2, t2) -> this.refreshSidebar(), SwingUtilities::invokeLater);
+                    handler.exitFuture().whenCompleteAsync((p2, t2) -> {
+                        if (p2 != null && p2.exitValue() != 0) {
+                            var view = InstanceEditView.createOrShow(this, selectedInstance);
+                            view.setCurrentPage("Logs");
+                        }
+                        this.refreshSidebar();
+                    }, SwingUtilities::invokeLater);
                 });
                 refreshSidebar();
             });
