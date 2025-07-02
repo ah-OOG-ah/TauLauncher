@@ -103,6 +103,7 @@ public class ManualDownloadDialog extends JFrame implements CurseForgeInstanceCr
         add(buttonPanel, BorderLayout.SOUTH);
 
         setSize(600, 400);
+        setLocationRelativeTo(null);
     }
 
     private static void openUrl(String url) {

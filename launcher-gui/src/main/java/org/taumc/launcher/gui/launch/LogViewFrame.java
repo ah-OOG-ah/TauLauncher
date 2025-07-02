@@ -63,8 +63,6 @@ public class LogViewFrame extends JPanel {
 
         this.add(scrollPane, BorderLayout.CENTER);
 
-        this.setSize(800, 600);
-
         // Create popup menu
         JPopupMenu popup = new JPopupMenu();
         JMenuItem copy = new JMenuItem("Copy");

@@ -8,9 +8,8 @@ import org.taumc.launcher.core.mods.Mod;
 import org.taumc.launcher.core.mods.ModHostingSite;
 import org.taumc.launcher.core.mods.ModSearchOptions;
 import org.taumc.launcher.core.mods.ProjectType;
-import org.taumc.launcher.core.mods.curseforge.CurseForgeModHostingSite;
-import org.taumc.launcher.core.mods.modrinth.ModrinthModHostingSite;
 import org.taumc.launcher.gui.SwingHelpers;
+import org.taumc.launcher.gui.components.TauLauncherFrame;
 import org.taumc.launcher.gui.icon.IconUtil;
 import org.taumc.launcher.gui.launch.ProgressDialog;
 import org.taumc.launcher.gui.screens.instance.ModManagerPanel;
@@ -32,7 +31,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-public class AddModsView extends JFrame {
+public class AddModsView extends TauLauncherFrame {
     private static final Logger LOGGER = LoggerFactory.getLogger(AddModsView.class);
     private final Map<String, CompletableFuture<ImageIcon>> modIcons = new HashMap<>();
     private final List<MMCPack.Component> installedComponents;
@@ -65,13 +64,12 @@ public class AddModsView extends JFrame {
     private final ProgressDialog progressDialog;
 
     public AddModsView(Frame owner, List<MMCPack.Component> installedComponents, ProjectType projectType, Function<List<DownloadableFile>, CompletableFuture<Void>> filesConsumer) {
-        super("Mod Search");
+        super();
+        this.setTitle("Add content");
         this.installedComponents = installedComponents;
         this.projectType = projectType;
         this.filesConsumer = filesConsumer;
         initUI();
-        setSize(800, 500);
-        setLocationRelativeTo(owner);
         this.progressDialog = new ProgressDialog(owner);
         setVisible(true);
     }

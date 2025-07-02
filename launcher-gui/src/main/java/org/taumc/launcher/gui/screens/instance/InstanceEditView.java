@@ -14,6 +14,7 @@ import org.taumc.launcher.core.qsettings.Settings;
 import org.taumc.launcher.gui.Main;
 import org.taumc.launcher.gui.UIPaths;
 import org.taumc.launcher.core.meta.json.MMCPack;
+import org.taumc.launcher.gui.components.TauLauncherFrame;
 import org.taumc.launcher.gui.icon.IconRegistry;
 import org.taumc.launcher.gui.launch.LaunchHandler;
 import org.taumc.launcher.gui.launch.LogViewFrame;
@@ -34,7 +35,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 
-public class InstanceEditView extends JFrame {
+public class InstanceEditView extends TauLauncherFrame {
     private static final Map<String, Function<InstanceEditView, JPanel>> PAGES = new LinkedHashMap<>();
     private static final Logger LOGGER = LoggerFactory.getLogger(InstanceEditView.class);
 
@@ -62,7 +63,8 @@ public class InstanceEditView extends JFrame {
     private final CompletableFuture<MetadataService> metadataService;
 
     private InstanceEditView(HomeView owner, String instance) {
-        super(instance);
+        super();
+        this.setTitle(instance);
         this.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         this.owner = owner;
         this.instance = instance;
@@ -92,7 +94,6 @@ public class InstanceEditView extends JFrame {
         });
 
         this.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        this.setSize(800, 600);
 
         // Sidebar: list of settings pages
         this.sidebar = new JList<>(PAGES.keySet().toArray(new String[0]));
@@ -123,7 +124,6 @@ public class InstanceEditView extends JFrame {
         splitPane.setResizeWeight(0);
 
         this.add(splitPane);
-        this.setLocationRelativeTo(null);
         this.setVisible(true);
         OPEN_EDIT_VIEWS.put(instance, this);
         this.addWindowListener(new WindowAdapter() {

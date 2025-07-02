@@ -16,6 +16,7 @@ import org.taumc.launcher.core.nio.PathUtils;
 import org.taumc.launcher.gui.Main;
 import org.taumc.launcher.gui.SwingHelpers;
 import org.taumc.launcher.gui.components.FileChooser;
+import org.taumc.launcher.gui.components.TauLauncherFrame;
 import org.taumc.launcher.gui.components.WrapLayout;
 import org.taumc.launcher.gui.icon.IconRegistry;
 import org.taumc.launcher.gui.launch.LaunchHandler;
@@ -40,7 +41,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
-public class HomeView extends JFrame {
+public class HomeView extends TauLauncherFrame {
     private static final Logger LOGGER = LoggerFactory.getLogger(HomeView.class);
 
     private static final Account FAKE_ACCOUNT = new Account() {
@@ -163,9 +164,6 @@ public class HomeView extends JFrame {
         contentPane.add(topPanel, BorderLayout.NORTH);
         contentPane.add(container, BorderLayout.CENTER);
 
-
-        this.setSize(800, 600);
-        this.setLocationRelativeTo(null);
         this.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 
         // Update initial state
