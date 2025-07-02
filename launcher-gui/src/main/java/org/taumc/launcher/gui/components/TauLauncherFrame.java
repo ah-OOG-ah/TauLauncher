@@ -27,12 +27,17 @@ public class TauLauncherFrame extends JFrame {
         return Preferences.userRoot().node("/org/taumc/launcher/windowBounds");
     }
 
+    protected Dimension getDefaultDimensions() {
+        return new Dimension(800, 600);
+    }
+
     private void loadWindowBounds() {
         Preferences prefs = windowBounds();
+        var defaultSize = getDefaultDimensions();
         int x = prefs.getInt(PREFIX + windowBoundsKey + ".x", Integer.MIN_VALUE);
         int y = prefs.getInt(PREFIX + windowBoundsKey + ".y", Integer.MIN_VALUE);
-        int w = prefs.getInt(PREFIX + windowBoundsKey + ".w", 800);
-        int h = prefs.getInt(PREFIX + windowBoundsKey + ".h", 600);
+        int w = prefs.getInt(PREFIX + windowBoundsKey + ".w", defaultSize.width);
+        int h = prefs.getInt(PREFIX + windowBoundsKey + ".h", defaultSize.height);
 
         setSize(w, h);
 
