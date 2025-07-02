@@ -415,23 +415,22 @@ public class ModManagerPanel extends JPanel {
     private class Mod {
         private final CompletableFuture<ModMetadata> metadata;
         private final Path path;
+        private final String fileName;
+        private final ModMetadata fallbackMetadata;
 
         public Mod(Path path) {
             this.metadata = metadataFutures.computeIfAbsent(path, ModManagerPanel.this::computeMetadata);
             this.path = path;
+            this.fileName = path.getFileName().toString();
+            this.fallbackMetadata = ModMetadata.builder().name(fileName).build();
         }
 
         public boolean enabled() {
-            return !path.getFileName().toString().endsWith(".disabled");
+            return !fileName.endsWith(".disabled");
         }
 
         public ModMetadata metadata() {
-            var meta = metadata.getNow(null);
-            if (meta == null) {
-                return ModMetadata.builder().name(path.getFileName().toString()).build();
-            } else {
-                return meta;
-            }
+            return metadata.getNow(fallbackMetadata);
         }
 
         public ImageIcon icon() {
@@ -445,7 +444,7 @@ public class ModManagerPanel extends JPanel {
         public String friendlyName() {
             var meta = metadata();
             if (meta.name() == null) {
-                return path.getFileName().toString();
+                return fileName;
             }
             return meta.name();
         }
@@ -460,7 +459,7 @@ public class ModManagerPanel extends JPanel {
         }
 
         public void toggleEnablement() {
-            String oldName = this.path.getFileName().toString();
+            String oldName = this.fileName;
             String newName = this.enabled() ? (oldName + ".disabled") : oldName.replaceFirst("\\.disabled$", "");
             try {
                 Files.move(this.path, this.path.resolveSibling(newName));
