@@ -359,7 +359,9 @@ public class AddModsView extends TauLauncherFrame {
             var entry = container.mod();
             iconLabel.setPreferredSize(new Dimension(ICON_SIZE, ICON_SIZE));
             int labelWidth = list.getWidth() - ICON_SIZE - 20 - 20;
-            titleLabel.setFont(isModInSelectedDownloadList(container.mod().modId()) ? selectedTitleFont : normalTitleFont);
+            boolean isSelectedForDownload = isModInSelectedDownloadList(container.mod().modId());
+
+            titleLabel.setFont(isSelectedForDownload ? selectedTitleFont : normalTitleFont);
             titleLabel.setText(SwingHelpers.ellipsize(titleLabel.getFontMetrics(titleLabel.getFont()), entry.name(), labelWidth));
             summaryLabel.setText(SwingHelpers.ellipsize(summaryLabel.getFontMetrics(summaryLabel.getFont()), entry.summary(), labelWidth));
             if (!entry.smallIconUrl().isEmpty()) {
@@ -379,11 +381,9 @@ public class AddModsView extends TauLauncherFrame {
 
             titleLabel.setLineWrap(true);
             titleLabel.setWrapStyleWord(true);
-            //titleLabel.setSize(list.getWidth(), Short.MAX_VALUE); // set width to list width to calculate height properly
 
             summaryLabel.setLineWrap(true);
             summaryLabel.setWrapStyleWord(true);
-            //summaryLabel.setSize(list.getWidth(), Short.MAX_VALUE); // set width to list width to calculate height properly
 
             setOpaque(true);
             return this;
