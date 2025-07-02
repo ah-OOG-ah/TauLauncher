@@ -427,7 +427,7 @@ public class ModManagerPanel extends JPanel {
         public ModMetadata metadata() {
             var meta = metadata.getNow(null);
             if (meta == null) {
-                return new ModMetadata(null, path.getFileName().toString(), "");
+                return ModMetadata.builder().name(path.getFileName().toString()).build();
             } else {
                 return meta;
             }

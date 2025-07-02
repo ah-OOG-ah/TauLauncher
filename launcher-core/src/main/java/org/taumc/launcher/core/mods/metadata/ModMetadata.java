@@ -3,6 +3,7 @@ package org.taumc.launcher.core.mods.metadata;
 import com.fasterxml.jackson.core.json.JsonReadFeature;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.json.JsonMapper;
+import lombok.Builder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.taumc.launcher.core.meta.legacyforge.ModInfo;
@@ -13,6 +14,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.jar.Manifest;
 import java.util.zip.ZipEntry;
@@ -21,7 +23,8 @@ import java.util.zip.ZipFile;
 /**
  * Represents mod metadata for a given mod jar.
  */
-public record ModMetadata(String logoPath, String name, String version) {
+@Builder
+public record ModMetadata(String logoPath, String name, String version, String description) {
     private static final Logger LOGGER = LoggerFactory.getLogger(ModMetadata.class);
 
     private static ModMetadata computeForgeMetadata(ZipEntry modsToml, ZipFile file) throws IOException {
@@ -30,24 +33,22 @@ public record ModMetadata(String logoPath, String name, String version) {
             toml = Toml.parse(is);
         }
         var mods = toml.getArrayOrEmpty("mods");
-        String logoFile = null;
-        String name = null, version = null;
+        var builder = ModMetadata.builder();
         if (!mods.isEmpty()) {
             var modData = mods.getTable(0);
-            logoFile = Objects.requireNonNullElse(modData.get("logoFile"), "").toString();
-            name = Objects.requireNonNullElse(modData.get("displayName"), "").toString();
-            if (name.isBlank()) {
-                name = null;
-            }
-            version = Objects.requireNonNullElse(modData.get("version"), "").toString();
+            builder.logoPath(modData.getString("logoFile"));
+            builder.name(Optional.ofNullable(modData.getString("displayName")).filter(s -> !s.isBlank()).orElse(null));
+            String version = Objects.requireNonNullElse(modData.get("version"), "").toString();
             if (version.equals("${file.jarVersion}") && file.getEntry("META-INF/MANIFEST.MF") instanceof ZipEntry me) {
                 try (var is = file.getInputStream(me)) {
                     Manifest manifest = new Manifest(is);
                     version = Objects.requireNonNullElse(manifest.getMainAttributes().getValue("Implementation-Version"), "");
                 }
             }
+            builder.version(version);
+            builder.description(modData.getString("description"));
         }
-        return new ModMetadata(logoFile, name, version);
+        return builder.build();
     }
 
     private static ModMetadata computeLegacyForgeMetadata(ZipEntry mcmodInfo, ZipFile file) throws IOException {
@@ -68,7 +69,7 @@ public record ModMetadata(String logoPath, String name, String version) {
                 return null;
             }
             var modInfo = modInfos.getFirst();
-            return new ModMetadata(modInfo.logoFile(), modInfo.name(), modInfo.version());
+            return new ModMetadata(modInfo.logoFile(), modInfo.name(), modInfo.version(), modInfo.description());
         }
     }
     public static CompletableFuture<ModMetadata> computeFor(Path path) {
