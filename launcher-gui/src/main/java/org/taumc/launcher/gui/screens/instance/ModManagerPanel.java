@@ -1,19 +1,16 @@
 package org.taumc.launcher.gui.screens.instance;
 
-import com.fasterxml.jackson.core.json.JsonReadFeature;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.github.mizosoft.methanol.Methanol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.taumc.launcher.core.http.DownloadProgressTracker;
 import org.taumc.launcher.core.meta.json.MMCPack;
-import org.taumc.launcher.core.meta.legacyforge.ModInfo;
 import org.taumc.launcher.core.mods.ModHostingSite;
 import org.taumc.launcher.core.mods.ModSearchOptions;
 import org.taumc.launcher.core.mods.ModUpdate;
 import org.taumc.launcher.core.mods.ProjectType;
 import org.taumc.launcher.core.mods.curseforge.CurseForgeModHostingSite;
+import org.taumc.launcher.core.mods.metadata.ModMetadata;
 import org.taumc.launcher.core.mods.modpacksch.ModpacksCHHostingSite;
 import org.taumc.launcher.core.mods.modrinth.ModrinthModHostingSite;
 import org.taumc.launcher.gui.SwingHelpers;
@@ -23,8 +20,6 @@ import org.taumc.launcher.gui.launch.LaunchHandler;
 import org.taumc.launcher.gui.launch.ProgressDialog;
 import org.taumc.launcher.gui.screens.mods.AddModsView;
 import org.taumc.launcher.gui.screens.mods.ModUpdateDialog;
-import org.tomlj.Toml;
-import org.tomlj.TomlParseResult;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -57,11 +52,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.jar.Manifest;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
-import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 public class ModManagerPanel extends JPanel {
@@ -72,7 +65,9 @@ public class ModManagerPanel extends JPanel {
     private final Path instancePath;
     private final Frame owner;
     private final ListModel<MMCPack.Component> installedComponents;
-    private final Map<Path, CompletableFuture<ModMetadata>> iconFutures = new HashMap<>();
+    private final Map<Path, CompletableFuture<ModMetadata>> metadataFutures = new HashMap<>();
+    private record ModIcon(Path jarPath, String logoFile) {}
+    private final Map<ModIcon, CompletableFuture<ImageIcon>> iconFutures = new HashMap<>();
 
     private JTable modTable;
     private ModTableModel modTableModel;
@@ -270,95 +265,32 @@ public class ModManagerPanel extends JPanel {
         return LaunchHandler.computeMinecraftFolder(instancePath).resolve("mods");
     }
 
-    private ImageIcon readIcon(ZipFile file, String iconPath) throws IOException {
-        if (iconPath == null || iconPath.isBlank()) {
-            return null;
-        }
-        var ze = file.getEntry(iconPath);
-        if (ze != null) {
-            try (var is = file.getInputStream(ze)) {
-                BufferedImage img = ImageIO.read(is);
-                if (img != null) {
-                    var scaled = img.getScaledInstance(ICON_SIZE, ICON_SIZE, Image.SCALE_SMOOTH);
-                    img.flush();
-                    return new ImageIcon(scaled);
-                }
-            }
-        }
-        return null;
-    }
-
-    private ModMetadata computeForgeMetadata(ZipEntry modsToml, ZipFile file) throws IOException {
-        TomlParseResult toml;
-        try (var is = file.getInputStream(modsToml)) {
-            toml = Toml.parse(is);
-        }
-        var mods = toml.getArrayOrEmpty("mods");
-        ImageIcon icon = null;
-        String name = null, version = null;
-        if (!mods.isEmpty()) {
-            var modData = mods.getTable(0);
-            String logoFile = Objects.requireNonNullElse(modData.get("logoFile"), "").toString();
-            name = Objects.requireNonNullElse(modData.get("displayName"), "").toString();
-            if (name.isBlank()) {
-                name = null;
-            }
-            version = Objects.requireNonNullElse(modData.get("version"), "").toString();
-            if (version.equals("${file.jarVersion}") && file.getEntry("META-INF/MANIFEST.MF") instanceof ZipEntry me) {
-                try (var is = file.getInputStream(me)) {
-                    Manifest manifest = new Manifest(is);
-                    version = Objects.requireNonNullElse(manifest.getMainAttributes().getValue("Implementation-Version"), "");
-                }
-            }
-            icon = readIcon(file, logoFile);
-        }
-        return new ModMetadata(icon, name, version);
-    }
-
-    private ModMetadata computeLegacyForgeMetadata(ZipEntry mcmodInfo, ZipFile file) throws IOException {
-        try (var is = file.getInputStream(mcmodInfo)) {
-            var mapper = JsonMapper.builder()
-                    .configure(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS, true)
-                    .build();
-            var node = mapper.readTree(is);
-            List<ModInfo> modInfos;
-            if (node.isArray()) {
-                modInfos = mapper.treeToValue(node, new TypeReference<>() {});
-            } else if (node.isObject()) {
-                modInfos = mapper.treeToValue(node.get("modList"), new TypeReference<>() {});
-            } else {
-                return null;
-            }
-            if (modInfos.isEmpty()) {
-                return null;
-            }
-            var modInfo = modInfos.getFirst();
-            return new ModMetadata(readIcon(file, modInfo.logoFile()), modInfo.name(), modInfo.version());
-        }
-    }
-
-    private record ModMetadata(ImageIcon icon, String name, String version) {}
-
-    private CompletableFuture<ModMetadata> computeMetadata(Path path) {
+    private CompletableFuture<ImageIcon> readIcon(ModIcon modIcon) {
         return CompletableFuture.supplyAsync(() -> {
-            try (ZipFile zf = new ZipFile(path.toFile())) {
-                var neoforgeMod = zf.getEntry("META-INF/neoforge.mods.toml");
-                if (neoforgeMod != null) {
-                    return computeForgeMetadata(neoforgeMod, zf);
+            try (var file = new ZipFile(modIcon.jarPath.toFile())) {
+                var ze = file.getEntry(modIcon.logoFile());
+                if (ze != null) {
+                    try (var is = file.getInputStream(ze)) {
+                        BufferedImage img = ImageIO.read(is);
+                        if (img != null) {
+                            var scaled = img.getScaledInstance(ICON_SIZE, ICON_SIZE, Image.SCALE_SMOOTH);
+                            img.flush();
+                            return new ImageIcon(scaled);
+                        }
+                    }
                 }
-                var forgeMod = zf.getEntry("META-INF/mods.toml");
-                if (forgeMod != null) {
-                    return computeForgeMetadata(forgeMod, zf);
-                }
-                var legacyForgeMod = zf.getEntry("mcmod.info");
-                if (legacyForgeMod != null) {
-                    return computeLegacyForgeMetadata(legacyForgeMod, zf);
-                }
-            } catch (Exception e) {
-                LOGGER.error("Error computing mod metadata for {}", path.getFileName().toString(), e);
+            } catch (IOException e) {
+                LOGGER.error("Error reading icon", e);
             }
             return null;
         }).whenCompleteAsync((m, t) -> {
+            this.modTable.repaint();
+        }, SwingUtilities::invokeLater);
+    }
+
+
+    private CompletableFuture<ModMetadata> computeMetadata(Path path) {
+        return ModMetadata.computeFor(path).whenCompleteAsync((m, t) -> {
             ((TableRowSorter<?>)this.modTable.getRowSorter()).sort();
             this.modTable.repaint();
         }, SwingUtilities::invokeLater);
@@ -484,7 +416,7 @@ public class ModManagerPanel extends JPanel {
         private final Path path;
 
         public Mod(Path path) {
-            this.metadata = iconFutures.computeIfAbsent(path, ModManagerPanel.this::computeMetadata);
+            this.metadata = metadataFutures.computeIfAbsent(path, ModManagerPanel.this::computeMetadata);
             this.path = path;
         }
 
@@ -501,12 +433,20 @@ public class ModManagerPanel extends JPanel {
             }
         }
 
+        public ImageIcon icon() {
+            var meta = metadata();
+            if (meta.logoPath() == null) {
+                return null;
+            }
+            return iconFutures.computeIfAbsent(new ModIcon(this.path, meta.logoPath()), ModManagerPanel.this::readIcon).getNow(null);
+        }
+
         public String friendlyName() {
             var meta = metadata();
-            if (meta.name == null) {
+            if (meta.name() == null) {
                 return path.getFileName().toString();
             }
-            return meta.name;
+            return meta.name();
         }
 
         public long size() {
@@ -524,7 +464,7 @@ public class ModManagerPanel extends JPanel {
         public record Column(String name, Class<?> clz, boolean fixed, int preferredWidth, Function<Mod, Object> valueGetter, Supplier<TableCellRenderer> renderer) { }
         public static final List<Column> COLUMNS = List.of(
                 new Column("Enable", Boolean.class, true, 60, m -> m.enabled(), null),
-                new Column("Icon", Icon.class, true, 40, m -> m.metadata().icon(), null),
+                new Column("Icon", Icon.class, true, 40, m -> m.icon(), null),
                 new Column("Name", String.class, false, 200, m -> m.friendlyName(), null),
                 new Column("Version", String.class, true, 80, m -> m.metadata().version(), null),
                 new Column("Size", Long.class, true, 80, m -> m.size(), () -> new DefaultTableCellRenderer() {

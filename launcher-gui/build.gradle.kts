@@ -13,8 +13,6 @@ dependencies {
 
     implementation("com.twelvemonkeys.imageio:imageio-webp:3.12.0")
 
-    implementation("org.tomlj:tomlj:1.1.1")
-
     implementation("org.apache.logging.log4j:log4j-api:2.20.0")     // Log4j2 API
     implementation("org.apache.logging.log4j:log4j-core:2.20.0")    // Log4j2 Core impl
     implementation("org.apache.logging.log4j:log4j-slf4j2-impl:2.20.0") // SLF4J to Log4j2 bridge
