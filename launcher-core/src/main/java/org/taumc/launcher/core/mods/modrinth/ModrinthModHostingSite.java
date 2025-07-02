@@ -12,6 +12,7 @@ import org.taumc.launcher.core.meta.json.JsonDecoder;
 import org.taumc.launcher.core.mods.ModHostingSite;
 import org.taumc.launcher.core.mods.ModSearchOptions;
 import org.taumc.launcher.core.mods.ModUpdate;
+import org.taumc.launcher.core.mods.ProjectType;
 import org.taumc.launcher.core.progress.ProgressProvider;
 
 import java.net.URI;
@@ -19,10 +20,12 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -45,6 +48,11 @@ public class ModrinthModHostingSite implements ModHostingSite<Project, Version> 
     @Override
     public String name() {
         return "Modrinth";
+    }
+
+    @Override
+    public Collection<ProjectType> getProjectTypes() {
+        return Set.of(ProjectType.MOD);
     }
 
     private <T> CompletableFuture<HttpResponse<T>> executeQuery(URI uri, TypeReference<T> ref) {
