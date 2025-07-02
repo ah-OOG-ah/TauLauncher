@@ -358,7 +358,10 @@ public class ModManagerPanel extends JPanel {
                 LOGGER.error("Error computing mod metadata for {}", path.getFileName().toString(), e);
             }
             return null;
-        }).whenCompleteAsync((m, t) -> this.modTable.repaint(), SwingUtilities::invokeLater);
+        }).whenCompleteAsync((m, t) -> {
+            ((TableRowSorter<?>)this.modTable.getRowSorter()).sort();
+            this.modTable.repaint();
+        }, SwingUtilities::invokeLater);
     }
 
     private void refreshTableModel() {

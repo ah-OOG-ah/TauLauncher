@@ -14,6 +14,7 @@ import org.taumc.launcher.gui.screens.home.HomeView;
 import org.taumc.launcher.core.meta.json.MetadataService;
 
 import javax.swing.*;
+import java.awt.*;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.List;
@@ -27,6 +28,10 @@ public class Main {
         return Boolean.getBoolean("tau.launcher.production");
     }
 
+    private static int clamp(int value) {
+        return Math.max(0, Math.min(255, value));
+    }
+
     static void start(String[] args) throws Exception {
         if (SystemUtils.IS_OS_MAC) {
             System.setProperty("apple.laf.useScreenMenuBar", "true");
@@ -36,6 +41,15 @@ public class Main {
         }
 
         FlatDarkLaf.setup();
+
+        Color base = UIManager.getColor("Table.background");
+        int boost = 10;
+        Color subtleAlt = new Color(
+                clamp(base.getRed() - boost),
+                clamp(base.getGreen() - boost),
+                clamp(base.getBlue() - boost)
+        );
+        UIManager.put("Table.alternateRowColor", subtleAlt);
 
         SwingUtilities.invokeLater(() -> {
             try {
