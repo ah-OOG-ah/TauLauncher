@@ -87,6 +87,7 @@ public record ModMetadata(String logoPath, String name, String version, String d
                 if (legacyForgeMod != null) {
                     return computeLegacyForgeMetadata(legacyForgeMod, zf);
                 }
+                LOGGER.warn("Can't find recognized modloader info for file {}", path);
             } catch (Exception e) {
                 LOGGER.error("Error computing mod metadata for {}", path.getFileName().toString(), e);
             }

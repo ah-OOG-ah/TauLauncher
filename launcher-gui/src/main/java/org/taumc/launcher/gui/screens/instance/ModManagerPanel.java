@@ -14,6 +14,7 @@ import org.taumc.launcher.core.mods.metadata.ModMetadata;
 import org.taumc.launcher.core.mods.modpacksch.ModpacksCHHostingSite;
 import org.taumc.launcher.core.mods.modrinth.ModrinthModHostingSite;
 import org.taumc.launcher.gui.SwingHelpers;
+import org.taumc.launcher.gui.components.Debounce;
 import org.taumc.launcher.gui.components.FileChooser;
 import org.taumc.launcher.gui.components.SwingFileChooser;
 import org.taumc.launcher.gui.launch.LaunchHandler;
@@ -74,6 +75,7 @@ public class ModManagerPanel extends JPanel {
     private JButton removeButton;
     private JButton downloadMoreButton;
     private final ProgressDialog progressDialog;
+    private final Debounce sortDebounce = new Debounce(500);
 
     public ModManagerPanel(Path instancePath, Frame owner, ListModel<MMCPack.Component> installedComponents) {
         this.instancePath = instancePath;
@@ -292,7 +294,7 @@ public class ModManagerPanel extends JPanel {
 
     private CompletableFuture<ModMetadata> computeMetadata(Path path) {
         return ModMetadata.computeFor(path).whenCompleteAsync((m, t) -> {
-            ((TableRowSorter<?>)this.modTable.getRowSorter()).sort();
+            sortDebounce.call(() -> ((TableRowSorter<?>)this.modTable.getRowSorter()).sort());
             this.modTable.repaint();
         }, SwingUtilities::invokeLater);
     }
@@ -430,7 +432,9 @@ public class ModManagerPanel extends JPanel {
         }
 
         public ModMetadata metadata() {
-            return metadata.getNow(fallbackMetadata);
+            var meta = metadata.getNow(null);
+            // This cannot be inlined into the call above, because the future might complete with a value of null
+            return Objects.requireNonNullElse(meta, fallbackMetadata);
         }
 
         public ImageIcon icon() {
