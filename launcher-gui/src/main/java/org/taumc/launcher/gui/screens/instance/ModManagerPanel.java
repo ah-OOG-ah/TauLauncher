@@ -166,14 +166,15 @@ public class ModManagerPanel extends JPanel {
         removeButton = new JButton("Remove Selected");
         downloadMoreButton = new JButton("Download More");
         var addFileButton = new JButton("Add Local File");
-        var showInFolder = new JButton("Show In Folder");
+        var showInFolder = new JButton("View Mods Folder");
         var checkForUpdates = new JButton("Check For Updates");
-        var viewConfigs = new JButton("View Configs");
+        var viewConfigs = new JButton("View Configs Folder");
 
-        List.of(removeButton, downloadMoreButton, addFileButton, showInFolder, checkForUpdates, viewConfigs).forEach(btn -> {
+        List.of(downloadMoreButton, checkForUpdates, addFileButton, removeButton, checkForUpdates, viewConfigs, showInFolder).forEach(btn -> {
             btn.setAlignmentX(Component.CENTER_ALIGNMENT);
+            btn.putClientProperty("FlatLaf.style", "background: #00000000; disabledBorderColor: #00000000; borderColor: #00000000;");
             sidebar.add(btn);
-            sidebar.add(Box.createVerticalStrut(15));
+            sidebar.add(Box.createVerticalStrut(2));
         });
 
         add(tableScrollPane, BorderLayout.CENTER);
