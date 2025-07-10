@@ -1,5 +1,6 @@
 package org.taumc.launcher.gui.screens.home;
 
+import com.formdev.flatlaf.FlatClientProperties;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -377,9 +378,9 @@ public class HomeView extends TauLauncherFrame {
 
     private static JButton makeSidebarButton(String text) {
         JButton button = new JButton(text);
-        button.putClientProperty("FlatLaf.style", "background: #00000000; disabledBorderColor: #00000000; borderColor: #00000000;");
         button.setAlignmentX(Component.CENTER_ALIGNMENT);
         button.setMaximumSize(new Dimension(Integer.MAX_VALUE, button.getPreferredSize().height));
+        button.putClientProperty(FlatClientProperties.BUTTON_TYPE, FlatClientProperties.BUTTON_TYPE_BORDERLESS);
         return button;
     }
 

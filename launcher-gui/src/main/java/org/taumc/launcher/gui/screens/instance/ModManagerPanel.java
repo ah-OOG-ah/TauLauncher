@@ -1,5 +1,6 @@
 package org.taumc.launcher.gui.screens.instance;
 
+import com.formdev.flatlaf.FlatClientProperties;
 import com.github.mizosoft.methanol.Methanol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -174,7 +175,7 @@ public class ModManagerPanel extends JPanel {
 
         List.of(downloadMoreButton, checkForUpdates, addFileButton, removeButton, checkForUpdates, viewConfigs, showInFolder).forEach(btn -> {
             btn.setAlignmentX(Component.CENTER_ALIGNMENT);
-            btn.putClientProperty("FlatLaf.style", "background: #00000000; disabledBorderColor: #00000000; borderColor: #00000000;");
+            btn.putClientProperty(FlatClientProperties.BUTTON_TYPE, FlatClientProperties.BUTTON_TYPE_BORDERLESS);
             sidebar.add(btn);
             sidebar.add(Box.createVerticalStrut(2));
         });

@@ -18,6 +18,7 @@ import java.awt.*;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.List;
+import java.util.Map;
 
 public class Main {
     private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
@@ -40,6 +41,7 @@ public class Main {
             System.setProperty("apple.awt.application.appearance", "dark");
         }
 
+        FlatDarkLaf.setGlobalExtraDefaults(Map.of("@background", "#282a2b"));
         FlatDarkLaf.setup();
 
         Color base = UIManager.getColor("Table.background");

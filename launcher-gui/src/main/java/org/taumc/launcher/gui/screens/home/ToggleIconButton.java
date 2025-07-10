@@ -11,7 +11,7 @@ public class ToggleIconButton extends JToggleButton {
     private final JLabel iconLabel = new JLabel();
     private final JLabel textLabel = new JLabel();
 
-    private static final Color LABEL_BG_UNSELECTED = new Color(100, 100, 100); // light gray
+    private static final Color LABEL_BG_UNSELECTED = new Color(70, 70, 70); // light gray
     private static final Color LABEL_BG_SELECTED = new Color(100, 120, 250);   // light blue
 
     private final String text;
