@@ -87,7 +87,7 @@ public class AddModsView extends TauLauncherFrame {
 
         // Create entries with icons
 
-        sourceList = new JList<>(ModManagerPanel.SITES.stream().filter(s -> s.getProjectTypes().contains(ProjectType.MODPACK)).toArray(ModHostingSite[]::new));
+        sourceList = new JList<>(ModManagerPanel.SITES.stream().filter(s -> s.getProjectTypes().contains(this.projectType)).toArray(ModHostingSite[]::new));
         sourceList.setCellRenderer(new SourceEntryRenderer());
         sourceList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         sourceList.setSelectedIndex(0);
