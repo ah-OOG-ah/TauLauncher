@@ -467,11 +467,25 @@ public class ModManagerPanel extends JPanel {
             String oldName = this.fileName;
             String newName = this.enabled() ? (oldName + ".disabled") : oldName.replaceFirst("\\.disabled$", "");
             try {
-                Files.move(this.path, this.path.resolveSibling(newName));
-                refreshTableModel();
+                Path newPath = this.path.resolveSibling(newName);
+                Files.move(this.path, newPath);
+                var newMod = new Mod(newPath);
+                modTableModel.replaceMod(this, newMod);
             } catch (IOException e) {
                 LOGGER.error("Error toggling mod enablement", e);
             }
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (o == null || getClass() != o.getClass()) return false;
+            Mod mod = (Mod) o;
+            return Objects.equals(path, mod.path);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hashCode(path);
         }
     }
 
@@ -518,6 +532,14 @@ public class ModManagerPanel extends JPanel {
                 fireTableRowsDeleted(rowIndex, rowIndex);
             }
             return mod;
+        }
+
+        public void replaceMod(Mod oldMod, Mod newMod) {
+            int i = mods.indexOf(oldMod);
+            if (i >= 0) {
+                mods.set(i, newMod);
+                fireTableRowsUpdated(i, i);
+            }
         }
 
         public void clear() {
