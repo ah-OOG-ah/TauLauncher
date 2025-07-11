@@ -16,7 +16,7 @@ public class SwingFileChooser extends FileChooser {
         fileChooser.setMultiSelectionEnabled(allowMultiSelection);
         int result = fileChooser.showOpenDialog(null);
         if (result == JFileChooser.APPROVE_OPTION) {
-            return List.of(fileChooser.getSelectedFiles());
+            return allowMultiSelection ? List.of(fileChooser.getSelectedFiles()) : List.of(fileChooser.getSelectedFile());
         } else {
             return List.of();
         }
