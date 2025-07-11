@@ -306,7 +306,7 @@ public class AddModsView extends TauLauncherFrame {
         searchButton.setEnabled(false);
 
         site.searchForMods(searchOptions)
-                .thenApply(l -> l.stream().sorted(Comparator.comparingInt(Mod::downloadCount).reversed()).map(m -> new ModEntry<>(site, m, searchOptions)).toList())
+                .thenApply(l -> l.stream().map(m -> new ModEntry<>(site, m, searchOptions)).toList())
                 .thenAcceptAsync(model::addAll, SwingUtilities::invokeLater)
                 .whenCompleteAsync((v, t) -> {
                     loadingBar.setVisible(false);
