@@ -55,9 +55,10 @@ public class AddModsView extends TauLauncherFrame {
     private JEditorPane modInfoTextArea;
     private JScrollPane infoScrollPane;
     private JComboBox<DownloadableFile> filesComboBox;
-    private JButton downloadSelectButton;
+    private JButton downloadSelectButton, searchButton;
     private JTextField searchField;
     private DownloadModsPanel downloadModsPanel;
+    private JProgressBar loadingBar;
 
     private boolean allowMultipleSelection = true;
 
@@ -84,6 +85,12 @@ public class AddModsView extends TauLauncherFrame {
         sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));
         sidebar.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         sidebar.setPreferredSize(new Dimension(150, 0));
+
+        loadingBar = new JProgressBar();
+        //loadingBar.putClientProperty("FlatLaf.style", "height: 4px;");
+        loadingBar.setIndeterminate(true);
+        loadingBar.setVisible(false);
+        contentPane.add(loadingBar, BorderLayout.NORTH);
 
         // Create entries with icons
 
@@ -176,7 +183,7 @@ public class AddModsView extends TauLauncherFrame {
         JPanel searchAndModListPanel = new JPanel(new BorderLayout());
 
         searchField = new JTextField();
-        JButton searchButton = new JButton("Search");
+        searchButton = new JButton("Search");
 
         searchField.addActionListener(e -> searchButton.doClick());
 
@@ -295,9 +302,16 @@ public class AddModsView extends TauLauncherFrame {
         searchOptions.filterText = searchField.getText();
         searchOptions.componentFilter = this.installedComponents.isEmpty() ? null : this.installedComponents;
         searchOptions.projectType = this.projectType;
+        loadingBar.setVisible(true);
+        searchButton.setEnabled(false);
+
         site.searchForMods(searchOptions)
                 .thenApply(l -> l.stream().sorted(Comparator.comparingInt(Mod::downloadCount).reversed()).map(m -> new ModEntry<>(site, m, searchOptions)).toList())
-                .thenAcceptAsync(model::addAll, SwingUtilities::invokeLater);
+                .thenAcceptAsync(model::addAll, SwingUtilities::invokeLater)
+                .whenCompleteAsync((v, t) -> {
+                    loadingBar.setVisible(false);
+                    searchButton.setEnabled(true);
+                }, SwingUtilities::invokeLater);
     }
 
     private void downloadSelectedMods() {
