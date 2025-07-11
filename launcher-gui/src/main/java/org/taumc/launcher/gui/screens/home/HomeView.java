@@ -110,8 +110,10 @@ public class HomeView extends TauLauncherFrame {
 
         // Panel to go above split pane
         JButton addInstanceButton = new JButton("Add Instance");
+        addInstanceButton.putClientProperty(FlatClientProperties.BUTTON_TYPE, FlatClientProperties.BUTTON_TYPE_BORDERLESS);
         addInstanceButton.addActionListener(e -> this.showCreateInstanceDialog());
         JButton importButton = new JButton("Import Instance");
+        importButton.putClientProperty(FlatClientProperties.BUTTON_TYPE, FlatClientProperties.BUTTON_TYPE_BORDERLESS);
         importButton.addActionListener(e -> this.showImportInstanceDialog());
         JPanel topPanel = new JPanel();
         topPanel.setLayout(new BoxLayout(topPanel, BoxLayout.X_AXIS));
@@ -119,6 +121,7 @@ public class HomeView extends TauLauncherFrame {
         topPanel.add(importButton);
 
         JButton settingsButton = new JButton("Settings");
+        settingsButton.putClientProperty(FlatClientProperties.BUTTON_TYPE, FlatClientProperties.BUTTON_TYPE_BORDERLESS);
         settingsButton.addActionListener(e -> new GlobalSettingsView());
 
         //accountComboBox.setMaximumSize(new Dimension(50, accountComboBox.getPreferredSize().height));

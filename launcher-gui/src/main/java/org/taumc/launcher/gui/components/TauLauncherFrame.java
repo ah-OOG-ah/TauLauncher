@@ -34,8 +34,8 @@ public class TauLauncherFrame extends JFrame {
     private void loadWindowBounds() {
         Preferences prefs = windowBounds();
         var defaultSize = getDefaultDimensions();
-        int x = prefs.getInt(PREFIX + windowBoundsKey + ".x", Integer.MIN_VALUE);
-        int y = prefs.getInt(PREFIX + windowBoundsKey + ".y", Integer.MIN_VALUE);
+        int x = Integer.MIN_VALUE; //prefs.getInt(PREFIX + windowBoundsKey + ".x", Integer.MIN_VALUE);
+        int y = Integer.MIN_VALUE; //prefs.getInt(PREFIX + windowBoundsKey + ".y", Integer.MIN_VALUE);
         int w = prefs.getInt(PREFIX + windowBoundsKey + ".w", defaultSize.width);
         int h = prefs.getInt(PREFIX + windowBoundsKey + ".h", defaultSize.height);
 
