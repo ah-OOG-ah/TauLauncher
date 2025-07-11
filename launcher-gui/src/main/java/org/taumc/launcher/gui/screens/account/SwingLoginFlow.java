@@ -6,10 +6,11 @@ import org.taumc.launcher.core.auth.microsoft.MicrosoftAccount;
 import javax.swing.*;
 import java.awt.*;
 import java.net.URI;
+import java.util.concurrent.CompletableFuture;
 
 public class SwingLoginFlow implements MicrosoftAccount.LoginFlowFrontend {
     @Override
-    public void displayDeviceCode(StepMsaDeviceCode.MsaDeviceCode deviceCode) {
+    public void displayDeviceCode(StepMsaDeviceCode.MsaDeviceCode deviceCode, CompletableFuture<Void> onLoginCompletion) {
         SwingUtilities.invokeLater(() -> {
             JPanel panel = new JPanel(new BorderLayout(10, 10));
 
@@ -49,9 +50,24 @@ public class SwingLoginFlow implements MicrosoftAccount.LoginFlowFrontend {
             linkPanel.add(linkLabel);
             panel.add(linkPanel, BorderLayout.CENTER);
 
+            Object[] options = { "Cancel" };
+
             // Show dialog
-            JOptionPane.showMessageDialog(null, panel,
-                    "Device Code Verification", JOptionPane.INFORMATION_MESSAGE);
+            var optionPane = new JOptionPane(
+                    panel,
+                    JOptionPane.PLAIN_MESSAGE,
+                    JOptionPane.DEFAULT_OPTION,
+                    null,
+                    options,
+                    options[0]
+            );
+
+            var dialog = optionPane.createDialog("Microsoft Account Login");
+            dialog.setModal(true);
+            onLoginCompletion.whenCompleteAsync((c, t) -> {
+                dialog.dispose();
+            }, SwingUtilities::invokeLater);
+            dialog.setVisible(true);
         });
     }
 }

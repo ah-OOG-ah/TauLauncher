@@ -9,8 +9,10 @@ import org.taumc.launcher.core.auth.Account;
 import org.taumc.launcher.core.progress.ProgressProvider;
 
 import java.lang.reflect.Type;
+import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 public class MicrosoftAccount implements Account {
     private StepFullJavaSession.FullJavaSession currentSession;
@@ -19,9 +21,14 @@ public class MicrosoftAccount implements Account {
     private static final MicrosoftAccount.LoginFlowFrontend FRONTEND = ServiceLoader.load(LoginFlowFrontend.class, MicrosoftAccount.class.getClassLoader()).findFirst().orElseThrow(() -> new IllegalStateException("A login frontend must be provided to use MicrosoftAccount"));
 
     public void login() {
+        var future = new CompletableFuture<Void>();
         try {
-            this.currentSession = MinecraftAuth.JAVA_DEVICE_CODE_LOGIN.getFromInput(httpClient, new StepMsaDeviceCode.MsaDeviceCodeCallback(FRONTEND::displayDeviceCode));
+            this.currentSession = MinecraftAuth.JAVA_DEVICE_CODE_LOGIN.getFromInput(httpClient, new StepMsaDeviceCode.MsaDeviceCodeCallback(msaDeviceCode -> {
+                FRONTEND.displayDeviceCode(msaDeviceCode, future);
+            }));
+            future.complete(null);
         } catch (Exception e) {
+            future.completeExceptionally(e);
             e.printStackTrace();
         }
     }
@@ -59,6 +66,11 @@ public class MicrosoftAccount implements Account {
         return this.currentSession.getMcProfile().getMcToken().getAccessToken();
     }
 
+    @Override
+    public Optional<String> skinUrl() {
+        return Optional.ofNullable(this.currentSession.getMcProfile().getSkinUrl());
+    }
+
     public static class SessionAdapter implements JsonSerializer<StepFullJavaSession.FullJavaSession>, JsonDeserializer<StepFullJavaSession.FullJavaSession> {
         @Override
         public StepFullJavaSession.FullJavaSession deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
@@ -72,7 +84,7 @@ public class MicrosoftAccount implements Account {
     }
 
     public interface LoginFlowFrontend {
-        void displayDeviceCode(StepMsaDeviceCode.MsaDeviceCode deviceCode);
+        void displayDeviceCode(StepMsaDeviceCode.MsaDeviceCode deviceCode, CompletableFuture<Void> onLoginCompletion);
     }
 
     @Override

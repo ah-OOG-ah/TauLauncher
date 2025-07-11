@@ -3,12 +3,17 @@ package org.taumc.launcher.core.auth;
 import org.taumc.launcher.core.progress.ProgressProvider;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface Account {
     String username();
     String accessToken();
     String type();
+
+    default Optional<String> skinUrl() {
+        return Optional.empty();
+    }
 
     default UUID uuid() {
         return UUID.nameUUIDFromBytes(("OfflinePlayer:" + username()).getBytes(StandardCharsets.UTF_8));

@@ -25,6 +25,7 @@ import org.taumc.launcher.gui.launch.ProgressDialog;
 import org.taumc.launcher.gui.screens.curseforge.ManualDownloadDialog;
 import org.taumc.launcher.gui.screens.instance.InstanceEditView;
 import org.taumc.launcher.gui.screens.mods.AddModsView;
+import org.taumc.launcher.gui.screens.settings.GlobalSettingsView;
 
 import javax.swing.*;
 import java.awt.*;
@@ -73,8 +74,6 @@ public class HomeView extends TauLauncherFrame {
 
     private final Map<String, LaunchHandler> runningInstances = new HashMap<>();
 
-    private final JComboBox<Account> accountComboBox;
-
     private final ProgressDialog progressDialog;
 
     public HomeView(HomeModel model) {
@@ -119,46 +118,13 @@ public class HomeView extends TauLauncherFrame {
         topPanel.add(addInstanceButton);
         topPanel.add(importButton);
 
-        DefaultComboBoxModel<Account> accountModel = new DefaultComboBoxModel<>();
+        JButton settingsButton = new JButton("Settings");
+        settingsButton.addActionListener(e -> new GlobalSettingsView());
 
-        Main.ACCOUNTS.getLoadedAccounts().forEach(accountModel::addElement);
-        accountModel.addElement(FAKE_ACCOUNT);
-
-        JComboBox<Account> accountComboBox = new JComboBox<>(accountModel);
-        this.accountComboBox = accountComboBox;
-        accountComboBox.setEditable(false);
-
-        MutableObject<Account> lastSelection = new MutableObject<>(accountModel.getElementAt(0));
-
-        accountComboBox.addActionListener(e -> {
-            var cb = (JComboBox<Account>)e.getSource();
-            Account selected = (Account) cb.getSelectedItem();
-
-            if (FAKE_ACCOUNT.equals(selected)) {
-                cb.setSelectedItem(lastSelection.getValue());
-                var microsoftAccount = new MicrosoftAccount();
-                CompletableFuture.runAsync(microsoftAccount::login).thenRun(() -> SwingUtilities.invokeLater(() -> {
-                    if (microsoftAccount.isLoggedIn()) {
-                        Main.ACCOUNTS.getLoadedAccounts().add(microsoftAccount);
-                        try {
-                            Main.ACCOUNTS.saveToDisk();
-                        } catch (IOException ex) {
-                            throw new RuntimeException(ex);
-                        }
-                        accountModel.insertElementAt(microsoftAccount, accountModel.getSize() - 1);
-                        cb.setSelectedItem(microsoftAccount);
-                        lastSelection.setValue(selected);
-                    }
-                }));
-            } else {
-                lastSelection.setValue(selected);
-            }
-        });
-
-        accountComboBox.setMaximumSize(new Dimension(50, accountComboBox.getPreferredSize().height));
+        //accountComboBox.setMaximumSize(new Dimension(50, accountComboBox.getPreferredSize().height));
 
         topPanel.add(Box.createHorizontalGlue());
-        topPanel.add(accountComboBox);
+        topPanel.add(settingsButton);
 
         Container contentPane = this.getContentPane();
         contentPane.setLayout(new BorderLayout());
@@ -413,8 +379,8 @@ public class HomeView extends TauLauncherFrame {
             killButton.setEnabled(existingLaunchHandler != null && existingLaunchHandler.isRunning());
 
             launchButton.addActionListener(e -> {
-                Account currentAccount = (Account)accountComboBox.getSelectedItem();
-                if (currentAccount == null || currentAccount == FAKE_ACCOUNT) {
+                Account currentAccount = Main.ACCOUNTS.getPreferredAccount();
+                if (currentAccount == null) {
                     JOptionPane.showMessageDialog(null, "You must add an account before playing the game!", "Error", JOptionPane.ERROR_MESSAGE);
                     return;
                 }

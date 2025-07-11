@@ -3,6 +3,7 @@ package org.taumc.launcher.gui;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
@@ -143,5 +144,17 @@ public class SwingHelpers {
         // low is now the first index that *doesn't* fit, so use low-1
         int cutOff = Math.max(low - 1, 0);
         return text.substring(0, cutOff) + ellipsis;
+    }
+
+    public static BufferedImage scaleImagePixelPerfect(BufferedImage src, int scale) {
+        int width = src.getWidth() * scale;
+        int height = src.getHeight() * scale;
+
+        BufferedImage scaled = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2d = scaled.createGraphics();
+        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+        g2d.drawImage(src, 0, 0, width, height, null);
+        g2d.dispose();
+        return scaled;
     }
 }
