@@ -7,14 +7,11 @@ import org.kordamp.ikonli.fontawesome6.FontAwesomeSolid;
 import org.kordamp.ikonli.swing.FontIcon;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.taumc.launcher.core.meta.json.HTTPMetaRepository;
 import org.taumc.launcher.core.meta.json.MetadataService;
-import org.taumc.launcher.core.meta.json.PatchesFolderMetaRepository;
 import org.taumc.launcher.core.qsettings.Settings;
-import org.taumc.launcher.gui.Main;
 import org.taumc.launcher.gui.UIPaths;
 import org.taumc.launcher.core.meta.json.MMCPack;
-import org.taumc.launcher.gui.components.TauLauncherFrame;
+import org.taumc.launcher.gui.components.MultiSectionFrame;
 import org.taumc.launcher.gui.icon.IconRegistry;
 import org.taumc.launcher.gui.launch.LaunchHandler;
 import org.taumc.launcher.gui.launch.LogViewFrame;
@@ -28,25 +25,16 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 
-public class InstanceEditView extends TauLauncherFrame {
-    private static final Map<String, Function<InstanceEditView, JPanel>> PAGES = new LinkedHashMap<>();
+public class InstanceEditView extends MultiSectionFrame {
     private static final Logger LOGGER = LoggerFactory.getLogger(InstanceEditView.class);
 
     public static final Map<String, InstanceEditView> OPEN_EDIT_VIEWS = new HashMap<>();
-
-    static {
-        PAGES.put("Components", InstanceEditView::createComponentsPanel);
-        PAGES.put("Memory & JVM", InstanceEditView::createMemoryPanel);
-        PAGES.put("Mods", InstanceEditView::createModsPanel);
-        PAGES.put("Logs", InstanceEditView::mountLogsPanel);
-    }
 
     private final HomeView owner;
     private final String instance;
@@ -54,13 +42,12 @@ public class InstanceEditView extends TauLauncherFrame {
     private final Path mmcPackJson, instanceCfgPath;
     private final DefaultListModel<MMCPack.Component> componentList = new DefaultListModel<>();
     private final Settings instanceCfg;
-    private final JList<String> sidebar;
-    private final JPanel cardPanel;
-    private final Map<String, JPanel> panels;
 
     private final Map<MMCPack.Component, CompletableFuture<String>> componentFutureMap = new HashMap<>();
 
     private final CompletableFuture<MetadataService> metadataService;
+
+    private record Page(String name, Function<InstanceEditView, JPanel> builder) {}
 
     private InstanceEditView(HomeView owner, String instance) {
         super();
@@ -95,35 +82,15 @@ public class InstanceEditView extends TauLauncherFrame {
 
         this.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
-        // Sidebar: list of settings pages
-        this.sidebar = new JList<>(PAGES.keySet().toArray(new String[0]));
-        sidebar.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        sidebar.setSelectedIndex(0);
+        // Add pages
+        var pages = List.of(
+                new Page("Components", InstanceEditView::createComponentsPanel),
+                new Page("Memory & JVM", InstanceEditView::createMemoryPanel),
+                new Page("Mods", InstanceEditView::createModsPanel),
+                new Page("Logs", InstanceEditView::mountLogsPanel)
+        );
+        pages.forEach(page -> this.addPage(page.name, () -> page.builder.apply(this)));
 
-        JScrollPane sidebarScroll = new JScrollPane(sidebar);
-        sidebarScroll.setPreferredSize(new Dimension(150, 0));
-
-        // Main panel with CardLayout
-        this.cardPanel = new JPanel(new CardLayout());
-
-        this.panels = new HashMap<>();
-        PAGES.forEach((name, panelSupplier) -> this.panels.put(name, panelSupplier.apply(this)));
-        panels.forEach((name, panel) -> cardPanel.add(panel, name));
-
-        // Change card on selection
-        sidebar.addListSelectionListener(e -> {
-            if (!e.getValueIsAdjusting()) {
-                String selected = sidebar.getSelectedValue();
-                setCurrentPage(selected);
-            }
-        });
-
-        // Split layout
-        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, sidebarScroll, cardPanel);
-        splitPane.setDividerLocation(150);
-        splitPane.setResizeWeight(0);
-
-        this.add(splitPane);
         this.setVisible(true);
         OPEN_EDIT_VIEWS.put(instance, this);
         this.addWindowListener(new WindowAdapter() {
@@ -132,7 +99,6 @@ public class InstanceEditView extends TauLauncherFrame {
                 InstanceEditView.this.saveCurrentConfig();
                 InstanceEditView.this.metadataService.join().close();
                 OPEN_EDIT_VIEWS.remove(instance);
-                panels.values().forEach(p -> p.getParent().remove(p));
                 owner.refreshSidebar();
             }
         });
@@ -150,14 +116,6 @@ public class InstanceEditView extends TauLauncherFrame {
         } else {
             return new InstanceEditView(owner, instance);
         }
-    }
-
-    public void setCurrentPage(String page) {
-        if (!PAGES.containsKey(page)) {
-            throw new IllegalArgumentException();
-        }
-        CardLayout cl = (CardLayout) cardPanel.getLayout();
-        cl.show(cardPanel, page);
     }
 
     private void readCurrentConfig() throws IOException {
@@ -193,17 +151,6 @@ public class InstanceEditView extends TauLauncherFrame {
         } catch (IOException e) {
             LOGGER.error("Error saving instance.cfg", e);
         }
-    }
-
-    private void refreshCurrentPanel() {
-        String page = this.sidebar.getSelectedValue();
-        JPanel prev = this.panels.remove(page);
-        if (prev != null) {
-            this.cardPanel.remove(prev);
-        }
-        JPanel newPanel = PAGES.get(page).apply(this);
-        this.cardPanel.add(newPanel, page);
-        ((CardLayout)this.cardPanel.getLayout()).show(this.cardPanel, page);
     }
 
     private JPanel createComponentsPanel() {
