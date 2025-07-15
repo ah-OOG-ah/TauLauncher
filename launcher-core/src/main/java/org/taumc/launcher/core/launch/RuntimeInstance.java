@@ -1,20 +1,19 @@
 package org.taumc.launcher.core.launch;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.mizosoft.methanol.Methanol;
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.commons.text.StringSubstitutor;
-import org.apache.maven.artifact.versioning.ArtifactVersion;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.taumc.launcher.core.assets.AssetService;
 import org.taumc.launcher.core.auth.Account;
 import org.taumc.launcher.core.auth.offline.OfflineAccount;
-import org.taumc.launcher.core.components.BuiltinComponents;
 import org.taumc.launcher.core.http.DownloadProgressTracker;
 import org.taumc.launcher.core.jvm.JavaService;
+import org.taumc.launcher.core.meta.component.GameComponent;
 import org.taumc.launcher.core.meta.json.Artifact;
-import org.taumc.launcher.core.meta.json.Component;
 import org.taumc.launcher.core.meta.json.Library;
 import org.taumc.launcher.core.meta.json.MMCPack;
 import org.taumc.launcher.core.meta.json.MetadataService;
@@ -47,9 +46,10 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -60,19 +60,27 @@ public class RuntimeInstance {
     private final MetadataService service = new MetadataService();
     private final AssetService assetService = new AssetService();
     private final JavaService javaService = new JavaService(service);
-    private final List<Component> components = new ArrayList<>();
+    private final List<GameComponent> components = new ArrayList<>();
 
     private final List<Path> libraryPaths = new ArrayList<>();
     private final List<Path> agents = new ArrayList<>();
 
-    private Optional<Artifact> assetIndex;
-    private Path mainJarPath;
+    private final List<Library> requestedLibraries = new ArrayList<>();
+    private final List<Library> requestedMavenDownloads = new ArrayList<>();
+    private final List<Library> requestedAgents = new ArrayList<>();
+    private final List<String> gameArguments = new ArrayList<>();
+    private final Map<String, Artifact> requestedAssetIndexes = new HashMap<>();
+
     private Process currentProcess;
+    @Setter
     protected String mainClassName;
-    private Component mainComponent;
     private ProgressProvider progressProvider = ProgressProvider.NONE;
 
-    // TODO
+    /**
+     * The root folder that Minecraft will use. The parent of this folder is guaranteed to be usable for storing
+     * launcher information.
+     */
+    @Getter
     private Path instancePath;
     private Account launchAccount = new OfflineAccount("Dev");
 
@@ -83,7 +91,13 @@ public class RuntimeInstance {
 
     private Optional<String> javaPath = Optional.empty();
 
+    @Getter
+    @Setter
+    private int javaVersion = 21;
+
     private final Map<String, String> systemProperties = new LinkedHashMap<>();
+    @Getter
+    private final Map<String, String> gameArgumentTemplateParameters = new HashMap<>();
 
     public void addComponent(String uid, String version) {
         addComponent(new MMCPack.Component(uid, version));
@@ -97,7 +111,7 @@ public class RuntimeInstance {
         addComponent(component);
     }
 
-    public void addComponent(Component component) {
+    public void addComponent(GameComponent component) {
         this.components.add(component);
     }
 
@@ -105,6 +119,14 @@ public class RuntimeInstance {
         for (var component : components) {
             this.addComponent(component);
         }
+    }
+
+    public void addLibraries(Collection<Library> libraries) {
+        this.requestedLibraries.addAll(libraries);
+    }
+
+    public void addMavenDownloads(Collection<Library> libraries) {
+        this.requestedMavenDownloads.addAll(libraries);
     }
 
     public void setLaunchAccount(Account account) {
@@ -214,8 +236,7 @@ public class RuntimeInstance {
             return new GroupAndName(e.group(), e.name());
         };
 
-        var candidateLibraries = this.components.stream().filter(c -> c.libraries() != null)
-                .flatMap(c -> c.libraries().stream())
+        var candidateLibraries = this.requestedLibraries.stream()
                 .filter(l -> l.rules() == null || l.rules().stream().allMatch(Library.Rule::passes))
                 .toList();
 
@@ -244,7 +265,7 @@ public class RuntimeInstance {
     private void scanDependencies() throws IOException, InterruptedException {
         while (true) {
             List<Requirement> requirementsToFix = List.of();
-            Component complainingComponent = null;
+            GameComponent complainingComponent = null;
             for (var component : this.components) {
                 if (component.requires() == null) {
                     continue;
@@ -297,15 +318,7 @@ public class RuntimeInstance {
             return CompletableFuture.completedFuture(this.javaPath.get());
         }
 
-        int javaVersion;
-
-        if (this.mainComponent.compatibleJavaMajors() != null) {
-            javaVersion = this.mainComponent.compatibleJavaMajors().stream().mapToInt(Integer::intValue).max().orElseThrow();
-        } else {
-            javaVersion = 21; // Default
-        }
-
-        LOGGER.info("Selected Java version {} for main component {} version {}", javaVersion, this.mainComponent.name(), this.mainComponent.version());
+        LOGGER.info("Selected Java version {}", javaVersion);
 
         return CompletableFuture.supplyAsync(() -> {
             try {
@@ -327,11 +340,7 @@ public class RuntimeInstance {
         javaExecArguments.add("-Djava.library.path=" + this.instancePath.resolve("natives").toAbsolutePath().toString());
 
         javaExecArguments.add("-cp");
-        javaExecArguments.add(this.libraryPaths.stream().map(p -> p.toAbsolutePath().toString()).distinct().collect(Collectors.joining(File.pathSeparator)) + File.pathSeparator + this.mainJarPath.toAbsolutePath().toString());
-
-        this.components.stream().map(c -> c.extraProperty("+jvmArgs")).filter(Objects::nonNull).forEach(extraArgs -> {
-            javaExecArguments.addAll((List<String>)extraArgs);
-        });
+        javaExecArguments.add(this.libraryPaths.stream().map(p -> p.toAbsolutePath().toString()).distinct().collect(Collectors.joining(File.pathSeparator)));
 
         this.agents.forEach(p -> javaExecArguments.add("-javaagent:" + p.toAbsolutePath().toString()));
 
@@ -349,7 +358,7 @@ public class RuntimeInstance {
 
         javaExecArguments.addAll(this.extraJvmArguments);
 
-        Map<String, String> templateParameters = new HashMap<>();
+        Map<String, String> templateParameters = this.gameArgumentTemplateParameters;
 
         Path workingDir = this.instancePath.toAbsolutePath();
         templateParameters.put("auth_player_name", launchAccount.username());
@@ -360,36 +369,19 @@ public class RuntimeInstance {
         templateParameters.put("game_assets", workingDir.resolve("resources").toString());
         templateParameters.put("auth_access_token", launchAccount.accessToken());
         templateParameters.put("auth_session", launchAccount.accessToken());
-        templateParameters.put("version_name", this.mainComponent.version());
-        templateParameters.put("version_type", (String)this.mainComponent.extraProperties().get("type"));
         templateParameters.put("user_properties", "{}");
         templateParameters.put("user_type", launchAccount.type());
-        this.assetIndex.ifPresent(a -> templateParameters.put("assets_index_name", (String)a.properties().get("id")));
+        if (!this.requestedAssetIndexes.isEmpty()) {
+            String assetIndexId = this.requestedAssetIndexes.keySet().iterator().next();
+            if (this.requestedAssetIndexes.size() > 1) {
+                LOGGER.warn("Using asset index {} for game arguments", assetIndexId);
+            }
+            templateParameters.put("assets_index_name", assetIndexId);
+        }
 
         var subsitutor = new StringSubstitutor(templateParameters);
 
-        List<String> gameArguments = new ArrayList<>();
-
-        Optional<String> minecraftArguments = this.components.stream()
-                .map(c -> (String)c.extraProperty("minecraftArguments"))
-                .filter(Objects::nonNull)
-                .reduce((f, s) -> s);
-
-        if (minecraftArguments.isPresent()) {
-            for(String arg :minecraftArguments.get().split(" ")) {
-                gameArguments.add(subsitutor.replace(arg));
-            }
-        }
-
-        this.components.stream()
-                .map(c -> c.extraProperty("+tweakers"))
-                .filter(Objects::nonNull)
-                .flatMap(l -> ((List<String>)l).stream())
-                .forEach(t -> {
-                    gameArguments.add("--tweakClass");
-                    gameArguments.add(t);
-                });
-
+        List<String> gameArguments = this.gameArguments.stream().map(subsitutor::replace).toList();
         this.currentProcess = startProcess(javaExecArguments, gameArguments, workingDir);
     }
 
@@ -400,6 +392,7 @@ public class RuntimeInstance {
         List<String> command = new ArrayList<>();
         command.add(this.javaBinaryFuture.join());
         command.addAll(jvmArguments);
+        Objects.requireNonNull(this.mainClassName, "Main class not set");
         command.add(this.mainClassName);
         command.addAll(gameArguments);
 
@@ -428,30 +421,21 @@ public class RuntimeInstance {
 
         this.scanDependencies();
 
-        var traits = this.components.stream().map(Component::traits).filter(Objects::nonNull).flatMap(Collection::stream).distinct().toList();
+        this.components.sort(Comparator.comparingInt(GameComponent::order));
 
-        boolean isLegacyLaunch = (traits.contains("legacyLaunch") || traits.contains("alphaLaunch")) && !traits.contains("noapplet");
-
-        if (isLegacyLaunch) {
-            this.addComponent(BuiltinComponents.LEGACY_LAUNCH_WRAPPER);
+        // Perform reconciliation
+        try (ExecutorService configExecutor = Executors.newSingleThreadExecutor()) {
+            CompletableFuture.allOf(this.components.stream().map(c -> c.reconcile(this, configExecutor)).toArray(CompletableFuture[]::new)).join();
         }
-
-        this.components.sort(Comparator.comparingInt(Component::order));
 
         // Start asset download asynchronously
-        CompletableFuture<Void> assetsFuture;
-        this.assetIndex = this.components.stream().flatMap(c -> c.assetIndex().stream()).findFirst();
-        if (this.assetIndex.isPresent()) {
-            assetsFuture = CompletableFuture.runAsync(() -> {
-                try {
-                    this.assetService.downloadAssets(this.assetIndex.get(), this.progressProvider);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            });
-        } else {
-            assetsFuture = CompletableFuture.completedFuture(null);
-        }
+        CompletableFuture<Void> assetsFuture = CompletableFuture.allOf(this.requestedAssetIndexes.values().stream().map(a -> CompletableFuture.runAsync(() -> {
+            try {
+                this.assetService.downloadAssets(a, this.progressProvider);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        })).toArray(CompletableFuture[]::new));
 
         // Compute all libraries
         var libraries = computeLibrariesToLoad();
@@ -460,16 +444,12 @@ public class RuntimeInstance {
         this.libraryPaths.addAll(getOrDownloadLibraries(libraries));
 
         // Download Maven files, but don't add them to the class path
-        this.getOrDownloadLibraries(this.components.stream().map(Component::mavenFiles).filter(Objects::nonNull).flatMap(Collection::stream).toList());
+        this.getOrDownloadLibraries(this.requestedMavenDownloads);
 
         this.agents.clear();
-        this.agents.addAll(this.getOrDownloadLibraries(this.components.stream().map(Component::agents).filter(Objects::nonNull).flatMap(Collection::stream).toList()));
+        this.agents.addAll(this.getOrDownloadLibraries(this.requestedAgents));
 
         // Bootstrap the game
-        this.mainComponent = this.components.stream().filter(c -> c.mainJar().isPresent()).findFirst().orElseThrow(() -> new IllegalStateException("Main jar does not exist in any components"));
-        this.mainJarPath = this.downloadLibrary(this.mainComponent.mainJar().orElseThrow());
-
-        this.mainClassName = this.components.stream().flatMap(c -> c.mainClass() != null ? c.mainClass().stream() : Stream.empty()).reduce((first, second) -> second).orElseThrow(() -> new IllegalStateException("No component has a main class"));
 
         this.javaBinaryFuture = this.computeJavaVersion();
 
@@ -494,6 +474,23 @@ public class RuntimeInstance {
     public void setExtraJvmArguments(List<String> extraJvmArguments) {
         this.extraJvmArguments.clear();
         this.extraJvmArguments.addAll(extraJvmArguments);
+    }
+
+    public void addExtraJvmArguments(Collection<String> extraJvmArguments) {
+        this.extraJvmArguments.addAll(extraJvmArguments);
+    }
+
+    public void addGameArgument(String gameArgument) {
+        this.gameArguments.add(gameArgument);
+    }
+
+    public void addJavaAgent(Library javaAgent) {
+        this.requestedAgents.add(javaAgent);
+    }
+
+    public void addAssetIndex(Artifact assetIndex) {
+        String id = (String) Objects.requireNonNull(assetIndex.properties().get("id"));
+        this.requestedAssetIndexes.put(id, assetIndex);
     }
 
     public void setInstancePath(Path instancePath) {

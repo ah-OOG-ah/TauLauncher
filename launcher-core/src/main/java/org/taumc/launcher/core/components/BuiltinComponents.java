@@ -8,6 +8,7 @@ import org.taumc.launcher.core.meta.json.JsonDecoder;
 public class BuiltinComponents {
     private static final ObjectMapper MAPPER = JsonDecoder.make();
 
+    public static final String LEGACY_LAUNCH_WRAPPER_UID = "org.mcphackers.launchwrapper";
     public static final Component LEGACY_LAUNCH_WRAPPER = buildComponentFromJson("""
             {
                 "+traits": [
