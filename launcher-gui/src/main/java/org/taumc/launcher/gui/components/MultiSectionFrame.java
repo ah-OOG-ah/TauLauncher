@@ -4,15 +4,14 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.LinkedHashMap;
 import java.util.function.Supplier;
 
 public class MultiSectionFrame extends TauLauncherFrame {
     private final JList<String> sidebar;
     private final JPanel cardPanel;
-    private final Map<String, JPanel> panels;
-    private final Map<String, Supplier<JPanel>> panelConstructors;
+    private final LinkedHashMap<String, JPanel> panels;
+    private final LinkedHashMap<String, Supplier<JPanel>> panelConstructors;
     private final DefaultListModel<String> pageNames;
 
     protected MultiSectionFrame() {
@@ -29,8 +28,8 @@ public class MultiSectionFrame extends TauLauncherFrame {
 
         // Main panel with CardLayout
         this.cardPanel = new JPanel(new CardLayout());
-        this.panels = new HashMap<>();
-        this.panelConstructors = new HashMap<>();
+        this.panels = new LinkedHashMap<>();
+        this.panelConstructors = new LinkedHashMap<>();
 
         // Change card on selection
         sidebar.addListSelectionListener(e -> {
@@ -59,6 +58,9 @@ public class MultiSectionFrame extends TauLauncherFrame {
 
     protected void refreshCurrentPanel() {
         String page = this.sidebar.getSelectedValue();
+        if (page == null) {
+            page = this.panels.keySet().iterator().next();
+        }
         JPanel prev = this.panels.remove(page);
         if (prev != null) {
             this.cardPanel.remove(prev);

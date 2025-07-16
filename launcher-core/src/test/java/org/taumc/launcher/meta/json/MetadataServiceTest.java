@@ -3,8 +3,8 @@ package org.taumc.launcher.meta.json;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.taumc.launcher.core.meta.json.HTTPMetaRepository;
-import org.taumc.launcher.core.meta.json.MetaRepository;
+import org.taumc.launcher.core.meta.prism.Component;
+import org.taumc.launcher.core.meta.prism.HTTPMetaRepository;
 import org.taumc.launcher.core.meta.json.MetadataService;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -27,8 +27,8 @@ public class MetadataServiceTest {
 
     @Test
     void findsMinecraftVersion() throws Exception {
-        assertTrue(SERVICE.getKnownVersions("net.minecraft").contains("1.21.5"));
-        var component = SERVICE.getComponent("net.minecraft", "1.21.5");
+        assertTrue(SERVICE.getKnownVersions("net.minecraft").join().stream().anyMatch(g -> g.version().equals("1.21.5")));
+        var component = (Component)SERVICE.getComponent("net.minecraft", "1.21.5").join();
         assertEquals("release", component.extraProperty("type"));
     }
 

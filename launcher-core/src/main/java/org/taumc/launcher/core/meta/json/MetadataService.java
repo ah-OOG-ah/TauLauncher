@@ -2,26 +2,32 @@ package org.taumc.launcher.core.meta.json;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.taumc.launcher.core.meta.component.ComponentMetaInfo;
+import org.taumc.launcher.core.meta.component.GameComponent;
+import org.taumc.launcher.core.meta.component.ReconcilableGameComponent;
+import org.taumc.launcher.core.meta.prism.HTTPMetaRepository;
+import org.taumc.launcher.core.util.FutureUtils;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 public class MetadataService implements Closeable {
     private static final Logger LOGGER = LoggerFactory.getLogger(MetadataService.class);
-    public record DiscoveredPackageIndex(MetaRepository repo, PackageIndex index, SequencedSet<String> knownVersions) {}
 
     private final List<MetaRepository> repositories;
-    private final Map<String, List<DiscoveredPackageIndex>> packageIndex;
-    private final Map<MMCPack.Component, Component> componentCache = new ConcurrentHashMap<>();
+    private final Set<String> knownPackages = new HashSet<>();
+    private final Map<String, CompletableFuture<SequencedSet<GameComponent>>> knownVersionsCache = new ConcurrentHashMap<>();
+    private final Map<MMCPack.Component, CompletableFuture<ReconcilableGameComponent>> componentCache = new ConcurrentHashMap<>();
+    private final Map<String, CompletableFuture<ComponentMetaInfo>> infoCache = new ConcurrentHashMap<>();
 
     private boolean indexed = false;
 
     public MetadataService() {
         this.repositories = new ArrayList<>();
-        this.packageIndex = new HashMap<>();
     }
 
     @Deprecated
@@ -47,64 +53,41 @@ public class MetadataService implements Closeable {
     }
 
     public void updateIndex() throws IOException {
-        this.packageIndex.clear();
-        for (var repo : this.repositories) {
-            var index = repo.getRootIndex();
-            for (var pkg : index.packages()) {
-                var pkgIndex = repo.getPackageIndex(pkg.uid());
-                var knownVersions = pkgIndex.versions().stream().map(PackageIndex.Version::version).collect(Collectors.toCollection(LinkedHashSet::new));
-                this.packageIndex.computeIfAbsent(pkg.uid(), $ -> new ArrayList<>()).add(new DiscoveredPackageIndex(repo, pkgIndex, Collections.unmodifiableSequencedSet(knownVersions)));
-            }
-        }
+        this.knownPackages.clear();
+        this.knownPackages.addAll(this.repositories.parallelStream().flatMap(r -> r.getKnownPackages().join().stream()).collect(Collectors.toUnmodifiableSet()));
         this.indexed = true;
     }
 
     public Set<String> getKnownPackages() {
         this.checkIndexed();
-        return Collections.unmodifiableSet(this.packageIndex.keySet());
+        return Collections.unmodifiableSet(this.knownPackages);
     }
 
-    public SequencedSet<String> getKnownVersions(String pkg) {
-        this.checkIndexed();
-        var indexes = this.packageIndex.getOrDefault(pkg, List.of());
-        SequencedSet<String> versions = new LinkedHashSet<>();
-        indexes.forEach(i -> versions.addAll(i.knownVersions()));
-        return versions;
+    public CompletableFuture<SequencedSet<GameComponent>> getKnownVersions(String pkg) {
+        return this.knownVersionsCache.computeIfAbsent(pkg, uid -> {
+            var futureList = this.repositories.stream().map(r -> r.getKnownVersions(uid)).toList();
+            return CompletableFuture.allOf(futureList.toArray(new CompletableFuture[0])).thenApply($ -> {
+                var versionsSet = new LinkedHashSet<GameComponent>();
+                for (var f : futureList) {
+                    versionsSet.addAll(f.join());
+                }
+                return versionsSet;
+            });
+        });
     }
 
-    public final Component getComponent(ComponentCoordinate coordinate) {
-        if (coordinate instanceof Component component) {
-            return component;
+    public final CompletableFuture<ReconcilableGameComponent> getComponent(ComponentCoordinate coordinate) {
+        if (coordinate instanceof ReconcilableGameComponent component) {
+            return CompletableFuture.completedFuture(component);
         }
         return getComponent(coordinate.uid(), coordinate.version());
     }
 
-    private Component findComponent(String pkg, String version) {
-        var indexes = this.packageIndex.getOrDefault(pkg, List.of());
-        List<IOException> errors = new ArrayList<>();
-        for (var index : indexes) {
-            if (version != null) {
-                if (index.knownVersions().contains(version)) {
-                    try {
-                        return index.repo().getComponent(pkg, version);
-                    } catch (IOException e) {
-                        errors.add(new IOException("Could not load component " + pkg + " version " + version + " from repo " + index.repo(), e));
-                    }
-                }
-            } else {
-                try {
-                    return index.repo().getComponent(pkg, null);
-                } catch (IOException ignored) {
-                }
-            }
-        }
-        for (var e : errors) {
-            LOGGER.error("Exception trying to load component", e);
-        }
-        return null;
+    private CompletableFuture<ReconcilableGameComponent> findComponent(String pkg, String version) {
+        return FutureUtils.anySuccessful(this.repositories.stream().filter(r -> r.couldHavePackage(pkg) && r.couldHaveVersion(pkg, version)).map(r -> r.retrieveComponent(pkg, version)).toList());
     }
 
-    public Component getComponent(String pkg, String version)  {
+    public CompletableFuture<ReconcilableGameComponent> getComponent(String pkg, String version)  {
         this.checkIndexed();
 
         var key = new MMCPack.Component(pkg, version);
@@ -122,9 +105,10 @@ public class MetadataService implements Closeable {
         return existing;
     }
 
-    public List<DiscoveredPackageIndex> getPackageIndexes(String pkg) {
-        this.checkIndexed();
-        return this.packageIndex.getOrDefault(pkg, List.of());
+    public CompletableFuture<ComponentMetaInfo> getComponentMeta(String pkg) {
+        return this.infoCache.computeIfAbsent(pkg, uid -> {
+            return FutureUtils.anySuccessful(this.repositories.stream().filter(r -> r.couldHavePackage(uid)).map(r -> r.retrieveComponentMeta(pkg)).toList());
+        });
     }
 
     @Override

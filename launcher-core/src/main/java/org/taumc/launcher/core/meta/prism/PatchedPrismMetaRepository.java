@@ -1,11 +1,15 @@
-package org.taumc.launcher.core.meta.json;
+package org.taumc.launcher.core.meta.prism;
+
+import org.taumc.launcher.core.meta.component.GameComponent;
+import org.taumc.launcher.core.meta.json.Library;
+import org.taumc.launcher.core.meta.json.Requirement;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-public class PatchedPrismMetaRepository extends DelegatingMetaRepository {
+public class PatchedPrismMetaRepository {
     private static final List<String> ASM_MODULES = List.of("asm", "asm-commons", "asm-tree", "asm-analysis", "asm-util");
     private static final String ASM_VERSION = "9.8";
     private static final boolean UPGRADE_JAVA = false;
@@ -13,7 +17,6 @@ public class PatchedPrismMetaRepository extends DelegatingMetaRepository {
     private static final boolean FORCE_RFB = false;
 
     public PatchedPrismMetaRepository() {
-        super(HTTPMetaRepository.prism());
     }
 
     private Stream<Requirement> transformRequirement(Requirement requirement) {
@@ -27,9 +30,16 @@ public class PatchedPrismMetaRepository extends DelegatingMetaRepository {
         }
     }
 
-    @Override
+    protected GameComponent transformComponent(GameComponent gc) {
+        if (gc instanceof Component c) {
+            return transformComponent(c.toBuilder(), c).build();
+        } else {
+            throw new IllegalArgumentException("Unexpected component type " + gc.getClass().getName());
+        }
+    }
+
     protected Component.ComponentBuilder transformComponent(Component.ComponentBuilder builder, Component original) {
-        builder = super.transformComponent(builder, original);
+        builder = builder.clearRequires().requires(transformRequirements(original.requires()));
         if (FORCE_RFB && original.mainClass().isPresent() && original.mainClass().get().equals("net.minecraft.launchwrapper.Launch")) {
             // Replace LaunchWrapper with RetroFuturaBootstrap for Java 9+ compat plus more powerful plugins
             builder.mainClass(Optional.of("com.gtnewhorizons.retrofuturabootstrap.Main"));
@@ -50,7 +60,6 @@ public class PatchedPrismMetaRepository extends DelegatingMetaRepository {
         return builder;
     }
 
-    @Override
     protected List<Requirement> transformRequirements(List<Requirement> requirements) {
         if (requirements == null || requirements.isEmpty()) {
             return requirements;

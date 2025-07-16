@@ -1,8 +1,14 @@
-package org.taumc.launcher.core.meta.json;
+package org.taumc.launcher.core.meta.prism;
 
-import java.io.IOException;
+import org.taumc.launcher.core.meta.component.ReconcilableGameComponent;
+import org.taumc.launcher.core.meta.json.InMemoryMetaRepository;
+import org.taumc.launcher.core.meta.json.Library;
+import org.taumc.launcher.core.meta.json.PackageIndex;
+import org.taumc.launcher.core.meta.json.Requirement;
+
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
 public class BuiltinMetaRepository extends InMemoryMetaRepository {
@@ -24,7 +30,7 @@ public class BuiltinMetaRepository extends InMemoryMetaRepository {
     );
 
     @Override
-    protected void populateRepository() throws IOException {
+    protected void populateRepository() {
         this.addPackage(new PackageIndex("Legacy LWJGL", "org.taumc.legacy-lwjgl",
                 List.of(PackageIndex.Version.simple("1.0.0", List.of(Requirement.approximately("org.lwjgl3", "3.3.3")))),
                 null
@@ -36,21 +42,22 @@ public class BuiltinMetaRepository extends InMemoryMetaRepository {
     }
 
     @Override
-    public Component getComponent(String pkgName, String version) throws IOException {
-        var pkg = this.getPackageIndex(pkgName);
-        var verData = pkg.version(version).orElseThrow();
-        var builder = Component.builder().packageIndex(pkg, verData);
-        return switch (pkgName) {
-            case "org.taumc.legacy-lwjgl" -> builder
-                    .order(-5)
-                    .libraries(List.of(
-                            Library.fromMaven("org.taumc:legacy-lwjgl3:1.1-tau", "https://maven.taumc.org/releases")
-                    ))
-                    .build();
-            case "org.taumc.rfb-args" -> builder
-                    .extraProperty("+jvmArgs", Stream.of(RFB_JVM_ARGS, version.equals("java9") ? RFB_JAVA9_ARGS : List.of()).flatMap(Collection::stream).toList())
-                    .build();
-            default -> throw new IOException("Unknown package " + pkgName);
-        };
+    public CompletableFuture<ReconcilableGameComponent> retrieveComponent(String pkgName, String version) {
+        return this.getPackageIndex(pkgName).thenApply(pkg -> {
+            var verData = pkg.version(version).orElseThrow();
+            var builder = Component.builder().packageIndex(pkg, verData);
+            return switch (pkgName) {
+                case "org.taumc.legacy-lwjgl" -> builder
+                        .order(-5)
+                        .libraries(List.of(
+                                Library.fromMaven("org.taumc:legacy-lwjgl3:1.1-tau", "https://maven.taumc.org/releases")
+                        ))
+                        .build();
+                case "org.taumc.rfb-args" -> builder
+                        .extraProperty("+jvmArgs", Stream.of(RFB_JVM_ARGS, version.equals("java9") ? RFB_JAVA9_ARGS : List.of()).flatMap(Collection::stream).toList())
+                        .build();
+                default -> throw new RuntimeException("Unknown package " + pkgName);
+            };
+        });
     }
 }

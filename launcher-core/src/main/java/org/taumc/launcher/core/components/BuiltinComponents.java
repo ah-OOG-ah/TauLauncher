@@ -2,7 +2,7 @@ package org.taumc.launcher.core.components;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.taumc.launcher.core.meta.json.Component;
+import org.taumc.launcher.core.meta.prism.Component;
 import org.taumc.launcher.core.meta.json.JsonDecoder;
 
 public class BuiltinComponents {

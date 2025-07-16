@@ -6,9 +6,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.taumc.launcher.core.auth.AccountService;
 import org.taumc.launcher.core.meta.fabric.OrnitheIntermediaryMetaRepository;
-import org.taumc.launcher.core.meta.json.BuiltinMetaRepository;
+import org.taumc.launcher.core.meta.prism.BuiltinMetaRepository;
 import org.taumc.launcher.core.meta.json.MetaRepository;
-import org.taumc.launcher.core.meta.json.PatchedPrismMetaRepository;
+import org.taumc.launcher.core.meta.prism.HTTPMetaRepository;
+import org.taumc.launcher.core.meta.prism.PatchedPrismMetaRepository;
 import org.taumc.launcher.gui.screens.home.HomeModel;
 import org.taumc.launcher.gui.screens.home.HomeView;
 import org.taumc.launcher.core.meta.json.MetadataService;
@@ -75,6 +76,6 @@ public class Main {
     }
 
     public static List<MetaRepository> getDefaultRepositories() {
-        return List.of(new PatchedPrismMetaRepository(), new BuiltinMetaRepository(), new OrnitheIntermediaryMetaRepository());
+        return List.of(HTTPMetaRepository.prism(), new BuiltinMetaRepository(), new OrnitheIntermediaryMetaRepository());
     }
 }

@@ -13,6 +13,7 @@ import org.taumc.launcher.core.auth.offline.OfflineAccount;
 import org.taumc.launcher.core.http.DownloadProgressTracker;
 import org.taumc.launcher.core.jvm.JavaService;
 import org.taumc.launcher.core.meta.component.GameComponent;
+import org.taumc.launcher.core.meta.component.ReconcilableGameComponent;
 import org.taumc.launcher.core.meta.json.Artifact;
 import org.taumc.launcher.core.meta.json.Library;
 import org.taumc.launcher.core.meta.json.MMCPack;
@@ -59,8 +60,7 @@ public class RuntimeInstance {
 
     private final MetadataService service = new MetadataService();
     private final AssetService assetService = new AssetService();
-    private final JavaService javaService = new JavaService(service);
-    private final List<GameComponent> components = new ArrayList<>();
+    private final List<ReconcilableGameComponent> components = new ArrayList<>();
 
     private final List<Path> libraryPaths = new ArrayList<>();
     private final List<Path> agents = new ArrayList<>();
@@ -74,6 +74,7 @@ public class RuntimeInstance {
     private Process currentProcess;
     @Setter
     protected String mainClassName;
+    @Getter
     private ProgressProvider progressProvider = ProgressProvider.NONE;
 
     /**
@@ -84,16 +85,10 @@ public class RuntimeInstance {
     private Path instancePath;
     private Account launchAccount = new OfflineAccount("Dev");
 
-    protected CompletableFuture<String> javaBinaryFuture;
-
     private OptionalInt minimumMemoryMB = OptionalInt.empty(), maximumMemoryMB = OptionalInt.empty();
     private List<String> extraJvmArguments = new ArrayList<>();
 
     private Optional<String> javaPath = Optional.empty();
-
-    @Getter
-    @Setter
-    private int javaVersion = 21;
 
     private final Map<String, String> systemProperties = new LinkedHashMap<>();
     @Getter
@@ -108,10 +103,10 @@ public class RuntimeInstance {
         if (component == null) {
             throw new NullPointerException("Component " + coordinate + " does not exist in any meta repositories");
         }
-        addComponent(component);
+        addComponent(component.join());
     }
 
-    public void addComponent(GameComponent component) {
+    public void addComponent(ReconcilableGameComponent component) {
         this.components.add(component);
     }
 
@@ -292,7 +287,7 @@ public class RuntimeInstance {
                     // Match with Minecraft version
                     version = this.components.stream().filter(c -> c.uid().equals("net.minecraft")).findFirst().orElseThrow(() -> new IllegalArgumentException("Minecraft must be present to use Fabric")).version();
                 } else {
-                    version = this.getMetadataService().getKnownVersions(r.uid()).getLast();
+                    version = this.getMetadataService().getKnownVersions(r.uid()).join().getLast().version();
                 }
                 LOGGER.info("Adding missing component {} with version {}", r.uid(), version);
                 this.addComponent(new MMCPack.Component(r.uid(), version));
@@ -310,23 +305,6 @@ public class RuntimeInstance {
             Files.copy(is, bootstrapFile, StandardCopyOption.REPLACE_EXISTING);
         }
         this.libraryPaths.add(bootstrapFile);
-    }
-
-    protected CompletableFuture<String> computeJavaVersion() {
-        if (this.javaPath.isPresent()) {
-            LOGGER.info("Selected JVM from {} by user request", this.javaPath.get());
-            return CompletableFuture.completedFuture(this.javaPath.get());
-        }
-
-        LOGGER.info("Selected Java version {}", javaVersion);
-
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                return this.javaService.provisionJVMBinary(javaVersion, this.progressProvider);
-            } catch (IOException | InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        });
     }
 
     public List<Path> getLaunchClasspath() {
@@ -390,7 +368,7 @@ public class RuntimeInstance {
         builder.directory(null);
 
         List<String> command = new ArrayList<>();
-        command.add(this.javaBinaryFuture.join());
+        command.add(this.javaPath.orElseThrow(() -> new IllegalArgumentException("Java path not set")));
         command.addAll(jvmArguments);
         Objects.requireNonNull(this.mainClassName, "Main class not set");
         command.add(this.mainClassName);
@@ -421,7 +399,7 @@ public class RuntimeInstance {
 
         this.scanDependencies();
 
-        this.components.sort(Comparator.comparingInt(GameComponent::order));
+        this.components.sort(Comparator.comparingInt(ReconcilableGameComponent::order));
 
         // Perform reconciliation
         try (ExecutorService configExecutor = Executors.newSingleThreadExecutor()) {
@@ -450,8 +428,6 @@ public class RuntimeInstance {
         this.agents.addAll(this.getOrDownloadLibraries(this.requestedAgents));
 
         // Bootstrap the game
-
-        this.javaBinaryFuture = this.computeJavaVersion();
 
         // Wait for assets
         assetsFuture.join();
@@ -502,6 +478,10 @@ public class RuntimeInstance {
 
     public MetadataService getMetadataService() {
         return this.service;
+    }
+
+    public boolean hasJavaPathSet() {
+        return this.javaPath.isPresent();
     }
 
     public void setJavaPath(String javaPath) {

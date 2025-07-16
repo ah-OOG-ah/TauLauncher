@@ -1,11 +1,35 @@
 package org.taumc.launcher.core.meta.json;
 
+import org.taumc.launcher.core.meta.component.ComponentMetaInfo;
+import org.taumc.launcher.core.meta.component.GameComponent;
+import org.taumc.launcher.core.meta.component.ReconcilableGameComponent;
+
 import java.io.Closeable;
-import java.io.IOException;
+import java.util.Collections;
+import java.util.SequencedCollection;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 public interface MetaRepository extends Closeable {
-    RootIndex getRootIndex() throws IOException;
-    PackageIndex getPackageIndex(String pkgName) throws IOException;
-    Component getComponent(String pkgName, String version) throws IOException;
+    default boolean couldHavePackage(String uid) {
+        return true;
+    }
+
+    default boolean couldHaveVersion(String uid, String version) {
+        return true;
+    }
+
+    default CompletableFuture<Set<String>> getKnownPackages() {
+        return CompletableFuture.completedFuture(Set.of());
+    }
+
+    default CompletableFuture<SequencedCollection<? extends GameComponent>> getKnownVersions(String pkgName) {
+        return CompletableFuture.completedFuture(Collections.emptySortedSet());
+    }
+
+    CompletableFuture<ComponentMetaInfo> retrieveComponentMeta(String pkgName);
+
+    CompletableFuture<ReconcilableGameComponent> retrieveComponent(String pkgName, String version);
+
     void close();
 }

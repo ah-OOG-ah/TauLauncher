@@ -1,14 +1,24 @@
-package org.taumc.launcher.core.meta.json;
+package org.taumc.launcher.core.meta.prism;
 
 import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Singular;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.taumc.launcher.core.components.BuiltinComponents;
+import org.taumc.launcher.core.jvm.JavaService;
 import org.taumc.launcher.core.launch.RuntimeInstance;
 import org.taumc.launcher.core.meta.component.GameComponent;
+import org.taumc.launcher.core.meta.component.ReconcilableGameComponent;
+import org.taumc.launcher.core.meta.json.Artifact;
+import org.taumc.launcher.core.meta.json.Library;
+import org.taumc.launcher.core.meta.json.PackageIndex;
+import org.taumc.launcher.core.meta.json.Requirement;
 
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -37,13 +47,17 @@ public record Component(
         @Singular @JsonProperty("+agents") List<Library> agents,
         @Singular @JsonProperty("+jvmArgs") List<String> jvmArgs,
         @Singular @JsonProperty("+tweakers") List<String> tweakers,
+        @Singular List<JavaRuntime> runtimes,
         String minecraftArguments,
         @Singular @JsonAnySetter Map<String, Object> extraProperties
-) implements GameComponent {
+) implements ReconcilableGameComponent {
+    private static final Logger LOGGER = LoggerFactory.getLogger(Component.class);
+
     public Object extraProperty(String name) {
         return extraProperties != null ? extraProperties.get(name) : null;
     }
 
+    @Override
     public boolean doesProvide(String uid) {
         if (uid.equals(this.uid)) {
             return true;
@@ -65,12 +79,29 @@ public record Component(
             requires.add(new Requirement(BuiltinComponents.LEGACY_LAUNCH_WRAPPER_UID, Optional.empty(), Optional.empty()));
         }
 
+        if (this.compatibleJavaMajors != null) {
+            this.compatibleJavaMajors.stream().mapToInt(Integer::intValue).max().ifPresent(v -> requires.add(new Requirement("net.adoptium.java", Optional.of("java" + v), Optional.empty())));
+        }
+
         return requires;
     }
 
     @Override
     public CompletableFuture<Void> reconcile(RuntimeInstance instance, Executor configurationExecutor) {
-        return CompletableFuture.runAsync(() -> {
+        CompletableFuture<String> javaBinaryPath;
+        if (this.runtimes != null) {
+            javaBinaryPath = CompletableFuture.supplyAsync(() -> {
+                try {
+                    LOGGER.info("Try to provision {} {}", uid, version);
+                    return JavaService.INSTANCE.provisionJVMBinary(uid, version, this.runtimes, instance.getProgressProvider());
+                } catch (IOException | InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+        } else {
+            javaBinaryPath = CompletableFuture.completedFuture(null);
+        }
+        return javaBinaryPath.thenRunAsync(() -> {
             if (this.mavenFiles != null) {
                 instance.addMavenDownloads(this.mavenFiles);
             }
@@ -79,11 +110,11 @@ public record Component(
             }
             this.mainJar.ifPresent(library -> instance.addLibraries(List.of(library)));
             this.mainClass.ifPresent(instance::setMainClassName);
+            if (this.runtimes != null && !instance.hasJavaPathSet()) {
+                instance.setJavaPath(javaBinaryPath.join());
+            }
             if (this.jvmArgs != null) {
                 instance.addExtraJvmArguments(this.jvmArgs);
-            }
-            if (this.compatibleJavaMajors != null) {
-                this.compatibleJavaMajors.stream().mapToInt(Integer::intValue).max().ifPresent(instance::setJavaVersion);
             }
             if (this.minecraftArguments != null) {
                 for (var arg : this.minecraftArguments.split(" ")) {

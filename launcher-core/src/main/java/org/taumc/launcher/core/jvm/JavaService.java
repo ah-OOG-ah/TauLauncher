@@ -1,7 +1,5 @@
 package org.taumc.launcher.core.jvm;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.mizosoft.methanol.Methanol;
 import org.apache.commons.compress.archivers.ArchiveEntry;
 import org.apache.commons.compress.archivers.ArchiveException;
@@ -15,8 +13,7 @@ import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.taumc.launcher.core.http.DownloadProgressTracker;
-import org.taumc.launcher.core.meta.json.JsonDecoder;
-import org.taumc.launcher.core.meta.json.MetadataService;
+import org.taumc.launcher.core.meta.prism.JavaRuntime;
 import org.taumc.launcher.core.progress.ProgressProvider;
 import org.taumc.launcher.core.storage.LauncherPaths;
 
@@ -39,14 +36,7 @@ public class JavaService {
     private static final Path JVM_CACHE = LauncherPaths.getLauncherCache().resolve("jvm");
     private static final Logger LOGGER = LoggerFactory.getLogger(JavaService.class);
     public static final String EXPECTED_JVM_OS = computeExpectedOs();
-
-    private final MetadataService metadataService;
-    private final ObjectMapper mapper;
-
-    public JavaService(MetadataService metadataService) {
-        this.metadataService = metadataService;
-        this.mapper = JsonDecoder.make();
-    }
+    public static final JavaService INSTANCE = new JavaService();
 
     private static String computeExpectedOs() {
         var processor = ArchUtils.getProcessor();
@@ -142,15 +132,10 @@ public class JavaService {
         }
     }
 
-    private void downloadJVM(int version, Path destination, ProgressProvider progressProvider) throws IOException, InterruptedException {
+    private void downloadJVM(List<JavaRuntime> runtimes, Path destination, ProgressProvider progressProvider) throws IOException, InterruptedException {
         Files.createDirectories(destination);
-        var component = this.metadataService.getComponent("net.adoptium.java", "java" + version);
-        if (component == null) {
-            throw new IOException("Cannot find Java component for version " + version);
-        }
-        var runtimes = this.mapper.convertValue(component.extraProperty("runtimes"), new TypeReference<List<JavaRuntime>>() {});
         var selectedRuntime = runtimes.stream().filter(r -> EXPECTED_JVM_OS.equals(r.runtimeOS()) && r.downloadType().equals("archive")).findFirst().orElseThrow(() -> new IllegalStateException("No JVM found for current OS"));
-        Path tmpDir = Files.createTempDirectory("taulauncher-java" + version);
+        Path tmpDir = Files.createTempDirectory("taulauncher-java-" + selectedRuntime.name());
         Path archive = tmpDir.resolve("jvm");
         try {
             LOGGER.info("Downloading JVM from {}", selectedRuntime.url());
@@ -171,8 +156,8 @@ public class JavaService {
 
     private static final List<String> JVM_EXECUTABLE_NAMES = List.of("javaw.exe", "java");
 
-    public String provisionJVMBinary(int version, ProgressProvider progressProvider) throws IOException, InterruptedException {
-        var jvmPath = JVM_CACHE.resolve("java" + version);
+    public String provisionJVMBinary(String uid, String version, List<JavaRuntime> runtimes, ProgressProvider progressProvider) throws IOException, InterruptedException {
+        var jvmPath = JVM_CACHE.resolve(uid).resolve(version);
         Path jvmBinPath;
         if (SystemUtils.IS_OS_MAC) {
             jvmBinPath = jvmPath.resolve("Contents").resolve("Home").resolve("bin");
@@ -180,7 +165,7 @@ public class JavaService {
             jvmBinPath = jvmPath.resolve("bin");
         }
         if (JVM_EXECUTABLE_NAMES.stream().noneMatch(s -> Files.exists(jvmBinPath.resolve(s)))) {
-            downloadJVM(version, jvmPath, progressProvider);
+            downloadJVM(runtimes, jvmPath, progressProvider);
         }
         var jvmExecutable = JVM_EXECUTABLE_NAMES.stream().map(jvmBinPath::resolve).filter(Files::exists).findFirst().orElseThrow(() -> new IllegalStateException("Can't find JVM in " + jvmBinPath.toAbsolutePath()));
         return jvmExecutable.toAbsolutePath().toString();

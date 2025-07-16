@@ -1,5 +1,6 @@
 package org.taumc.launcher.gui.screens.instance;
 
+import org.taumc.launcher.core.meta.component.GameComponent;
 import org.taumc.launcher.core.meta.json.MetadataService;
 import org.taumc.launcher.gui.Main;
 import org.taumc.launcher.core.meta.json.ComponentCoordinate;
@@ -16,6 +17,7 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.SequencedSet;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -23,7 +25,6 @@ import java.util.function.Predicate;
 public class NewComponentDialog extends JDialog {
     private final List<MMCPack.Component> existingComponents;
 
-    private static final Set<String> TOP_LEVEL_COMPONENTS = Set.of("net.minecraft", "net.minecraftforge", "net.fabricmc.fabric-loader", "net.neoforged");
     private static final Set<String> IGNORED_REQUIREMENTS = Set.of("org.lwjgl", "org.lwjgl3", "net.fabricmc.intermediary");
 
     public NewComponentDialog(Frame parent, List<MMCPack.Component> existingComponents, Consumer<ComponentCoordinate> onAdd) {
@@ -45,7 +46,7 @@ public class NewComponentDialog extends JDialog {
             if (initialSelection != null && !initialSelection.uid().equals(pkg)) {
                 continue;
             }
-            boolean isTopLevel = TOP_LEVEL_COMPONENTS.contains(pkg) || Main.METADATA.getPackageIndexes(pkg).stream().map(MetadataService.DiscoveredPackageIndex::index).anyMatch(i -> i.tauMetadata() != null && i.tauMetadata().isUserInstallable());
+            boolean isTopLevel = Main.METADATA.getComponentMeta(pkg).join().isUserInstallable();
             if (!isTopLevel) {
                 continue;
             }
@@ -53,11 +54,9 @@ public class NewComponentDialog extends JDialog {
                 continue;
             }
             LinkedHashSet<String> versions = new LinkedHashSet<>();
-            for (var idx : Main.METADATA.getPackageIndexes(pkg)) {
-                for (var version : idx.index().versions()) {
-                    if (version.requires() == null || version.requires().stream().filter(r -> !IGNORED_REQUIREMENTS.contains(r.uid())).allMatch(requirementsSatisfied)) {
-                        versions.add(version.version());
-                    }
+            for (var version : Main.METADATA.getKnownVersions(pkg).join()) {
+                if (version.requires() == null || version.requires().stream().filter(r -> !IGNORED_REQUIREMENTS.contains(r.uid())).allMatch(requirementsSatisfied)) {
+                    versions.add(version.version());
                 }
             }
             if (!versions.isEmpty()) {
@@ -144,7 +143,10 @@ public class NewComponentDialog extends JDialog {
             super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
 
             if (value instanceof String pkg) {
-                Main.METADATA.getPackageIndexes(pkg).stream().map(d -> d.index().name()).findFirst().ifPresent(this::setText);
+                var meta = Main.METADATA.getComponentMeta(pkg).getNow(null);
+                if (meta != null) {
+                    this.setText(meta.name());
+                }
             }
 
             return this;

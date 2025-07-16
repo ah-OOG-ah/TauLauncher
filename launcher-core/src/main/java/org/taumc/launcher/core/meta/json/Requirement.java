@@ -7,7 +7,7 @@ public record Requirement(String uid, Optional<String> suggests, Optional<String
     public boolean isSatisfied(List<? extends ComponentCoordinate> components, MetadataService metadataService) {
         boolean foundComponent = false;
         for (var component : components) {
-            var fullComponent = metadataService.getComponent(component);
+            var fullComponent = metadataService.getComponent(component).join();
             if (fullComponent.doesProvide(uid)) {
                 foundComponent |= equals.isEmpty() || component.version().equals(equals.get());
             }

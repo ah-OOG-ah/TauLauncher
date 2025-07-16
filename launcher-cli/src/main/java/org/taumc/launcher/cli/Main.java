@@ -3,7 +3,7 @@ package org.taumc.launcher.cli;
 import org.taumc.launcher.core.auth.AccountService;
 import org.taumc.launcher.core.auth.microsoft.MicrosoftAccount;
 import org.taumc.launcher.core.launch.RuntimeInstance;
-import org.taumc.launcher.core.meta.json.HTTPMetaRepository;
+import org.taumc.launcher.core.meta.prism.HTTPMetaRepository;
 import org.taumc.launcher.core.meta.json.MMCPack;
 
 import java.nio.file.Paths;

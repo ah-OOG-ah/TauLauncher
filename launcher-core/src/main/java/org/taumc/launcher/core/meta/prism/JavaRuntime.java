@@ -1,4 +1,4 @@
-package org.taumc.launcher.core.jvm;
+package org.taumc.launcher.core.meta.prism;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 

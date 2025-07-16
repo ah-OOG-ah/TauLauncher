@@ -234,7 +234,7 @@ public class InstanceEditView extends MultiSectionFrame {
                 super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
 
                 if (value instanceof MMCPack.Component component) {
-                    var future = componentFutureMap.computeIfAbsent(component, coord -> metadataService.thenApplyAsync(meta -> {
+                    var future = componentFutureMap.computeIfAbsent(component, coord -> metadataService.thenComposeAsync(meta -> {
                         return meta.getComponent(coord.uid(), coord.version());
                     }).handle((c, t) -> {
                         if (c != null) {

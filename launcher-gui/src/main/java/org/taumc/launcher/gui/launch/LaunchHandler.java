@@ -6,7 +6,7 @@ import org.taumc.launcher.core.auth.Account;
 import org.taumc.launcher.core.launch.InstanceCfg;
 import org.taumc.launcher.core.meta.json.MMCPack;
 import org.taumc.launcher.core.meta.json.MetadataService;
-import org.taumc.launcher.core.meta.json.PatchesFolderMetaRepository;
+import org.taumc.launcher.core.meta.prism.PatchesFolderMetaRepository;
 import org.taumc.launcher.gui.Main;
 import org.taumc.launcher.gui.UIPaths;
 import org.taumc.launcher.core.launch.RuntimeInstance;

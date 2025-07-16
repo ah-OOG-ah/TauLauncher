@@ -7,7 +7,10 @@ import com.github.mizosoft.methanol.HttpCache;
 import com.github.mizosoft.methanol.Methanol;
 import com.vdurmont.semver4j.Semver;
 import org.taumc.launcher.core.http.HttpUtils;
-import org.taumc.launcher.core.meta.json.Component;
+import org.taumc.launcher.core.meta.component.ComponentMetaInfo;
+import org.taumc.launcher.core.meta.component.GameComponent;
+import org.taumc.launcher.core.meta.component.ReconcilableGameComponent;
+import org.taumc.launcher.core.meta.prism.Component;
 import org.taumc.launcher.core.meta.json.InMemoryMetaRepository;
 import org.taumc.launcher.core.meta.json.JsonDecoder;
 import org.taumc.launcher.core.meta.json.Library;
@@ -21,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 public class OrnitheIntermediaryMetaRepository extends InMemoryMetaRepository {
     private static final String UID = "net.ornithemc.intermediary";
@@ -51,7 +55,7 @@ public class OrnitheIntermediaryMetaRepository extends InMemoryMetaRepository {
     protected void populateRepository() throws IOException {
         List<GameVersion> intermediaryVersions = MAPPER.readValue(HttpUtils.obtainFile(CLIENT, getIntermediaryEndpoint()), new TypeReference<>() {});
         var packageIndex = new PackageIndex(NAME, UID,
-                intermediaryVersions.stream().filter(gv -> !gv.version().contains("server")).map(gv -> new PackageIndex.Version(false, null, buildRequirements(gv.unsidedVersion()), gv.version(), null, null))
+                intermediaryVersions.stream().filter(gv -> !gv.version().contains("server")).map(gv -> PackageIndex.Version.simple(gv.version(), buildRequirements(gv.unsidedVersion())))
                         .toList(), null);
         this.addPackage(packageIndex);
     }
@@ -100,25 +104,29 @@ public class OrnitheIntermediaryMetaRepository extends InMemoryMetaRepository {
     }
 
     @Override
-    public Component getComponent(String pkgName, String version) throws IOException {
-        if (pkgName.equals(UID)) {
-            List<IntermediaryVersion> list = MAPPER.readValue(HttpUtils.obtainFile(CLIENT, getIntermediaryDataEndpoint(version)), new TypeReference<>() {});
-            if (list.isEmpty()) {
-                throw new IOException("Intermediary data not found for " + version);
+    public CompletableFuture<ReconcilableGameComponent> retrieveComponent(String pkgName, String version) {
+        try {
+            if (pkgName.equals(UID)) {
+                List<IntermediaryVersion> list = MAPPER.readValue(HttpUtils.obtainFile(CLIENT, getIntermediaryDataEndpoint(version)), new TypeReference<>() {});
+                if (list.isEmpty()) {
+                    throw new IOException("Intermediary data not found for " + version);
+                }
+                var intermediaryData = list.getFirst();
+                return CompletableFuture.completedFuture(Component.builder()
+                        .name(NAME)
+                        .uid(UID)
+                        .version(version)
+                        .libraries(computeLibraries(intermediaryData))
+                        .order(11)
+                        .requires(buildRequirements(intermediaryData.versionNoSide()))
+                        .provides(List.of("net.fabricmc.intermediary"))
+                        .traits(List.of("noapplet"))
+                        .build());
+            } else {
+                throw new IOException("Unknown component " + pkgName);
             }
-            var intermediaryData = list.getFirst();
-            return Component.builder()
-                    .name(NAME)
-                    .uid(UID)
-                    .version(version)
-                    .libraries(computeLibraries(intermediaryData))
-                    .order(11)
-                    .requires(buildRequirements(intermediaryData.versionNoSide()))
-                    .provides(List.of("net.fabricmc.intermediary"))
-                    .traits(List.of("noapplet"))
-                    .build();
-        } else {
-            throw new IOException("Unknown component " + pkgName);
+        } catch (IOException e) {
+            return CompletableFuture.failedFuture(e);
         }
     }
 
