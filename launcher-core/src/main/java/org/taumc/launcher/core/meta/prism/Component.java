@@ -130,6 +130,7 @@ public record Component(
             if (this.agents != null) {
                 this.agents.forEach(instance::addJavaAgent);
             }
+            this.assetIndex.ifPresent(instance::addAssetIndex);
             if (this.uid.equals("net.minecraft")) {
                 var params = instance.getGameArgumentTemplateParameters();
                 params.put("version_name", this.version());
