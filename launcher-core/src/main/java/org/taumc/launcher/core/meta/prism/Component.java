@@ -16,6 +16,7 @@ import org.taumc.launcher.core.meta.json.Artifact;
 import org.taumc.launcher.core.meta.json.Library;
 import org.taumc.launcher.core.meta.json.PackageIndex;
 import org.taumc.launcher.core.meta.json.Requirement;
+import org.taumc.launcher.core.reconciler.ReconciliationResult;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -87,7 +88,7 @@ public record Component(
     }
 
     @Override
-    public CompletableFuture<Void> reconcile(RuntimeInstance instance, Executor configurationExecutor) {
+    public CompletableFuture<ReconciliationResult> reconcile(RuntimeInstance instance, Executor configurationExecutor) {
         CompletableFuture<String> javaBinaryPath;
         if (this.runtimes != null) {
             javaBinaryPath = CompletableFuture.supplyAsync(() -> {
@@ -101,7 +102,7 @@ public record Component(
         } else {
             javaBinaryPath = CompletableFuture.completedFuture(null);
         }
-        return javaBinaryPath.thenRunAsync(() -> {
+        return javaBinaryPath.thenApplyAsync($ -> {
             if (this.mavenFiles != null) {
                 instance.addMavenDownloads(this.mavenFiles);
             }
@@ -136,6 +137,7 @@ public record Component(
                 params.put("version_name", this.version());
                 params.put("version_type", (String)this.extraProperties().get("type"));
             }
+            return ReconciliationResult.EMPTY;
         }, configurationExecutor);
     }
 
