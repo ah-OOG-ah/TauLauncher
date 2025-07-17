@@ -9,10 +9,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record MMCPack(int formatVersion, List<Component> components) {
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public record Component(String uid, String version) implements ComponentCoordinate {}
-
+public record MMCPack(int formatVersion, List<ComponentCoordinate.Simple> components) {
     public static MMCPack read(Path path) throws IOException {
         return new ObjectMapper().readValue(Files.newInputStream(path), MMCPack.class);
     }

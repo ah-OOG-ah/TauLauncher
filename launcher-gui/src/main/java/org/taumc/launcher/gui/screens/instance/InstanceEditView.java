@@ -7,6 +7,7 @@ import org.kordamp.ikonli.fontawesome6.FontAwesomeSolid;
 import org.kordamp.ikonli.swing.FontIcon;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.taumc.launcher.core.meta.json.ComponentCoordinate;
 import org.taumc.launcher.core.meta.json.MetadataService;
 import org.taumc.launcher.core.qsettings.Settings;
 import org.taumc.launcher.gui.UIPaths;
@@ -40,10 +41,10 @@ public class InstanceEditView extends MultiSectionFrame {
     private final String instance;
     private final Path instancePath;
     private final Path mmcPackJson, instanceCfgPath;
-    private final DefaultListModel<MMCPack.Component> componentList = new DefaultListModel<>();
+    private final DefaultListModel<ComponentCoordinate.Simple> componentList = new DefaultListModel<>();
     private final Settings instanceCfg;
 
-    private final Map<MMCPack.Component, CompletableFuture<String>> componentFutureMap = new HashMap<>();
+    private final Map<ComponentCoordinate.Simple, CompletableFuture<String>> componentFutureMap = new HashMap<>();
 
     private final CompletableFuture<MetadataService> metadataService;
 
@@ -130,7 +131,7 @@ public class InstanceEditView extends MultiSectionFrame {
         }
     }
 
-    private List<MMCPack.Component> getCurrentComponents() {
+    private List<ComponentCoordinate.Simple> getCurrentComponents() {
         return IntStream.range(0, this.componentList.size()).mapToObj(this.componentList::getElementAt).toList();
     }
 
@@ -172,7 +173,7 @@ public class InstanceEditView extends MultiSectionFrame {
 
         panel.add(sidebar, BorderLayout.EAST);
 
-        JList<MMCPack.Component> components = new JList<>(componentList) {
+        JList<ComponentCoordinate.Simple> components = new JList<>(componentList) {
             final String[] messageLines = {
                     "No components are currently installed.",
                     "Add components using the + button on the right."
@@ -233,7 +234,7 @@ public class InstanceEditView extends MultiSectionFrame {
             public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
                 super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
 
-                if (value instanceof MMCPack.Component component) {
+                if (value instanceof ComponentCoordinate.Simple component) {
                     var future = componentFutureMap.computeIfAbsent(component, coord -> metadataService.thenComposeAsync(meta -> {
                         return meta.getComponent(coord.uid(), coord.version());
                     }).handle((c, t) -> {
@@ -267,13 +268,13 @@ public class InstanceEditView extends MultiSectionFrame {
             var current = components.getSelectedValue();
             new NewComponentDialog(this, this.getCurrentComponents(), coordinate -> {
                 componentList.removeElement(current);
-                componentList.addElement(new MMCPack.Component(coordinate.uid(), coordinate.version()));
+                componentList.addElement(new ComponentCoordinate.Simple(coordinate.uid(), coordinate.version()));
                 saveCurrentConfig();
             }, current);
         });
         addButton.addActionListener(e -> {
             new NewComponentDialog(this, this.getCurrentComponents(), coordinate -> {
-                componentList.addElement(new MMCPack.Component(coordinate.uid(), coordinate.version()));
+                componentList.addElement(new ComponentCoordinate.Simple(coordinate.uid(), coordinate.version()));
                 saveCurrentConfig();
                 this.refreshCurrentPanel();
             });

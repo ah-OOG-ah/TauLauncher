@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.taumc.launcher.core.http.DownloadProgressTracker;
 import org.taumc.launcher.core.http.JacksonBodyHandler;
+import org.taumc.launcher.core.meta.json.ComponentCoordinate;
 import org.taumc.launcher.core.meta.json.JsonDecoder;
 import org.taumc.launcher.core.meta.json.MMCPack;
 import org.taumc.launcher.core.mods.curseforge.CurseForgeAPI;
@@ -39,7 +40,7 @@ public class ModpacksCHInstanceCreator {
     }
 
     private void generateTauLauncherConfig(Path instancePath, ModpackVersion manifest) throws IOException {
-        List<MMCPack.Component> components = new ArrayList<>();
+        List<ComponentCoordinate.Simple> components = new ArrayList<>();
         for (var target : manifest.targets()) {
             String uid = switch (target.name()) {
                 case "minecraft" -> "net.minecraft";
@@ -52,7 +53,7 @@ public class ModpacksCHInstanceCreator {
             if (target.name().equals("java")) {
                 continue;
             }
-            components.add(new MMCPack.Component(uid, version));
+            components.add(new ComponentCoordinate.Simple(uid, version));
         }
         MMCPack pack = new MMCPack(1, components);
         try (var os = Files.newOutputStream(instancePath.resolve("mmc-pack.json"))) {

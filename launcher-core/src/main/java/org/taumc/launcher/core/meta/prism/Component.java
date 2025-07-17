@@ -10,7 +10,6 @@ import org.slf4j.LoggerFactory;
 import org.taumc.launcher.core.components.BuiltinComponents;
 import org.taumc.launcher.core.jvm.JavaService;
 import org.taumc.launcher.core.launch.RuntimeInstance;
-import org.taumc.launcher.core.meta.component.GameComponent;
 import org.taumc.launcher.core.meta.component.ReconcilableGameComponent;
 import org.taumc.launcher.core.meta.json.Artifact;
 import org.taumc.launcher.core.meta.json.Library;
@@ -19,7 +18,6 @@ import org.taumc.launcher.core.meta.json.Requirement;
 import org.taumc.launcher.core.reconciler.ReconciliationResult;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -52,7 +50,7 @@ public record Component(
         String minecraftArguments,
         @Singular @JsonAnySetter Map<String, Object> extraProperties
 ) implements ReconcilableGameComponent {
-    private static final Logger LOGGER = LoggerFactory.getLogger(Component.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(Simple.class);
 
     public Object extraProperty(String name) {
         return extraProperties != null ? extraProperties.get(name) : null;

@@ -5,6 +5,7 @@ import com.github.mizosoft.methanol.Methanol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.taumc.launcher.core.http.DownloadProgressTracker;
+import org.taumc.launcher.core.meta.json.ComponentCoordinate;
 import org.taumc.launcher.core.meta.json.MMCPack;
 import org.taumc.launcher.core.nio.PathUtils;
 import org.taumc.launcher.core.progress.ProgressProvider;
@@ -43,8 +44,8 @@ public class CurseForgeInstanceCreator {
     }
 
     private void generateTauLauncherConfig(Path target, PackManifest manifest) throws IOException {
-        List<MMCPack.Component> components = new ArrayList<>();
-        components.add(new MMCPack.Component("net.minecraft", manifest.minecraft().version()));
+        List<ComponentCoordinate.Simple> components = new ArrayList<>();
+        components.add(new ComponentCoordinate.Simple("net.minecraft", manifest.minecraft().version()));
         Optional<PackManifest.ModLoader> loaderOptional = manifest.minecraft().modLoaders().stream().filter(PackManifest.ModLoader::primary).findFirst();
         loaderOptional.ifPresent(loader -> {
             var parts = loader.id().split("-");
@@ -54,7 +55,7 @@ public class CurseForgeInstanceCreator {
                 case "fabric" -> "net.fabricmc.fabric-loader";
                 default -> throw new IllegalArgumentException(loader.id());
             };
-            components.add(new MMCPack.Component(uid, parts[1]));
+            components.add(new ComponentCoordinate.Simple(uid, parts[1]));
         });
         MMCPack pack = new MMCPack(1, components);
         try (var os = Files.newOutputStream(target.resolve("mmc-pack.json"))) {

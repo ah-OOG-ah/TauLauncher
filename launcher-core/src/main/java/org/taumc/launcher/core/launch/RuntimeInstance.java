@@ -11,12 +11,11 @@ import org.taumc.launcher.core.assets.AssetService;
 import org.taumc.launcher.core.auth.Account;
 import org.taumc.launcher.core.auth.offline.OfflineAccount;
 import org.taumc.launcher.core.http.DownloadProgressTracker;
-import org.taumc.launcher.core.jvm.JavaService;
 import org.taumc.launcher.core.meta.component.GameComponent;
 import org.taumc.launcher.core.meta.component.ReconcilableGameComponent;
 import org.taumc.launcher.core.meta.json.Artifact;
+import org.taumc.launcher.core.meta.json.ComponentCoordinate;
 import org.taumc.launcher.core.meta.json.Library;
-import org.taumc.launcher.core.meta.json.MMCPack;
 import org.taumc.launcher.core.meta.json.MetadataService;
 import org.taumc.launcher.core.meta.json.Requirement;
 import org.taumc.launcher.core.progress.ProgressProvider;
@@ -95,10 +94,10 @@ public class RuntimeInstance {
     private final Map<String, String> gameArgumentTemplateParameters = new HashMap<>();
 
     public void addComponent(String uid, String version) {
-        addComponent(new MMCPack.Component(uid, version));
+        addComponent(new ComponentCoordinate.Simple(uid, version));
     }
 
-    public void addComponent(MMCPack.Component coordinate) {
+    public void addComponent(ComponentCoordinate.Simple coordinate) {
         var component = this.service.getComponent(coordinate.uid(), coordinate.version());
         if (component == null) {
             throw new NullPointerException("Component " + coordinate + " does not exist in any meta repositories");
@@ -110,7 +109,7 @@ public class RuntimeInstance {
         this.components.add(component);
     }
 
-    public void addComponents(List<MMCPack.Component> components) {
+    public void addComponents(List<ComponentCoordinate.Simple> components) {
         for (var component : components) {
             this.addComponent(component);
         }
@@ -290,7 +289,7 @@ public class RuntimeInstance {
                     version = this.getMetadataService().getKnownVersions(r.uid()).join().getLast().version();
                 }
                 LOGGER.info("Adding missing component {} with version {}", r.uid(), version);
-                this.addComponent(new MMCPack.Component(r.uid(), version));
+                this.addComponent(new ComponentCoordinate.Simple(r.uid(), version));
             }
         }
     }

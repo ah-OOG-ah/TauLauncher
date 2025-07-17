@@ -2,7 +2,7 @@ package org.taumc.launcher.core.mods.curseforge;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import org.taumc.launcher.core.meta.json.MMCPack;
+import org.taumc.launcher.core.meta.json.ComponentCoordinate;
 import org.taumc.launcher.core.mods.DownloadableFile;
 import org.taumc.launcher.core.mods.ModSearchOptions;
 
@@ -41,7 +41,7 @@ public record File(int id, int gameId, int modId, boolean isAvailable, String do
     }
 
     @Override
-    public CompletableFuture<List<? extends DownloadableFile>> getDependencies(List<MMCPack.Component> components, Set<String> existingModIds) {
+    public CompletableFuture<List<? extends DownloadableFile>> getDependencies(List<ComponentCoordinate.Simple> components, Set<String> existingModIds) {
         if (dependencies == null || dependencies.isEmpty()) {
             return CompletableFuture.completedFuture(List.of());
         }

@@ -1,10 +1,7 @@
 package org.taumc.launcher.gui.screens.instance;
 
-import org.taumc.launcher.core.meta.component.GameComponent;
-import org.taumc.launcher.core.meta.json.MetadataService;
 import org.taumc.launcher.gui.Main;
 import org.taumc.launcher.core.meta.json.ComponentCoordinate;
-import org.taumc.launcher.core.meta.json.MMCPack;
 import org.taumc.launcher.core.meta.json.Requirement;
 
 import javax.swing.*;
@@ -17,21 +14,20 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.SequencedSet;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 public class NewComponentDialog extends JDialog {
-    private final List<MMCPack.Component> existingComponents;
+    private final List<ComponentCoordinate.Simple> existingComponents;
 
     private static final Set<String> IGNORED_REQUIREMENTS = Set.of("org.lwjgl", "org.lwjgl3", "net.fabricmc.intermediary");
 
-    public NewComponentDialog(Frame parent, List<MMCPack.Component> existingComponents, Consumer<ComponentCoordinate> onAdd) {
+    public NewComponentDialog(Frame parent, List<ComponentCoordinate.Simple> existingComponents, Consumer<ComponentCoordinate> onAdd) {
         this(parent, existingComponents, onAdd, null);
     }
 
-    public NewComponentDialog(Frame parent, List<MMCPack.Component> existingComponents, Consumer<ComponentCoordinate> onAdd, ComponentCoordinate initialSelection) {
+    public NewComponentDialog(Frame parent, List<ComponentCoordinate.Simple> existingComponents, Consumer<ComponentCoordinate> onAdd, ComponentCoordinate initialSelection) {
         super(parent, "Add Component", true);
         this.existingComponents = existingComponents;
 
@@ -113,7 +109,7 @@ public class NewComponentDialog extends JDialog {
         JButton cancelBtn = new JButton("Cancel");
 
         okBtn.addActionListener(e -> {
-            onAdd.accept(new MMCPack.Component(componentList.getSelectedValue(), versionList.getSelectedValue()));
+            onAdd.accept(new ComponentCoordinate.Simple(componentList.getSelectedValue(), versionList.getSelectedValue()));
             this.dispose();
         });
 

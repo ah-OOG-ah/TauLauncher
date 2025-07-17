@@ -1,6 +1,6 @@
 package org.taumc.launcher.core.mods;
 
-import org.taumc.launcher.core.meta.json.MMCPack;
+import org.taumc.launcher.core.meta.json.ComponentCoordinate;
 
 import java.time.Instant;
 import java.util.List;
@@ -13,7 +13,7 @@ public interface DownloadableFile {
     ReleaseType releaseType();
     String getParentModId();
     Instant releaseTime();
-    CompletableFuture<List<? extends DownloadableFile>> getDependencies(List<MMCPack.Component> components, Set<String> existingModIds);
+    CompletableFuture<List<? extends DownloadableFile>> getDependencies(List<ComponentCoordinate.Simple> components, Set<String> existingModIds);
 
     enum ReleaseType {
         RELEASE,

@@ -5,7 +5,7 @@ import com.github.mizosoft.methanol.Methanol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.taumc.launcher.core.http.DownloadProgressTracker;
-import org.taumc.launcher.core.meta.json.MMCPack;
+import org.taumc.launcher.core.meta.json.ComponentCoordinate;
 import org.taumc.launcher.core.mods.ModHostingSite;
 import org.taumc.launcher.core.mods.ModSearchOptions;
 import org.taumc.launcher.core.mods.ModUpdate;
@@ -66,7 +66,7 @@ public class ModManagerPanel extends JPanel {
 
     private final Path instancePath;
     private final Frame owner;
-    private final ListModel<MMCPack.Component> installedComponents;
+    private final ListModel<ComponentCoordinate.Simple> installedComponents;
     private final Map<Path, CompletableFuture<ModMetadata>> metadataFutures = new HashMap<>();
     private record ModIcon(Path jarPath, String logoFile) {}
     private final Map<ModIcon, CompletableFuture<ImageIcon>> iconFutures = new HashMap<>();
@@ -78,7 +78,7 @@ public class ModManagerPanel extends JPanel {
     private final ProgressDialog progressDialog;
     private final Debounce sortDebounce = new Debounce(500);
 
-    public ModManagerPanel(Path instancePath, Frame owner, ListModel<MMCPack.Component> installedComponents) {
+    public ModManagerPanel(Path instancePath, Frame owner, ListModel<ComponentCoordinate.Simple> installedComponents) {
         this.instancePath = instancePath;
         this.owner = owner;
         this.progressDialog = new ProgressDialog(owner);

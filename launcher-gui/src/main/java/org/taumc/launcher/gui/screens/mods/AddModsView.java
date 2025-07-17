@@ -2,7 +2,7 @@ package org.taumc.launcher.gui.screens.mods;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.taumc.launcher.core.meta.json.MMCPack;
+import org.taumc.launcher.core.meta.json.ComponentCoordinate;
 import org.taumc.launcher.core.mods.DownloadableFile;
 import org.taumc.launcher.core.mods.Mod;
 import org.taumc.launcher.core.mods.ModHostingSite;
@@ -34,7 +34,7 @@ import java.util.stream.IntStream;
 public class AddModsView extends TauLauncherFrame {
     private static final Logger LOGGER = LoggerFactory.getLogger(AddModsView.class);
     private final Map<String, CompletableFuture<ImageIcon>> modIcons = new HashMap<>();
-    private final List<MMCPack.Component> installedComponents;
+    private final List<ComponentCoordinate.Simple> installedComponents;
     private final ProjectType projectType;
     private final Function<List<DownloadableFile>, CompletableFuture<Void>> filesConsumer;
 
@@ -64,7 +64,7 @@ public class AddModsView extends TauLauncherFrame {
 
     private final ProgressDialog progressDialog;
 
-    public AddModsView(Frame owner, List<MMCPack.Component> installedComponents, ProjectType projectType, Function<List<DownloadableFile>, CompletableFuture<Void>> filesConsumer) {
+    public AddModsView(Frame owner, List<ComponentCoordinate.Simple> installedComponents, ProjectType projectType, Function<List<DownloadableFile>, CompletableFuture<Void>> filesConsumer) {
         super();
         this.setTitle("Add content");
         this.installedComponents = installedComponents;

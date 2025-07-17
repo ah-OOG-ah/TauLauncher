@@ -1,6 +1,6 @@
 package org.taumc.launcher.core.mods.modpacksch;
 
-import org.taumc.launcher.core.meta.json.MMCPack;
+import org.taumc.launcher.core.meta.json.ComponentCoordinate;
 import org.taumc.launcher.core.mods.DownloadableFile;
 
 import java.time.Instant;
@@ -39,7 +39,7 @@ public record DownloadableModpackVersion(String name, String modpackName, int pa
     }
 
     @Override
-    public CompletableFuture<List<? extends DownloadableFile>> getDependencies(List<MMCPack.Component> components, Set<String> existingModIds) {
+    public CompletableFuture<List<? extends DownloadableFile>> getDependencies(List<ComponentCoordinate.Simple> components, Set<String> existingModIds) {
         return CompletableFuture.completedFuture(List.of());
     }
 }

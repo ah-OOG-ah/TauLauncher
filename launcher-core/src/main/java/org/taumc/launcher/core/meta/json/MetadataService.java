@@ -21,7 +21,7 @@ public class MetadataService implements Closeable {
     private final List<MetaRepository> repositories;
     private final Set<String> knownPackages = new HashSet<>();
     private final Map<String, CompletableFuture<SequencedSet<GameComponent>>> knownVersionsCache = new ConcurrentHashMap<>();
-    private final Map<MMCPack.Component, CompletableFuture<ReconcilableGameComponent>> componentCache = new ConcurrentHashMap<>();
+    private final Map<ComponentCoordinate.Simple, CompletableFuture<ReconcilableGameComponent>> componentCache = new ConcurrentHashMap<>();
     private final Map<String, CompletableFuture<ComponentMetaInfo>> infoCache = new ConcurrentHashMap<>();
 
     private boolean indexed = false;
@@ -90,7 +90,7 @@ public class MetadataService implements Closeable {
     public CompletableFuture<ReconcilableGameComponent> getComponent(String pkg, String version)  {
         this.checkIndexed();
 
-        var key = new MMCPack.Component(pkg, version);
+        var key = new ComponentCoordinate.Simple(pkg, version);
         var existing = componentCache.get(key);
         if (existing != null) {
             return existing;
