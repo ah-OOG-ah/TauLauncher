@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.mizosoft.methanol.CacheControl;
 import com.github.mizosoft.methanol.HttpCache;
 import com.github.mizosoft.methanol.Methanol;
+import org.taumc.launcher.core.http.DownloadThrottler;
 import org.taumc.launcher.core.http.JacksonBodyHandler;
 import org.taumc.launcher.core.meta.component.ComponentMetaInfo;
 import org.taumc.launcher.core.meta.component.GameComponent;
@@ -34,13 +35,14 @@ public record HTTPMetaRepository(String url, Predicate<String> uidFilter) implem
             .defaultHeader("Cache-Control", CacheControl.newBuilder().maxStale(Duration.ofMinutes(5)).staleIfError(Duration.ofSeconds(Long.MAX_VALUE)).build().toString())
             .build();
     private static final ObjectMapper MAPPER = JsonDecoder.make();
+    private static final DownloadThrottler THROTTLER = new DownloadThrottler();
 
     public static HTTPMetaRepository prism() {
         return new HTTPMetaRepository("https://meta.prismlauncher.org/v1", null);
     }
 
     private static <T> CompletableFuture<HttpResponse<T>> obtainFile(String url, TypeReference<T> ref) {
-        return CLIENT.sendAsync(HttpRequest.newBuilder().GET().header("Accept", "application/json").uri(URI.create(url)).build(), new JacksonBodyHandler<>(ref, MAPPER));
+        return THROTTLER.throttle(() -> CLIENT.sendAsync(HttpRequest.newBuilder().GET().header("Accept", "application/json").uri(URI.create(url)).build(), new JacksonBodyHandler<>(ref, MAPPER)).exceptionallyCompose(e -> CompletableFuture.failedFuture(new IOException("Error downloading from " + url, e))));
     }
 
     @Override
