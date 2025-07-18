@@ -24,11 +24,14 @@ public class JacksonBodyHandler<T> implements BodyHandler<T> {
 
     @Override
     public BodySubscriber<T> apply(HttpResponse.ResponseInfo responseInfo) {
+        var responseContents = BodySubscribers.ofString(StandardCharsets.UTF_8);
         if (responseInfo.statusCode() != 200) {
-            throw new RuntimeException("Unexpected status code: " + responseInfo.statusCode());
+            return BodySubscribers.mapping(responseContents, str -> {
+                throw new RuntimeException("Unexpected status code: " + responseInfo.statusCode());
+            });
         }
         return BodySubscribers.mapping(
-                BodySubscribers.ofString(StandardCharsets.UTF_8),
+                responseContents,
                 str -> {
                     try {
                         return objectMapper.readValue(str, typeReference);
