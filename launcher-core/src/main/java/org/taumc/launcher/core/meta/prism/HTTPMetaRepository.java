@@ -27,8 +27,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-public record HTTPMetaRepository(String url, Predicate<String> uidFilter) implements MetaRepository {
-
+public final class HTTPMetaRepository implements MetaRepository {
     private static final HttpCache CACHE = HttpCache.newBuilder().cacheOnDisk(LauncherPaths.getLauncherCache().resolve("caches").resolve("mmc_meta"), 100 * 1024 * 1024).build();
     private static final Methanol CLIENT = Methanol.newBuilder()
             .cache(CACHE)
@@ -36,6 +35,21 @@ public record HTTPMetaRepository(String url, Predicate<String> uidFilter) implem
             .build();
     private static final ObjectMapper MAPPER = JsonDecoder.make();
     private static final DownloadThrottler THROTTLER = new DownloadThrottler();
+    private final String url;
+    private final Predicate<String> uidFilter;
+    private final RootIndex rootIndex;
+    private final Set<String> knownPackages;
+
+    public HTTPMetaRepository(String url, Predicate<String> uidFilter) {
+        this.url = url;
+        this.uidFilter = uidFilter;
+        this.rootIndex = obtainFile(url + "/index.json", new TypeReference<RootIndex>() {}).thenApply(HttpResponse::body).join();
+        var stream = this.rootIndex.packages().stream().map(RootIndex.Package::uid);
+        if (uidFilter != null) {
+            stream = stream.filter(uidFilter);
+        }
+        this.knownPackages = stream.collect(Collectors.toUnmodifiableSet());
+    }
 
     public static HTTPMetaRepository prism() {
         return new HTTPMetaRepository("https://meta.prismlauncher.org/v1", null);
@@ -47,18 +61,13 @@ public record HTTPMetaRepository(String url, Predicate<String> uidFilter) implem
 
     @Override
     public CompletableFuture<Set<String>> getKnownPackages() {
-        return obtainFile(url + "/index.json", new TypeReference<RootIndex>() {}).thenApply(r -> {
-            var stream = r.body().packages().stream().map(RootIndex.Package::uid);
-            if (uidFilter != null) {
-                stream = stream.filter(uidFilter);
-            }
-            return stream.collect(Collectors.toSet());
-        });
+        return CompletableFuture.completedFuture(this.knownPackages);
     }
 
     @Override
     public CompletableFuture<SequencedCollection<? extends GameComponent>> getKnownVersions(String pkgName) {
-        return obtainFile(url + "/" + pkgName + "/index.json", new TypeReference<PackageIndex>() {}).thenApply(r -> {
+        return obtainFile(url + "/" + pkgName + "/index.json", new TypeReference<PackageIndex>() {
+        }).thenApply(r -> {
             return r.body().versions();
         });
     }
@@ -68,15 +77,20 @@ public record HTTPMetaRepository(String url, Predicate<String> uidFilter) implem
         if (version == null) {
             return CompletableFuture.failedFuture(new IOException("Version does not exist"));
         }
-        if (uidFilter != null && !uidFilter.test(pkgName)) {
+        if (!knownPackages.contains(pkgName)) {
             return CompletableFuture.failedFuture(new IOException("Filtered"));
         }
-        return obtainFile(url + "/" + pkgName + "/" + version.replace(" ", "%20") + ".json", new TypeReference<Component>() {}).thenApply(r -> r.body());
+        return obtainFile(url + "/" + pkgName + "/" + version.replace(" ", "%20") + ".json", new TypeReference<Component>() {
+        }).thenApply(r -> r.body());
     }
 
     @Override
     public CompletableFuture<ComponentMetaInfo> retrieveComponentMeta(String pkgName) {
-        return obtainFile(url + "/" + pkgName + "/index.json", new TypeReference<PackageIndex>() {}).thenApply(index -> {
+        if (!knownPackages.contains(pkgName)) {
+            return CompletableFuture.failedFuture(new IOException("Filtered"));
+        }
+        return obtainFile(url + "/" + pkgName + "/index.json", new TypeReference<PackageIndex>() {
+        }).thenApply(index -> {
             return index.body().getMetadata();
         });
     }
