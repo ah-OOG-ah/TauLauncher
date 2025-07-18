@@ -60,6 +60,7 @@ import java.util.zip.ZipInputStream;
 public class RuntimeInstance {
     private static final Logger LOGGER = LoggerFactory.getLogger(RuntimeInstance.class);
     private static final Path LIBRARIES_FOLDER = LauncherPaths.getLauncherCache().resolve("libraries");
+    private static final Methanol CLIENT = Methanol.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
 
     private final MetadataService service = new MetadataService();
     private final AssetService assetService = new AssetService();
@@ -187,7 +188,7 @@ public class RuntimeInstance {
             return libPath;
         }
         var diskPath = LIBRARIES_FOLDER.resolve(lib.diskPath());
-        try (var httpClient = Methanol.newBuilder().build()) {
+        try {
             var download = lib.findDownload();
             Path classPathEntry = download.artifact() != null ? diskPath : null;
             if (!Files.exists(diskPath)) {
@@ -198,7 +199,7 @@ public class RuntimeInstance {
                     String downloadUrl = lib.findDownload().artifact().url();
                     try (var task = progressProvider.addTask("Downloading " + lib.name() + "...")) {
                         var bodyHandler = DownloadProgressTracker.track(HttpResponse.BodyHandlers.ofFile(diskPath), task);
-                        var response = httpClient.send(HttpRequest.newBuilder().uri(URI.create(downloadUrl)).GET().build(), bodyHandler);
+                        var response = CLIENT.send(HttpRequest.newBuilder().uri(URI.create(downloadUrl)).GET().build(), bodyHandler);
                         if (response.statusCode() != 200) {
                             Files.deleteIfExists(diskPath);
                             throw new IOException("Failed to download from URL " + downloadUrl);
@@ -213,7 +214,7 @@ public class RuntimeInstance {
                     var nativeName = lib.explodedName().withClassifier(nativeClassifier);
                     Path nativeDiskPath = LIBRARIES_FOLDER.resolve(nativeName.diskPath());
                     String downloadUrl = lib.downloads().orElseThrow().classifiers().get(nativeClassifier).url();
-                    this.downloadAndExtractNative(httpClient, lib.extract(), nativeDiskPath, downloadUrl);
+                    this.downloadAndExtractNative(CLIENT, lib.extract(), nativeDiskPath, downloadUrl);
                 }
             }
             return classPathEntry;
