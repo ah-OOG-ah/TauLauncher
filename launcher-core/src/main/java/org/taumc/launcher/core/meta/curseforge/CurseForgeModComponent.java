@@ -14,6 +14,7 @@ import org.taumc.launcher.core.mods.curseforge.File;
 import org.taumc.launcher.core.mods.curseforge.Mod;
 import org.taumc.launcher.core.mods.curseforge.PackManifest;
 import org.taumc.launcher.core.reconciler.MissingDependenciesException;
+import org.taumc.launcher.core.reconciler.ReconcilableInstance;
 import org.taumc.launcher.core.reconciler.ReconciliationOptions;
 import org.taumc.launcher.core.reconciler.ReconciliationResult;
 
@@ -67,7 +68,7 @@ public record CurseForgeModComponent(Mod mod, File file) implements Reconcilable
         return components;
     }
 
-    private CompletableFuture<ReconciliationResult> reconcileModpack(Path zipPath, RuntimeInstance instance) {
+    private CompletableFuture<ReconciliationResult> reconcileModpack(Path zipPath, ReconcilableInstance instance, ReconciliationOptions options) {
         try (FileSystem zipfs = FileSystems.newFileSystem(zipPath, Map.of("create", "false"))) {
             Path packContentsRoot = zipfs.getRootDirectories().iterator().next();
             var manifestEntry = packContentsRoot.resolve("manifest.json");
@@ -85,7 +86,7 @@ public record CurseForgeModComponent(Mod mod, File file) implements Reconcilable
             dependencies.addAll(getMinecraftAndLoaderComponents(manifest).stream().map(Requirement::strict).toList());
             instance.validateRequirements(dependencies);
             Set<Path> managedPaths = new HashSet<>();
-            Path minecraftFolder = instance.getInstancePath();
+            Path minecraftFolder = instance.getBaseResolutionPath();
             var overridesFolder = packContentsRoot.resolve("overrides");
             try (Stream<Path> stream = Files.find(packContentsRoot, Integer.MAX_VALUE, (path, attrs) -> path.startsWith(overridesFolder) && !attrs.isDirectory())) {
                 stream.forEach(entry -> {
@@ -97,6 +98,10 @@ public record CurseForgeModComponent(Mod mod, File file) implements Reconcilable
                     }
 
                     managedPaths.add(entryPath);
+
+                    if (instance.getInstancePath() == null) {
+                        return;
+                    }
 
                     boolean needCopy = false;
 
@@ -124,35 +129,37 @@ public record CurseForgeModComponent(Mod mod, File file) implements Reconcilable
                 });
             }
 
-            return CompletableFuture.completedFuture(new ReconciliationResult(managedPaths));
+            return CompletableFuture.completedFuture(new ReconciliationResult(managedPaths, i -> {}));
         } catch (IOException | MissingDependenciesException e) {
             return CompletableFuture.failedFuture(e);
         }
     }
 
-    private CompletableFuture<ReconciliationResult> reconcileFile(CurseForgeClass fileType, Path filePath, RuntimeInstance instance) {
-        Path destinationPath = instance.getInstancePath().resolve(fileType.subfolder()).resolve(file.fileName());
+    private CompletableFuture<ReconciliationResult> reconcileFile(CurseForgeClass fileType, Path filePath, ReconcilableInstance instance, ReconciliationOptions options) {
+        Path destinationPath = instance.getBaseResolutionPath().resolve(fileType.subfolder()).resolve(file.fileName());
         try {
             boolean needUpdate = false;
-            try {
-                if (Files.size(destinationPath) != file.fileLength()) {
+            if (instance.getInstancePath() != null) {
+                try {
+                    if (Files.size(destinationPath) != file.fileLength()) {
+                        needUpdate = true;
+                    }
+                } catch (NoSuchFileException e) {
                     needUpdate = true;
                 }
-            } catch (NoSuchFileException e) {
-                needUpdate = true;
             }
             if (needUpdate) {
                 Files.createDirectories(destinationPath.getParent());
                 Files.copy(filePath, destinationPath);
             }
-            return CompletableFuture.completedFuture(new ReconciliationResult(Set.of(destinationPath)));
+            return CompletableFuture.completedFuture(new ReconciliationResult(Set.of(destinationPath), i -> {}));
         } catch (IOException e) {
             return CompletableFuture.failedFuture(e);
         }
     }
 
     @Override
-    public CompletableFuture<ReconciliationResult> reconcile(RuntimeInstance instance, Executor configurationExecutor, ReconciliationOptions options) {
+    public CompletableFuture<ReconciliationResult> reconcile(ReconcilableInstance instance, ReconciliationOptions options) {
         var fileType = CurseForgeClass.byClassId(mod.classId());
         var downloadFuture = FILES_CACHE.computeIfAbsent(String.valueOf(file.id()), path -> Files.size(path) == file.fileLength(), destination -> {
             if (file.downloadUrl() == null || file.downloadUrl().isBlank()) {
@@ -165,9 +172,9 @@ public record CurseForgeModComponent(Mod mod, File file) implements Reconcilable
         });
         return downloadFuture.thenComposeAsync(cachedFilePath -> {
             if (fileType == CurseForgeClass.MODPACKS) {
-                return reconcileModpack(cachedFilePath, instance);
+                return reconcileModpack(cachedFilePath, instance, options);
             } else {
-                return reconcileFile(fileType, cachedFilePath, instance);
+                return reconcileFile(fileType, cachedFilePath, instance, options);
             }
         });
     }

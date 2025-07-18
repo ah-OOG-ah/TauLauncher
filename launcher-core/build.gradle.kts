@@ -6,6 +6,8 @@ plugins {
 }
 
 dependencies {
+    compileOnly("org.jetbrains:annotations:26.0.2")
+
     compileOnly("org.projectlombok:lombok:1.18.32") // or latest
     annotationProcessor("org.projectlombok:lombok:1.18.32")
 

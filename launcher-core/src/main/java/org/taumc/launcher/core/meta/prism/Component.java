@@ -15,6 +15,7 @@ import org.taumc.launcher.core.meta.json.Artifact;
 import org.taumc.launcher.core.meta.json.Library;
 import org.taumc.launcher.core.meta.json.PackageIndex;
 import org.taumc.launcher.core.meta.json.Requirement;
+import org.taumc.launcher.core.reconciler.ReconcilableInstance;
 import org.taumc.launcher.core.reconciler.ReconciliationOptions;
 import org.taumc.launcher.core.reconciler.ReconciliationResult;
 
@@ -27,6 +28,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -91,13 +93,13 @@ public record Component(
     }
 
     @Override
-    public CompletableFuture<ReconciliationResult> reconcile(RuntimeInstance instance, Executor configurationExecutor, ReconciliationOptions options) {
+    public CompletableFuture<ReconciliationResult> reconcile(ReconcilableInstance reconciler, ReconciliationOptions options) {
         CompletableFuture<String> javaBinaryPath;
         if (this.runtimes != null) {
             javaBinaryPath = CompletableFuture.supplyAsync(() -> {
                 try {
                     LOGGER.info("Try to provision {} {}", uid, version);
-                    return JavaService.INSTANCE.provisionJVMBinary(uid, version, this.runtimes, instance.getProgressProvider());
+                    return JavaService.INSTANCE.provisionJVMBinary(uid, version, this.runtimes, reconciler.getProgressProvider());
                 } catch (IOException | InterruptedException e) {
                     throw new RuntimeException(e);
                 }
@@ -105,44 +107,51 @@ public record Component(
         } else {
             javaBinaryPath = CompletableFuture.completedFuture(null);
         }
-        return javaBinaryPath.thenApplyAsync($ -> {
-            if (this.mavenFiles != null) {
-                instance.addMavenDownloads(this.mavenFiles);
-            }
-            if (this.libraries != null) {
-                instance.addLibraries(this.libraries);
-            }
-            this.mainJar.ifPresent(library -> instance.addLibraries(List.of(library)));
-            this.mainClass.ifPresent(instance::setMainClassName);
-            if (this.runtimes != null && !instance.hasJavaPathSet()) {
-                instance.setJavaPath(javaBinaryPath.join());
-            }
-            if (this.jvmArgs != null) {
-                instance.addExtraJvmArguments(this.jvmArgs);
-            }
-            if (this.minecraftArguments != null) {
-                instance.clearGameArguments();
-                for (var arg : this.minecraftArguments.split(" ")) {
-                    instance.addGameArgument(arg);
+        Consumer<RuntimeInstance> consumer;
+        if (reconciler.getInstancePath() != null) {
+            consumer = instance -> {
+                if (this.mavenFiles != null) {
+                    instance.addMavenDownloads(this.mavenFiles);
                 }
-            }
-            if (this.tweakers != null) {
-                for (String tweakClass : this.tweakers) {
-                    instance.addGameArgument("--tweakClass");
-                    instance.addGameArgument(tweakClass);
+                if (this.libraries != null) {
+                    instance.addLibraries(this.libraries);
                 }
-            }
-            if (this.agents != null) {
-                this.agents.forEach(instance::addJavaAgent);
-            }
-            this.assetIndex.ifPresent(instance::addAssetIndex);
-            if (this.uid.equals("net.minecraft")) {
-                var params = instance.getGameArgumentTemplateParameters();
-                params.put("version_name", this.version());
-                params.put("version_type", (String)this.extraProperties().get("type"));
-            }
-            return ReconciliationResult.EMPTY;
-        }, configurationExecutor);
+                this.mainJar.ifPresent(library -> instance.addLibraries(List.of(library)));
+                this.mainClass.ifPresent(instance::setMainClassName);
+                if (this.runtimes != null && !instance.hasJavaPathSet()) {
+                    instance.setJavaPath(javaBinaryPath.join());
+                }
+                if (this.jvmArgs != null) {
+                    instance.addExtraJvmArguments(this.jvmArgs);
+                }
+                if (this.minecraftArguments != null) {
+                    instance.clearGameArguments();
+                    for (var arg : this.minecraftArguments.split(" ")) {
+                        instance.addGameArgument(arg);
+                    }
+                }
+                if (this.tweakers != null) {
+                    for (String tweakClass : this.tweakers) {
+                        instance.addGameArgument("--tweakClass");
+                        instance.addGameArgument(tweakClass);
+                    }
+                }
+                if (this.agents != null) {
+                    this.agents.forEach(instance::addJavaAgent);
+                }
+                this.assetIndex.ifPresent(instance::addAssetIndex);
+                if (this.uid.equals("net.minecraft")) {
+                    var params = instance.getGameArgumentTemplateParameters();
+                    params.put("version_name", this.version());
+                    params.put("version_type", (String)this.extraProperties().get("type"));
+                };
+            };
+        } else {
+            consumer = i -> {};
+        }
+        return javaBinaryPath.thenApply($ -> {
+            return new ReconciliationResult(Set.of(), consumer);
+        });
     }
 
     public static class ComponentBuilder {

@@ -11,15 +11,15 @@ import org.taumc.launcher.core.assets.AssetService;
 import org.taumc.launcher.core.auth.Account;
 import org.taumc.launcher.core.auth.offline.OfflineAccount;
 import org.taumc.launcher.core.http.DownloadProgressTracker;
-import org.taumc.launcher.core.meta.component.GameComponent;
 import org.taumc.launcher.core.meta.component.ReconcilableGameComponent;
 import org.taumc.launcher.core.meta.json.Artifact;
 import org.taumc.launcher.core.meta.json.ComponentCoordinate;
 import org.taumc.launcher.core.meta.json.Library;
 import org.taumc.launcher.core.meta.json.MetadataService;
-import org.taumc.launcher.core.meta.json.Requirement;
 import org.taumc.launcher.core.progress.ProgressProvider;
-import org.taumc.launcher.core.reconciler.MissingDependenciesException;
+import org.taumc.launcher.core.reconciler.ComponentHolder;
+import org.taumc.launcher.core.reconciler.ReconcilableInstance;
+import org.taumc.launcher.core.reconciler.Reconciler;
 import org.taumc.launcher.core.reconciler.ReconciliationOptions;
 import org.taumc.launcher.core.storage.LauncherPaths;
 
@@ -39,7 +39,6 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -48,10 +47,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
@@ -64,8 +59,9 @@ public class RuntimeInstance {
 
     private final MetadataService service = new MetadataService();
     private final AssetService assetService = new AssetService();
-    private final Map<String, ReconcilableGameComponent> components = new HashMap<>();
 
+    @Getter
+    private final ComponentHolder components = new ComponentHolder(this.service);
     private final List<Path> libraryPaths = new ArrayList<>();
     private final List<Path> agents = new ArrayList<>();
 
@@ -98,27 +94,8 @@ public class RuntimeInstance {
     @Getter
     private final Map<String, String> gameArgumentTemplateParameters = new HashMap<>();
 
-    public void addComponent(String uid, String version) {
-        addComponent(new ComponentCoordinate.Simple(uid, version));
-    }
-
     public void addComponent(ComponentCoordinate.Simple coordinate) {
-        var component = this.service.getComponent(coordinate.uid(), coordinate.version());
-        try {
-            addComponent(component.join());
-        } catch (Exception e) {
-            throw new RuntimeException("Exception locating component " + coordinate, e);
-        }
-    }
-
-    public void addComponent(ReconcilableGameComponent component) {
-        component.providedUids().forEach(uid -> this.components.put(uid, component));
-    }
-
-    public void addComponents(List<ComponentCoordinate.Simple> components) {
-        for (var component : components) {
-            this.addComponent(component);
-        }
+        this.components.addComponent(coordinate);
     }
 
     public void addLibraries(Collection<Library> libraries) {
@@ -262,68 +239,6 @@ public class RuntimeInstance {
         }).toList();
     }
 
-    private void adaptToRequirements(List<Requirement> requirementsToFix) {
-        List<ComponentCoordinate.Simple> componentsToAdd = new ArrayList<>();
-        for (var r : requirementsToFix) {
-            var component = this.components.get(r.uid());
-            if (component != null) {
-                throw new IllegalStateException("Component has requirement " + r + ", but version " + component.version() + " is already added");
-            }
-            String version;
-            if (r.recommendedVersion().isPresent()) {
-                version = r.recommendedVersion().get();
-            } else if (r.uid().equals("net.fabricmc.intermediary")) {
-                // Match with Minecraft version
-                var minecraftComponent = this.components.get("net.minecraft");
-                if (minecraftComponent == null) {
-                    throw new IllegalArgumentException("Minecraft must be present to use Fabric");
-                }
-                version = minecraftComponent.version();
-            } else {
-                version = this.getMetadataService().getKnownVersions(r.uid()).join().getLast().version();
-            }
-            componentsToAdd.add(new ComponentCoordinate.Simple(r.uid(), version));
-        }
-        var componentObjects = componentsToAdd.stream().map(c -> this.getMetadataService().getComponent(c)).toList();
-        CompletableFuture.allOf(componentObjects.toArray(new CompletableFuture[0])).join();
-        for (var c : componentObjects) {
-            this.addComponent(c.join());
-        }
-    }
-
-    public void validateRequirements(List<Requirement> requirements) throws MissingDependenciesException {
-        var needed = requirements.stream().filter(r -> !r.isSatisfied(this.components, this.getMetadataService())).toList();
-        if (!needed.isEmpty()) {
-            throw new MissingDependenciesException(needed);
-        }
-    }
-
-    private void scanDependencies() {
-        while (true) {
-            List<Requirement> requirementsToFix = List.of();
-            GameComponent complainingComponent = null;
-            for (var component : this.components.values()) {
-                if (component.requires() == null) {
-                    continue;
-                }
-                var missingDeps = component.requires().stream().filter(r -> !r.isSatisfied(this.components, this.getMetadataService())).toList();
-                if (!missingDeps.isEmpty()) {
-                    requirementsToFix = missingDeps;
-                    complainingComponent = component;
-                    break;
-                }
-            }
-            if (requirementsToFix.isEmpty()) {
-                break;
-            }
-            try {
-                adaptToRequirements(requirementsToFix);
-            } catch (Exception e) {
-                throw new IllegalStateException("Exception satisfying requirements for " + complainingComponent.uid() + ": " + e, e);
-            }
-        }
-    }
-
     private void extractBootstrap() throws IOException {
         Path bootstrapFile = LIBRARIES_FOLDER.resolve(Paths.get("org", "taumc", "launcher", "bootstrap", "bootstrap.jar"));
         Files.createDirectories(bootstrapFile.getParent());
@@ -422,6 +337,8 @@ public class RuntimeInstance {
         return this.currentProcess;
     }
 
+
+
     public void launch() throws Exception {
         if (this.components.isEmpty()) {
             throw new IllegalArgumentException("Cannot launch game with no components added");
@@ -431,46 +348,11 @@ public class RuntimeInstance {
 
         this.launchAccount.refresh(this.progressProvider);
 
-        this.scanDependencies();
+        Reconciler reconciler = new Reconciler(this.instancePath, this.components.getComponents(), this.getMetadataService(), this.progressProvider);
 
+        var output = reconciler.runReconciliation(ReconciliationOptions.builder().build());
 
-        var options = ReconciliationOptions.builder().build();
-
-        long reconciliationStartTime = System.nanoTime();
-        // Perform reconciliation
-        try (ExecutorService configExecutor = Executors.newSingleThreadExecutor()) {
-            do {
-                List<ReconcilableGameComponent> componentsList = this.components.values().stream().distinct().sorted(Comparator.comparingInt(ReconcilableGameComponent::order)).toList();
-                List<CompletableFuture<?>> futures = new ArrayList<>();
-                for (var component : componentsList) {
-                    try {
-                        futures.add(component.reconcile(this, configExecutor, options));
-                    } catch (Throwable e) {
-                        futures.add(CompletableFuture.failedFuture(e));
-                    }
-                }
-                try {
-                    CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-                } catch (Exception e) {
-                    Throwable realException = e;
-                    if (e instanceof CompletionException exceptionWrapper) {
-                        realException = exceptionWrapper.getCause();
-                        if (realException instanceof MissingDependenciesException deps) {
-                            LOGGER.info("Injecting {} additional dependencies ", deps.getAdditionalDependencies().size());
-                            adaptToRequirements(deps.getAdditionalDependencies());
-                            scanDependencies();
-                            continue;
-                        }
-                    }
-                    throw new RuntimeException("Fatal error during reconciliation", realException);
-                }
-                break;
-            } while (true);
-        }
-
-        long reconciliationDuration = System.nanoTime() - reconciliationStartTime;
-
-        LOGGER.info("Reconciliation completed in {} ms", TimeUnit.NANOSECONDS.toMillis(reconciliationDuration));
+        output.result().instanceConfigurer().accept(this);
 
         // Start asset download asynchronously
         CompletableFuture<Void> assetsFuture = CompletableFuture.allOf(this.requestedAssetIndexes.values().stream().map(a -> CompletableFuture.runAsync(() -> {

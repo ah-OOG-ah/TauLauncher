@@ -12,7 +12,7 @@ public class Main {
     public static void main(String[] args) throws Exception {
         var mmcPack = MMCPack.read(Paths.get("mmc-pack.json"));
         RuntimeInstance instance = new RuntimeInstance();
-        instance.addComponents(mmcPack.components());
+        instance.getComponents().addComponents(mmcPack.components());
         instance.getMetadataService().addRepository(HTTPMetaRepository.prism());
         var accountService = new AccountService();
         accountService.loadFromDisk();

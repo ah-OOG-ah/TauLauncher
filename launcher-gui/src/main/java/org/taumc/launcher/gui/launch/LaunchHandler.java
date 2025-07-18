@@ -69,7 +69,7 @@ public class LaunchHandler {
             configureMetadataService(this.gameInstance.getMetadataService(), instancePath);
 
             // Inject selected components
-            this.gameInstance.addComponents(mmcPack.components());
+            this.gameInstance.getComponents().addComponents(mmcPack.components());
 
             // Apply configuration from instance.cfg
             InstanceCfg.configureInstanceWithCfg(this.gameInstance, instancePath.resolve("instance.cfg"));
