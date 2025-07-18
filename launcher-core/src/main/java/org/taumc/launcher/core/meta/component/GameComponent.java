@@ -4,10 +4,11 @@ import org.taumc.launcher.core.meta.json.ComponentCoordinate;
 import org.taumc.launcher.core.meta.json.Requirement;
 
 import java.util.List;
+import java.util.Set;
 
 public interface GameComponent extends ComponentCoordinate {
-    default boolean doesProvide(String uid) {
-        return uid().equals(uid);
+    default Set<String> providedUids() {
+        return Set.of(uid());
     }
 
     default List<Requirement> requires() {

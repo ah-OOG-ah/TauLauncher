@@ -15,13 +15,16 @@ import org.taumc.launcher.core.meta.json.Artifact;
 import org.taumc.launcher.core.meta.json.Library;
 import org.taumc.launcher.core.meta.json.PackageIndex;
 import org.taumc.launcher.core.meta.json.Requirement;
+import org.taumc.launcher.core.reconciler.ReconciliationOptions;
 import org.taumc.launcher.core.reconciler.ReconciliationResult;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.Predicate;
@@ -57,11 +60,13 @@ public record Component(
     }
 
     @Override
-    public boolean doesProvide(String uid) {
-        if (uid.equals(this.uid)) {
-            return true;
+    public Set<String> providedUids() {
+        var provided = new HashSet<String>();
+        provided.add(this.uid);
+        if (this.provides != null) {
+            provided.addAll(this.provides);
         }
-        return provides != null && provides.contains(uid);
+        return provided;
     }
 
     @Override
@@ -86,7 +91,7 @@ public record Component(
     }
 
     @Override
-    public CompletableFuture<ReconciliationResult> reconcile(RuntimeInstance instance, Executor configurationExecutor) {
+    public CompletableFuture<ReconciliationResult> reconcile(RuntimeInstance instance, Executor configurationExecutor, ReconciliationOptions options) {
         CompletableFuture<String> javaBinaryPath;
         if (this.runtimes != null) {
             javaBinaryPath = CompletableFuture.supplyAsync(() -> {
@@ -116,6 +121,7 @@ public record Component(
                 instance.addExtraJvmArguments(this.jvmArgs);
             }
             if (this.minecraftArguments != null) {
+                instance.clearGameArguments();
                 for (var arg : this.minecraftArguments.split(" ")) {
                     instance.addGameArgument(arg);
                 }

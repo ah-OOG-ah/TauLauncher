@@ -7,5 +7,10 @@ public interface ComponentCoordinate {
     String version();
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record Simple(String uid, String version) implements ComponentCoordinate {}
+    record Simple(String uid, String version) implements ComponentCoordinate {
+        @Override
+        public String toString() {
+            return uid + "@" + version;
+        }
+    }
 }

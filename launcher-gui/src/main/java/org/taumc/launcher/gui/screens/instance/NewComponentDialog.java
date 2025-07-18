@@ -16,7 +16,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 public class NewComponentDialog extends JDialog {
     private final List<ComponentCoordinate.Simple> existingComponents;
@@ -33,7 +35,9 @@ public class NewComponentDialog extends JDialog {
 
         Map<String, List<String>> options = new HashMap<>();
 
-        Predicate<Requirement> requirementsSatisfied = r -> r.isSatisfied(existingComponents, Main.METADATA);
+        var componentMap = existingComponents.stream().collect(Collectors.toUnmodifiableMap(ComponentCoordinate.Simple::uid, Function.identity()));
+
+        Predicate<Requirement> requirementsSatisfied = r -> r.isSatisfied(componentMap, Main.METADATA);
         // Compute the valid components to add
         for (String pkg : Main.METADATA.getKnownPackages()) {
             if (initialSelection == null && existingComponents.stream().anyMatch(c -> c.uid().equals(pkg))) {
