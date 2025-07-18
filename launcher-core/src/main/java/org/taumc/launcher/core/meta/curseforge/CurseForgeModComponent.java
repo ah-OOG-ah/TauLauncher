@@ -92,7 +92,7 @@ public record CurseForgeModComponent(Mod mod, File file) implements Reconcilable
                 stream.forEach(entry -> {
                     Path entryPath = minecraftFolder.resolve(overridesFolder.relativize(entry).toString()).normalize();
 
-                    if (!entryPath.startsWith(minecraftFolder)) {
+                    if (instance.getInstancePath() != null && !entryPath.startsWith(minecraftFolder)) {
                         LOGGER.error("Skipping suspicious entry: {}", entry);
                         return;
                     }
