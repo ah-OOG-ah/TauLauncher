@@ -5,7 +5,7 @@ import org.taumc.launcher.core.meta.json.Requirement;
 
 import java.util.List;
 
-public class MissingDependenciesException extends Exception {
+public final class MissingDependenciesException extends RecoverableReconcilerException {
     @Getter
     private final List<Requirement> additionalDependencies;
 

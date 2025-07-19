@@ -19,6 +19,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -170,18 +171,42 @@ public class Reconciler implements ReconcilableInstance {
             }
             try {
                 CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-            } catch (Exception e) {
-                Throwable realException = e;
-                if (e instanceof CompletionException exceptionWrapper) {
-                    realException = exceptionWrapper.getCause();
-                    if (realException instanceof MissingDependenciesException deps) {
-                        LOGGER.info("Injecting {} additional dependencies ", deps.getAdditionalDependencies().size());
-                        adaptToRequirements(deps.getAdditionalDependencies());
-                        scanDependencies();
-                        continue;
+            } catch (CompletionException completionException) {
+                var exceptions = new ArrayList<>(futures.stream().filter(CompletableFuture::isCompletedExceptionally).map(CompletableFuture::exceptionNow).toList());
+                // Close all the results that will not be used
+                futures.stream()
+                        .filter(f -> f.isDone() && !f.isCompletedExceptionally())
+                        .map(CompletableFuture::join)
+                        .map(ReconciliationResult::closeFunction)
+                        .filter(Objects::nonNull)
+                        .forEach(fn -> {
+                            try {
+                                fn.close();
+                            } catch (Exception ex) {
+                                exceptions.add(ex);
+                            }
+                        });
+
+                var fatalExceptions = exceptions.stream().filter(e -> !(e instanceof RecoverableReconcilerException)).toList();
+                if (!fatalExceptions.isEmpty()) {
+                    var finalException = new RuntimeException("Fatal error during reconciliation");
+                    fatalExceptions.forEach(finalException::addSuppressed);
+                    throw finalException;
+                }
+                for (var e : exceptions) {
+                    if (!(e instanceof RecoverableReconcilerException recoverable)) {
+                        throw new AssertionError();
+                    }
+
+                    switch (recoverable) {
+                        case MissingDependenciesException deps -> {
+                            LOGGER.info("Injecting {} additional dependencies ", deps.getAdditionalDependencies().size());
+                            adaptToRequirements(deps.getAdditionalDependencies());
+                            scanDependencies();
+                        }
                     }
                 }
-                throw new RuntimeException("Fatal error during reconciliation", realException);
+                continue;
             }
             output = new Output(ReconciliationResult.EMPTY.mergeWith(futures.stream().map(CompletableFuture::join).toList()), componentsList);
             break;
