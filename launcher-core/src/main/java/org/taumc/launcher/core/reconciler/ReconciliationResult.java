@@ -9,6 +9,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.stream.Stream;
 
 public record ReconciliationResult(Map<InstanceFile, PathPopulator> managedPaths,
                                    Consumer<RuntimeInstance> instanceConfigurer,
@@ -16,12 +18,13 @@ public record ReconciliationResult(Map<InstanceFile, PathPopulator> managedPaths
     public static final ReconciliationResult EMPTY = new ReconciliationResult(Map.of(), i -> {}, null);
 
     public ReconciliationResult mergeWith(Collection<ReconciliationResult> otherResults) {
-        Map<InstanceFile, PathPopulator> managedPaths = new HashMap<>(this.managedPaths);
+        Map<InstanceFile, PathPopulator> managedPaths = new HashMap<>();
         for (var result : otherResults) {
             managedPaths.putAll(result.managedPaths);
         }
-        var configurers = otherResults.stream().map(r -> r.instanceConfigurer).toList();
-        var closers = otherResults.stream().map(r -> r.closeFunction).filter(Objects::nonNull).toList();
+        managedPaths.putAll(this.managedPaths);
+        var configurers = Stream.of(otherResults.stream().map(r -> r.instanceConfigurer), Stream.of(this.instanceConfigurer)).flatMap(Function.identity()).toList();
+        var closers = Stream.of(otherResults.stream().map(r -> r.closeFunction), Stream.of(this.closeFunction)).flatMap(Function.identity()).filter(Objects::nonNull).toList();
         AutoCloseable mergedCloser = closers.isEmpty() ? null : () -> {
             for (var closer : closers) {
                 closer.close();

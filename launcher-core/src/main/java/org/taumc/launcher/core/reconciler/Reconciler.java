@@ -15,12 +15,15 @@ import org.taumc.launcher.core.reconciler.exceptions.RecoverableReconcilerExcept
 import org.taumc.launcher.core.reconciler.exceptions.UserInterventionRequiredException;
 import org.taumc.launcher.core.reconciler.intervention.InterventionAction;
 import org.taumc.launcher.core.reconciler.intervention.UserInterventionHandler;
+import org.taumc.launcher.core.reconciler.tree.ComponentTreeNode;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,15 +32,15 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class Reconciler implements ReconcilableInstance {
     private static final Logger LOGGER = LoggerFactory.getLogger(RuntimeInstance.class);
 
-    private final Map<String, ReconcilableGameComponent> initialComponents;
     @Getter
-    private final Map<String, ReconcilableGameComponent> components;
+    private final ComponentTreeNode componentRoot;
     @Getter
     private final Path instancePath;
     private final MetadataService metadataService;
@@ -46,45 +49,47 @@ public class Reconciler implements ReconcilableInstance {
 
     private final UserInterventionHandler interventionHandler;
 
-    public Reconciler(Path instancePath, Map<String, ReconcilableGameComponent> initialComponents, MetadataService metadataService, ProgressProvider progressProvider, UserInterventionHandler interventionHandler) {
+    public Reconciler(Path instancePath, ComponentTreeNode tree, MetadataService metadataService, ProgressProvider progressProvider, UserInterventionHandler interventionHandler) {
         this.instancePath = instancePath;
-        this.initialComponents = Map.copyOf(initialComponents);
         this.metadataService = metadataService;
         this.progressProvider = progressProvider;
         this.interventionHandler = interventionHandler;
-        this.components = new HashMap<>(this.initialComponents);
+        this.componentRoot = tree.clone();
     }
 
     private void scanDependencies() {
-        while (true) {
-            List<Requirement> requirementsToFix = List.of();
-            GameComponent complainingComponent = null;
-            for (var component : this.components.values()) {
+        Deque<ComponentTreeNode> dependencyQueue = new ArrayDeque<>();
+        dependencyQueue.add(this.componentRoot);
+        Map<String, ReconcilableGameComponent> dependencyIndex = new HashMap<>(this.componentRoot.buildIndex());
+        while (!dependencyQueue.isEmpty()) {
+            var node = dependencyQueue.pop();
+            if (node.getComponent() != null) {
+                var component = node.getComponent();
                 if (component.requires() == null) {
                     continue;
                 }
-                var missingDeps = component.requires().stream().filter(r -> !r.isSatisfied(this.components, this.metadataService)).toList();
-                if (!missingDeps.isEmpty()) {
-                    requirementsToFix = missingDeps;
-                    complainingComponent = component;
-                    break;
+                var unsatisfiedRequirements = new ArrayList<Requirement>();
+                for (var r : component.requires()) {
+                    if (!r.isSatisfied(dependencyIndex, this.metadataService)) {
+                        unsatisfiedRequirements.add(r);
+                    }
+                }
+                if (!unsatisfiedRequirements.isEmpty()) {
+                    try {
+                        adaptToRequirements(dependencyIndex, node, unsatisfiedRequirements);
+                    } catch (Exception e) {
+                        throw new IllegalStateException("Exception satisfying requirements for " + component.uid() + ": " + e, e);
+                    }
                 }
             }
-            if (requirementsToFix.isEmpty()) {
-                break;
-            }
-            try {
-                adaptToRequirements(requirementsToFix);
-            } catch (Exception e) {
-                throw new IllegalStateException("Exception satisfying requirements for " + complainingComponent.uid() + ": " + e, e);
-            }
+            dependencyQueue.addAll(node.children());
         }
     }
 
-    private void adaptToRequirements(List<Requirement> requirementsToFix) {
+    private void adaptToRequirements(Map<String, ReconcilableGameComponent> dependencyIndex, ComponentTreeNode node, List<Requirement> requirementsToFix) {
         List<ComponentCoordinate.Simple> componentsToAdd = new ArrayList<>();
         for (var r : requirementsToFix) {
-            var component = this.components.get(r.uid());
+            var component = dependencyIndex.get(r.uid());
             if (component != null) {
                 throw new IllegalStateException("Component has requirement " + r + ", but version " + component.version() + " is already added");
             }
@@ -93,7 +98,7 @@ public class Reconciler implements ReconcilableInstance {
                 version = r.recommendedVersion().get();
             } else if (r.uid().equals("net.fabricmc.intermediary")) {
                 // Match with Minecraft version
-                var minecraftComponent = this.components.get("net.minecraft");
+                var minecraftComponent = dependencyIndex.get("net.minecraft");
                 if (minecraftComponent == null) {
                     throw new IllegalArgumentException("Minecraft must be present to use Fabric");
                 }
@@ -107,13 +112,15 @@ public class Reconciler implements ReconcilableInstance {
         CompletableFuture.allOf(componentObjects.toArray(new CompletableFuture[0])).join();
         for (var c : componentObjects) {
             var component = c.join();
-            component.providedUids().forEach(uid -> this.components.put(uid, component));
+            component.providedUids().forEach(uid -> dependencyIndex.put(uid, component));
+            node.addChild(new ComponentTreeNode(component));
         }
     }
 
     @Override
     public void validateRequirements(List<Requirement> requirements) throws MissingDependenciesException {
-        var needed = requirements.stream().filter(r -> !r.isSatisfied(this.components, this.metadataService)).toList();
+        var dependencyIndex = this.componentRoot.buildIndex();
+        var needed = requirements.stream().filter(r -> !r.isSatisfied(dependencyIndex, this.metadataService)).toList();
         if (!needed.isEmpty()) {
             throw new MissingDependenciesException(needed);
         }
@@ -161,6 +168,90 @@ public class Reconciler implements ReconcilableInstance {
         }
     }
 
+    private static class GroupedReconciliationException extends Exception {
+        private final List<Throwable> groupedThrowables;
+
+        private GroupedReconciliationException(List<Throwable> groupedThrowables) {
+            this.groupedThrowables = groupedThrowables;
+        }
+
+        public List<Throwable> unwrap() {
+            return groupedThrowables.stream().flatMap(t -> {
+                Throwable target = t;
+                if (target instanceof TreeNodeReconciliationException tree) {
+                    target = tree.getCause();
+                }
+                if (target instanceof GroupedReconciliationException g) {
+                    return g.unwrap().stream();
+                } else {
+                    return Stream.of(t);
+                }
+            }).toList();
+        }
+    }
+
+    private static class TreeNodeReconciliationException extends Exception {
+        private final ComponentTreeNode thrower;
+
+        private TreeNodeReconciliationException(Throwable cause, ComponentTreeNode thrower) {
+            super(cause);
+            this.thrower = thrower;
+        }
+
+        public Throwable getRealCause() {
+            if (getCause() instanceof CompletionException) {
+                return getCause().getCause();
+            } else {
+                return getCause();
+            }
+        }
+    }
+
+    private CompletableFuture<ReconciliationResult> buildReconciliationFuture(ReconciliationOptions options, ComponentTreeNode node) {
+        try {
+            var childFutures = new ArrayList<>(node.children().stream().map(child -> this.buildReconciliationFuture(options, child)).toList());
+            var futuresToAwait = new ArrayList<>(childFutures);
+            CompletableFuture<ReconciliationResult> parentFuture;
+            if (node.getComponent() != null) {
+                parentFuture = node.getComponent().reconcile(this, options).handle((result, exc) -> {
+                    if (exc != null) {
+                        return CompletableFuture.<ReconciliationResult>failedFuture(new TreeNodeReconciliationException(exc, node));
+                    } else {
+                        return CompletableFuture.completedFuture(result);
+                    }
+                }).thenCompose(Function.identity());
+            } else {
+                parentFuture = CompletableFuture.completedFuture(ReconciliationResult.EMPTY);
+            }
+            futuresToAwait.add(parentFuture);
+            return CompletableFuture.allOf(futuresToAwait.toArray(new CompletableFuture[0])).handle((result, exc) -> {
+                if (exc != null) {
+                    // At least one future failed, we need to group all the exceptions and rethrow
+                    var exceptions = new ArrayList<>(futuresToAwait.stream().filter(CompletableFuture::isCompletedExceptionally).map(CompletableFuture::exceptionNow).toList());
+                    // Close all the results that will not be used
+                    futuresToAwait.stream()
+                            .filter(f -> f.isDone() && !f.isCompletedExceptionally())
+                            .map(CompletableFuture::join)
+                            .map(ReconciliationResult::closeFunction)
+                            .filter(Objects::nonNull)
+                            .forEach(fn -> {
+                                try {
+                                    fn.close();
+                                } catch (Exception ex) {
+                                    exceptions.add(ex);
+                                }
+                            });
+
+                    return CompletableFuture.<ReconciliationResult>failedFuture(new GroupedReconciliationException(exceptions));
+                } else {
+                    return CompletableFuture.completedFuture(parentFuture.join().mergeWith(childFutures.stream().map(CompletableFuture::join).toList()));
+                }
+            }).thenCompose(Function.identity());
+        } catch (Throwable e) {
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+
     public Output runReconciliation(ReconciliationOptions options) {
         this.scanDependencies();
 
@@ -168,55 +259,58 @@ public class Reconciler implements ReconcilableInstance {
         long reconciliationStartTime = System.nanoTime();
         // Perform reconciliation
         do {
-            List<ReconcilableGameComponent> componentsList = this.components.values().stream().distinct().sorted(Comparator.comparingInt(ReconcilableGameComponent::order)).toList();
-            List<CompletableFuture<ReconciliationResult>> futures = new ArrayList<>();
-            for (var component : componentsList) {
-                try {
-                    futures.add(component.reconcile(this, options));
-                } catch (Throwable e) {
-                    futures.add(CompletableFuture.failedFuture(e));
-                }
-            }
+            var future = this.buildReconciliationFuture(options, this.componentRoot);
+
             try {
-                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+                future.join();
             } catch (CompletionException completionException) {
-                var exceptions = new ArrayList<>(futures.stream().filter(CompletableFuture::isCompletedExceptionally).map(CompletableFuture::exceptionNow).toList());
-                // Close all the results that will not be used
-                futures.stream()
-                        .filter(f -> f.isDone() && !f.isCompletedExceptionally())
-                        .map(CompletableFuture::join)
-                        .map(ReconciliationResult::closeFunction)
-                        .filter(Objects::nonNull)
-                        .forEach(fn -> {
-                            try {
-                                fn.close();
-                            } catch (Exception ex) {
-                                exceptions.add(ex);
-                            }
-                        });
-
-                var fatalExceptions = exceptions.stream().filter(e -> !(e instanceof RecoverableReconcilerException)).toList();
-                if (!fatalExceptions.isEmpty()) {
-                    var finalException = new RuntimeException("Fatal error during reconciliation");
-                    fatalExceptions.forEach(finalException::addSuppressed);
-                    throw finalException;
+                List<Throwable> exceptions;
+                if (completionException.getCause() instanceof GroupedReconciliationException g) {
+                    exceptions = g.unwrap();
+                } else {
+                    exceptions = new ArrayList<>();
+                    exceptions.add(completionException.getCause());
                 }
+
+                List<Throwable> fatalExceptions = new ArrayList<>();
+
                 List<InterventionAction> actions = new ArrayList<>();
+
+                var depIndex = new HashMap<>(this.componentRoot.buildIndex());
+
                 for (var e : exceptions) {
-                    if (!(e instanceof RecoverableReconcilerException recoverable)) {
-                        throw new AssertionError();
+                    if (!(e instanceof TreeNodeReconciliationException treeNodeExc)) {
+                        fatalExceptions.add(e);
+                        continue;
                     }
 
-                    switch (recoverable) {
-                        case MissingDependenciesException deps -> {
-                            LOGGER.info("Injecting {} additional dependencies ", deps.getAdditionalDependencies().size());
-                            adaptToRequirements(deps.getAdditionalDependencies());
-                            scanDependencies();
-                        }
-                        case UserInterventionRequiredException user -> {
-                            actions.addAll(user.getActions());
-                        }
+                    var original = treeNodeExc.getRealCause();
+
+                    if (!(original instanceof RecoverableReconcilerException recoverable)) {
+                        fatalExceptions.add(original);
+                        continue;
                     }
+
+                    try {
+                        switch (recoverable) {
+                            case MissingDependenciesException deps -> {
+                                LOGGER.info("Injecting {} additional dependencies requested by {}", deps.getAdditionalDependencies().size(), treeNodeExc.thrower.getComponent());
+                                adaptToRequirements(depIndex, treeNodeExc.thrower, deps.getAdditionalDependencies());
+                                scanDependencies();
+                            }
+                            case UserInterventionRequiredException user -> {
+                                actions.addAll(user.getActions());
+                            }
+                        }
+                    } catch (Exception recoveryException) {
+                        fatalExceptions.add(recoveryException);
+                    }
+                }
+
+                if (!fatalExceptions.isEmpty()) {
+                    var finalException = new RuntimeException("Fatal error during reconciliation", fatalExceptions.getFirst());
+                    fatalExceptions.stream().skip(1).forEach(finalException::addSuppressed);
+                    throw finalException;
                 }
 
                 if (!actions.isEmpty()) {
@@ -225,7 +319,7 @@ public class Reconciler implements ReconcilableInstance {
 
                 continue;
             }
-            output = new Output(ReconciliationResult.EMPTY.mergeWith(futures.stream().map(CompletableFuture::join).toList()), componentsList);
+            output = new Output(future.join(), this.componentRoot.buildIndex().values().stream().distinct().sorted(Comparator.comparingInt(ReconcilableGameComponent::order)).toList());
             break;
         } while (true);
 

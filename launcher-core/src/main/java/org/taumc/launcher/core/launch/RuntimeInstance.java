@@ -11,17 +11,15 @@ import org.taumc.launcher.core.assets.AssetService;
 import org.taumc.launcher.core.auth.Account;
 import org.taumc.launcher.core.auth.offline.OfflineAccount;
 import org.taumc.launcher.core.http.DownloadProgressTracker;
-import org.taumc.launcher.core.meta.component.ReconcilableGameComponent;
 import org.taumc.launcher.core.meta.json.Artifact;
 import org.taumc.launcher.core.meta.json.ComponentCoordinate;
 import org.taumc.launcher.core.meta.json.Library;
 import org.taumc.launcher.core.meta.json.MetadataService;
 import org.taumc.launcher.core.progress.ProgressProvider;
-import org.taumc.launcher.core.reconciler.ComponentHolder;
-import org.taumc.launcher.core.reconciler.ReconcilableInstance;
 import org.taumc.launcher.core.reconciler.Reconciler;
 import org.taumc.launcher.core.reconciler.ReconciliationOptions;
 import org.taumc.launcher.core.reconciler.intervention.ConsoleInterventionHandler;
+import org.taumc.launcher.core.reconciler.tree.ComponentTreeNode;
 import org.taumc.launcher.core.storage.LauncherPaths;
 
 import java.io.File;
@@ -47,7 +45,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -63,7 +60,7 @@ public class RuntimeInstance {
     private final AssetService assetService = new AssetService();
 
     @Getter
-    private final ComponentHolder components = new ComponentHolder(this.service);
+    private final ComponentTreeNode components = new ComponentTreeNode(null);
     private final List<Path> libraryPaths = new ArrayList<>();
     private final List<Path> agents = new ArrayList<>();
 
@@ -97,7 +94,7 @@ public class RuntimeInstance {
     private final Map<String, String> gameArgumentTemplateParameters = new HashMap<>();
 
     public void addComponent(ComponentCoordinate.Simple coordinate) {
-        this.components.addComponent(coordinate);
+        this.components.children().add(new ComponentTreeNode(this.service.getComponent(coordinate).join()));
     }
 
     public void addLibraries(Collection<Library> libraries) {
@@ -350,7 +347,7 @@ public class RuntimeInstance {
 
         this.launchAccount.refresh(this.progressProvider);
 
-        Reconciler reconciler = new Reconciler(this.instancePath, this.components.getComponents(), this.getMetadataService(), this.progressProvider, new ConsoleInterventionHandler());
+        Reconciler reconciler = new Reconciler(this.instancePath, this.components, this.getMetadataService(), this.progressProvider, new ConsoleInterventionHandler());
 
         try (var output = reconciler.runReconciliation(ReconciliationOptions.builder().updateMode(ReconciliationOptions.UpdateMode.UPDATE_IF_MISSING).build())) {
             output.applyToFilesystem(getInstancePath()).join();
