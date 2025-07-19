@@ -2,6 +2,7 @@ package org.taumc.launcher.core.reconciler;
 
 import org.taumc.launcher.core.meta.json.Requirement;
 import org.taumc.launcher.core.progress.ProgressProvider;
+import org.taumc.launcher.core.reconciler.exceptions.MissingDependenciesException;
 
 import java.util.List;
 

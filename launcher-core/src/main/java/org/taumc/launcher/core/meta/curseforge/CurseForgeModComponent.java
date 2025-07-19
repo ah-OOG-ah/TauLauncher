@@ -13,11 +13,14 @@ import org.taumc.launcher.core.mods.curseforge.File;
 import org.taumc.launcher.core.mods.curseforge.Mod;
 import org.taumc.launcher.core.mods.curseforge.PackManifest;
 import org.taumc.launcher.core.reconciler.InstanceFile;
-import org.taumc.launcher.core.reconciler.MissingDependenciesException;
+import org.taumc.launcher.core.reconciler.exceptions.MissingDependenciesException;
 import org.taumc.launcher.core.reconciler.PathPopulator;
 import org.taumc.launcher.core.reconciler.ReconcilableInstance;
 import org.taumc.launcher.core.reconciler.ReconciliationOptions;
 import org.taumc.launcher.core.reconciler.ReconciliationResult;
+import org.taumc.launcher.core.reconciler.exceptions.UserInterventionRequiredException;
+import org.taumc.launcher.core.reconciler.intervention.InterventionAction;
+import org.taumc.launcher.core.reconciler.intervention.ManualDownloadIntervention;
 
 import java.io.IOException;
 import java.net.URI;
@@ -27,7 +30,6 @@ import java.net.http.HttpResponse;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
@@ -130,7 +132,8 @@ public record CurseForgeModComponent(Mod mod, File file) implements Reconcilable
         var fileType = CurseForgeClass.byClassId(mod.classId());
         var downloadFuture = FILES_CACHE.computeIfAbsent(String.valueOf(file.id()), path -> Files.size(path) == file.fileLength(), destination -> {
             if (file.downloadUrl() == null || file.downloadUrl().isBlank()) {
-                return CompletableFuture.failedFuture(new IllegalArgumentException("File " + file.fileName() + " lacks download URL, ID " + file.id() + " mod " + file.modId()));
+                String manualDownloadUrl = "https://legacy.curseforge.com/minecraft/" + fileType.urlSlug() + "/" + mod.slug() + "/download/" + file.id();
+                return CompletableFuture.failedFuture(new UserInterventionRequiredException(ManualDownloadIntervention.forUrl(manualDownloadUrl, file.fileName(), file.fileLength(), destination)));
             }
             return THROTTLER.throttle(() -> {
                 LOGGER.info("Downloading file {}", file.fileName());

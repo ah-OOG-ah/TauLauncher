@@ -1,4 +1,4 @@
-package org.taumc.launcher.core.reconciler;
+package org.taumc.launcher.core.reconciler.exceptions;
 
 import lombok.Getter;
 import org.taumc.launcher.core.meta.json.Requirement;

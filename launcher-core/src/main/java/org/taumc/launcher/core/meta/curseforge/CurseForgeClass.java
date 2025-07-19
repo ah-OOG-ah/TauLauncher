@@ -13,15 +13,16 @@ import java.util.stream.Collectors;
 @Getter
 @Accessors(fluent = true)
 public enum CurseForgeClass {
-    MODS(6, "mods"),
-    RESOURCEPACKS(12, "resourcepacks"),
-    WORLDS(17, "worlds"),
-    SHADERPACKS(6552, "shaderpacks"),
-    DATAPACKS(6945, "datapacks"),
-    MODPACKS(4471, null);
+    MODS(6, "mods", "mc-mods"),
+    RESOURCEPACKS(12, "resourcepacks", "texture-packs"),
+    WORLDS(17, "worlds", null),
+    SHADERPACKS(6552, "shaderpacks", "shaders"),
+    DATAPACKS(6945, "datapacks", "data-packs"),
+    MODPACKS(4471, null, "modpacks");
 
     private final int classId;
     private final String subfolder;
+    private final String urlSlug;
 
     private static final Map<Integer, CurseForgeClass> BY_CLASS_ID = Arrays.stream(CurseForgeClass.values())
             .collect(Collectors.toUnmodifiableMap(CurseForgeClass::classId, Function.identity()));

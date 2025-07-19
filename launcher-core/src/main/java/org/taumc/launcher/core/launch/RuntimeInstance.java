@@ -21,6 +21,7 @@ import org.taumc.launcher.core.reconciler.ComponentHolder;
 import org.taumc.launcher.core.reconciler.ReconcilableInstance;
 import org.taumc.launcher.core.reconciler.Reconciler;
 import org.taumc.launcher.core.reconciler.ReconciliationOptions;
+import org.taumc.launcher.core.reconciler.intervention.ConsoleInterventionHandler;
 import org.taumc.launcher.core.storage.LauncherPaths;
 
 import java.io.File;
@@ -349,7 +350,7 @@ public class RuntimeInstance {
 
         this.launchAccount.refresh(this.progressProvider);
 
-        Reconciler reconciler = new Reconciler(this.instancePath, this.components.getComponents(), this.getMetadataService(), this.progressProvider);
+        Reconciler reconciler = new Reconciler(this.instancePath, this.components.getComponents(), this.getMetadataService(), this.progressProvider, new ConsoleInterventionHandler());
 
         try (var output = reconciler.runReconciliation(ReconciliationOptions.builder().updateMode(ReconciliationOptions.UpdateMode.UPDATE_IF_MISSING).build())) {
             output.applyToFilesystem(getInstancePath()).join();

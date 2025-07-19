@@ -10,6 +10,11 @@ import org.taumc.launcher.core.meta.json.ComponentCoordinate;
 import org.taumc.launcher.core.meta.json.MetadataService;
 import org.taumc.launcher.core.meta.json.Requirement;
 import org.taumc.launcher.core.progress.ProgressProvider;
+import org.taumc.launcher.core.reconciler.exceptions.MissingDependenciesException;
+import org.taumc.launcher.core.reconciler.exceptions.RecoverableReconcilerException;
+import org.taumc.launcher.core.reconciler.exceptions.UserInterventionRequiredException;
+import org.taumc.launcher.core.reconciler.intervention.InterventionAction;
+import org.taumc.launcher.core.reconciler.intervention.UserInterventionHandler;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -39,11 +44,14 @@ public class Reconciler implements ReconcilableInstance {
     @Getter
     private final ProgressProvider progressProvider;
 
-    public Reconciler(Path instancePath, Map<String, ReconcilableGameComponent> initialComponents, MetadataService metadataService, ProgressProvider progressProvider) {
+    private final UserInterventionHandler interventionHandler;
+
+    public Reconciler(Path instancePath, Map<String, ReconcilableGameComponent> initialComponents, MetadataService metadataService, ProgressProvider progressProvider, UserInterventionHandler interventionHandler) {
         this.instancePath = instancePath;
         this.initialComponents = Map.copyOf(initialComponents);
         this.metadataService = metadataService;
         this.progressProvider = progressProvider;
+        this.interventionHandler = interventionHandler;
         this.components = new HashMap<>(this.initialComponents);
     }
 
@@ -193,6 +201,7 @@ public class Reconciler implements ReconcilableInstance {
                     fatalExceptions.forEach(finalException::addSuppressed);
                     throw finalException;
                 }
+                List<InterventionAction> actions = new ArrayList<>();
                 for (var e : exceptions) {
                     if (!(e instanceof RecoverableReconcilerException recoverable)) {
                         throw new AssertionError();
@@ -204,8 +213,16 @@ public class Reconciler implements ReconcilableInstance {
                             adaptToRequirements(deps.getAdditionalDependencies());
                             scanDependencies();
                         }
+                        case UserInterventionRequiredException user -> {
+                            actions.addAll(user.getActions());
+                        }
                     }
                 }
+
+                if (!actions.isEmpty()) {
+                    this.interventionHandler.awaitUserIntervention(actions);
+                }
+
                 continue;
             }
             output = new Output(ReconciliationResult.EMPTY.mergeWith(futures.stream().map(CompletableFuture::join).toList()), componentsList);

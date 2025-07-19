@@ -8,6 +8,7 @@ import org.taumc.launcher.core.progress.ProgressProvider;
 import org.taumc.launcher.core.reconciler.ComponentHolder;
 import org.taumc.launcher.core.reconciler.Reconciler;
 import org.taumc.launcher.core.reconciler.ReconciliationOptions;
+import org.taumc.launcher.core.reconciler.intervention.ConsoleInterventionHandler;
 import org.taumc.launcher.core.util.SetUtils;
 
 public class TestReconciler {
@@ -27,9 +28,9 @@ public class TestReconciler {
         newHolder.addComponent(newPack);
 
         // Determine change
-        Reconciler reconciler = new Reconciler(null, oldHolder.getComponents(), metaService, ProgressProvider.LOGGING);
+        Reconciler reconciler = new Reconciler(null, oldHolder.getComponents(), metaService, ProgressProvider.LOGGING, new ConsoleInterventionHandler());
 
-        Reconciler newReconciler = new Reconciler(null, newHolder.getComponents(), metaService, ProgressProvider.LOGGING);
+        Reconciler newReconciler = new Reconciler(null, newHolder.getComponents(), metaService, ProgressProvider.LOGGING, new ConsoleInterventionHandler());
         try (var oldOutput = reconciler.runReconciliation(ReconciliationOptions.builder().build());
              var newOutput = newReconciler.runReconciliation(ReconciliationOptions.builder().build())) {
             var oldPaths = oldOutput.result().managedPaths().keySet();
