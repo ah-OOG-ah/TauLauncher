@@ -7,6 +7,7 @@ import org.taumc.launcher.core.launch.InstanceCfg;
 import org.taumc.launcher.core.meta.json.MMCPack;
 import org.taumc.launcher.core.meta.json.MetadataService;
 import org.taumc.launcher.core.meta.prism.PatchesFolderMetaRepository;
+import org.taumc.launcher.core.reconciler.tree.ComponentTreeNode;
 import org.taumc.launcher.gui.Main;
 import org.taumc.launcher.gui.UIPaths;
 import org.taumc.launcher.core.launch.RuntimeInstance;
@@ -69,7 +70,10 @@ public class LaunchHandler {
             configureMetadataService(this.gameInstance.getMetadataService(), instancePath);
 
             // Inject selected components
-            this.gameInstance.getComponents().addComponents(mmcPack.components());
+            mmcPack.components().stream()
+                    .map(this.gameInstance.getMetadataService()::getComponent)
+                    .toList()
+                    .forEach(future -> this.gameInstance.getComponents().addChild(new ComponentTreeNode(future.join())));
 
             // Apply configuration from instance.cfg
             InstanceCfg.configureInstanceWithCfg(this.gameInstance, instancePath.resolve("instance.cfg"));
