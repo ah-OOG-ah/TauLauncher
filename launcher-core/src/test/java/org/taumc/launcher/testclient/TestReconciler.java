@@ -28,14 +28,14 @@ public class TestReconciler {
 
         // Determine change
         Reconciler reconciler = new Reconciler(null, oldHolder.getComponents(), metaService, ProgressProvider.LOGGING);
-        var oldOutput = reconciler.runReconciliation(ReconciliationOptions.builder().build());
 
-        reconciler = new Reconciler(null, newHolder.getComponents(), metaService, ProgressProvider.LOGGING);
-        var newOutput = reconciler.runReconciliation(ReconciliationOptions.builder().build());
+        Reconciler newReconciler = new Reconciler(null, newHolder.getComponents(), metaService, ProgressProvider.LOGGING);
+        try (var oldOutput = reconciler.runReconciliation(ReconciliationOptions.builder().build());
+             var newOutput = newReconciler.runReconciliation(ReconciliationOptions.builder().build())) {
+            var oldPaths = oldOutput.result().managedPaths().keySet();
+            var newPaths = newOutput.result().managedPaths().keySet();
 
-        var oldPaths = oldOutput.result().managedPaths();
-        var newPaths = newOutput.result().managedPaths();
-
-        SetUtils.formatGroupedDiff(oldPaths, newPaths).forEach(System.out::println);
+            SetUtils.formatGroupedDiff(oldPaths, newPaths).forEach(System.out::println);
+        }
     }
 }

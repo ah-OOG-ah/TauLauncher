@@ -107,50 +107,45 @@ public record Component(
         } else {
             javaBinaryPath = CompletableFuture.completedFuture(null);
         }
-        Consumer<RuntimeInstance> consumer;
-        if (reconciler.getInstancePath() != null) {
-            consumer = instance -> {
-                if (this.mavenFiles != null) {
-                    instance.addMavenDownloads(this.mavenFiles);
+        Consumer<RuntimeInstance> consumer = instance -> {
+            if (this.mavenFiles != null) {
+                instance.addMavenDownloads(this.mavenFiles);
+            }
+            if (this.libraries != null) {
+                instance.addLibraries(this.libraries);
+            }
+            this.mainJar.ifPresent(library -> instance.addLibraries(List.of(library)));
+            this.mainClass.ifPresent(instance::setMainClassName);
+            if (this.runtimes != null && !instance.hasJavaPathSet()) {
+                instance.setJavaPath(javaBinaryPath.join());
+            }
+            if (this.jvmArgs != null) {
+                instance.addExtraJvmArguments(this.jvmArgs);
+            }
+            if (this.minecraftArguments != null) {
+                instance.clearGameArguments();
+                for (var arg : this.minecraftArguments.split(" ")) {
+                    instance.addGameArgument(arg);
                 }
-                if (this.libraries != null) {
-                    instance.addLibraries(this.libraries);
+            }
+            if (this.tweakers != null) {
+                for (String tweakClass : this.tweakers) {
+                    instance.addGameArgument("--tweakClass");
+                    instance.addGameArgument(tweakClass);
                 }
-                this.mainJar.ifPresent(library -> instance.addLibraries(List.of(library)));
-                this.mainClass.ifPresent(instance::setMainClassName);
-                if (this.runtimes != null && !instance.hasJavaPathSet()) {
-                    instance.setJavaPath(javaBinaryPath.join());
-                }
-                if (this.jvmArgs != null) {
-                    instance.addExtraJvmArguments(this.jvmArgs);
-                }
-                if (this.minecraftArguments != null) {
-                    instance.clearGameArguments();
-                    for (var arg : this.minecraftArguments.split(" ")) {
-                        instance.addGameArgument(arg);
-                    }
-                }
-                if (this.tweakers != null) {
-                    for (String tweakClass : this.tweakers) {
-                        instance.addGameArgument("--tweakClass");
-                        instance.addGameArgument(tweakClass);
-                    }
-                }
-                if (this.agents != null) {
-                    this.agents.forEach(instance::addJavaAgent);
-                }
-                this.assetIndex.ifPresent(instance::addAssetIndex);
-                if (this.uid.equals("net.minecraft")) {
-                    var params = instance.getGameArgumentTemplateParameters();
-                    params.put("version_name", this.version());
-                    params.put("version_type", (String)this.extraProperties().get("type"));
-                };
+            }
+            if (this.agents != null) {
+                this.agents.forEach(instance::addJavaAgent);
+            }
+            this.assetIndex.ifPresent(instance::addAssetIndex);
+            if (this.uid.equals("net.minecraft")) {
+                var params = instance.getGameArgumentTemplateParameters();
+                params.put("version_name", this.version());
+                params.put("version_type", (String)this.extraProperties().get("type"));
             };
-        } else {
-            consumer = i -> {};
-        }
+        };
         return javaBinaryPath.thenApply($ -> {
-            return new ReconciliationResult(Set.of(), consumer);
+            return new ReconciliationResult(Map.of(), consumer, null);
         });
     }
 

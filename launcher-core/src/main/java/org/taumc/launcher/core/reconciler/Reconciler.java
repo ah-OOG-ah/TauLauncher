@@ -11,6 +11,7 @@ import org.taumc.launcher.core.meta.json.MetadataService;
 import org.taumc.launcher.core.meta.json.Requirement;
 import org.taumc.launcher.core.progress.ProgressProvider;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -19,10 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 
 public class Reconciler implements ReconcilableInstance {
     private static final Logger LOGGER = LoggerFactory.getLogger(RuntimeInstance.class);
@@ -108,7 +106,33 @@ public class Reconciler implements ReconcilableInstance {
         }
     }
 
-    public record Output(ReconciliationResult result, List<ReconcilableGameComponent> components) {}
+    public record Output(ReconciliationResult result, List<ReconcilableGameComponent> components) implements AutoCloseable {
+        public void configureInstance(RuntimeInstance instance) {
+            if (result.instanceConfigurer() != null) {
+                result.instanceConfigurer().accept(instance);
+            }
+        }
+
+        public CompletableFuture<Void> applyToFilesystem(Path instancePath) {
+            var futureList = result.managedPaths().entrySet().stream().map(entry -> CompletableFuture.runAsync(() -> {
+                try {
+                    Path targetPath = entry.getKey().toPath(instancePath);
+                    entry.getValue().populate(targetPath);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            })).toList();
+            return CompletableFuture.allOf(futureList.toArray(new CompletableFuture[0]));
+        }
+
+        @Override
+        public void close() throws Exception {
+            //noinspection resource
+            if (result.closeFunction() != null) {
+                result.closeFunction().close();
+            }
+        }
+    }
 
     public Output runReconciliation(ReconciliationOptions options) {
         this.scanDependencies();
@@ -116,36 +140,34 @@ public class Reconciler implements ReconcilableInstance {
         Output output;
         long reconciliationStartTime = System.nanoTime();
         // Perform reconciliation
-        try (ExecutorService configExecutor = Executors.newSingleThreadExecutor()) {
-            do {
-                List<ReconcilableGameComponent> componentsList = this.components.values().stream().distinct().sorted(Comparator.comparingInt(ReconcilableGameComponent::order)).toList();
-                List<CompletableFuture<ReconciliationResult>> futures = new ArrayList<>();
-                for (var component : componentsList) {
-                    try {
-                        futures.add(component.reconcile(this, options));
-                    } catch (Throwable e) {
-                        futures.add(CompletableFuture.failedFuture(e));
-                    }
-                }
+        do {
+            List<ReconcilableGameComponent> componentsList = this.components.values().stream().distinct().sorted(Comparator.comparingInt(ReconcilableGameComponent::order)).toList();
+            List<CompletableFuture<ReconciliationResult>> futures = new ArrayList<>();
+            for (var component : componentsList) {
                 try {
-                    CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-                } catch (Exception e) {
-                    Throwable realException = e;
-                    if (e instanceof CompletionException exceptionWrapper) {
-                        realException = exceptionWrapper.getCause();
-                        if (realException instanceof MissingDependenciesException deps) {
-                            LOGGER.info("Injecting {} additional dependencies ", deps.getAdditionalDependencies().size());
-                            adaptToRequirements(deps.getAdditionalDependencies());
-                            scanDependencies();
-                            continue;
-                        }
-                    }
-                    throw new RuntimeException("Fatal error during reconciliation", realException);
+                    futures.add(component.reconcile(this, options));
+                } catch (Throwable e) {
+                    futures.add(CompletableFuture.failedFuture(e));
                 }
-                output = new Output(ReconciliationResult.EMPTY.mergeWith(futures.stream().map(CompletableFuture::join).toList()), componentsList);
-                break;
-            } while (true);
-        }
+            }
+            try {
+                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+            } catch (Exception e) {
+                Throwable realException = e;
+                if (e instanceof CompletionException exceptionWrapper) {
+                    realException = exceptionWrapper.getCause();
+                    if (realException instanceof MissingDependenciesException deps) {
+                        LOGGER.info("Injecting {} additional dependencies ", deps.getAdditionalDependencies().size());
+                        adaptToRequirements(deps.getAdditionalDependencies());
+                        scanDependencies();
+                        continue;
+                    }
+                }
+                throw new RuntimeException("Fatal error during reconciliation", realException);
+            }
+            output = new Output(ReconciliationResult.EMPTY.mergeWith(futures.stream().map(CompletableFuture::join).toList()), componentsList);
+            break;
+        } while (true);
 
         long reconciliationDuration = System.nanoTime() - reconciliationStartTime;
 

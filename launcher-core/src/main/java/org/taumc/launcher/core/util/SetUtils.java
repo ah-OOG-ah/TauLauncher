@@ -2,7 +2,6 @@ package org.taumc.launcher.core.util;
 
 import org.apache.commons.text.similarity.LevenshteinDistance;
 
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -21,22 +20,22 @@ public class SetUtils {
         return new SetDiff<>(added, removed);
     }
 
-    public static List<String> formatGroupedDiff(Set<Path> oldFiles, Set<Path> newFiles) {
-        SetDiff<Path> diff = diffSets(oldFiles, newFiles);
-        List<Path> added = new ArrayList<>(diff.added());
-        List<Path> removed = new ArrayList<>(diff.removed());
+    public static <T> List<String> formatGroupedDiff(Set<T> oldFiles, Set<T> newFiles) {
+        SetDiff<T> diff = diffSets(oldFiles, newFiles);
+        List<T> added = new ArrayList<>(diff.added());
+        List<T> removed = new ArrayList<>(diff.removed());
         List<String> result = new ArrayList<>();
 
         LevenshteinDistance distance = new LevenshteinDistance();
 
-        Set<Path> matchedAdded = new HashSet<>();
-        Set<Path> matchedRemoved = new HashSet<>();
+        Set<T> matchedAdded = new HashSet<>();
+        Set<T> matchedRemoved = new HashSet<>();
 
-        for (Path rem : removed) {
-            Path bestMatch = null;
+        for (T rem : removed) {
+            T bestMatch = null;
             int bestScore = Integer.MAX_VALUE;
 
-            for (Path add : added) {
+            for (T add : added) {
                 int score = distance.apply(rem.toString(), add.toString());
                 if (score < bestScore) {
                     bestScore = score;

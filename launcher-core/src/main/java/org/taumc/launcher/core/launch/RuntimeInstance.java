@@ -350,9 +350,11 @@ public class RuntimeInstance {
 
         Reconciler reconciler = new Reconciler(this.instancePath, this.components.getComponents(), this.getMetadataService(), this.progressProvider);
 
-        var output = reconciler.runReconciliation(ReconciliationOptions.builder().build());
+        try (var output = reconciler.runReconciliation(ReconciliationOptions.builder().build())) {
+            output.applyToFilesystem(getInstancePath()).join();
+            output.configureInstance(this);
+        }
 
-        output.result().instanceConfigurer().accept(this);
 
         // Start asset download asynchronously
         CompletableFuture<Void> assetsFuture = CompletableFuture.allOf(this.requestedAssetIndexes.values().stream().map(a -> CompletableFuture.runAsync(() -> {
