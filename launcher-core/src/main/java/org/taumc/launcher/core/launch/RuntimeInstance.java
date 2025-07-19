@@ -46,6 +46,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -350,7 +351,7 @@ public class RuntimeInstance {
 
         Reconciler reconciler = new Reconciler(this.instancePath, this.components.getComponents(), this.getMetadataService(), this.progressProvider);
 
-        try (var output = reconciler.runReconciliation(ReconciliationOptions.builder().build())) {
+        try (var output = reconciler.runReconciliation(ReconciliationOptions.builder().updateMode(ReconciliationOptions.UpdateMode.UPDATE_IF_MISSING).build())) {
             output.applyToFilesystem(getInstancePath()).join();
             output.configureInstance(this);
         }

@@ -39,6 +39,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
 import static org.taumc.launcher.core.meta.curseforge.CurseForgeMetaRepository.THROTTLER;
+import static org.taumc.launcher.core.reconciler.ReconciliationHelpers.fileNeedsUpdate;
 
 public record CurseForgeModComponent(Mod mod, File file) implements ReconcilableGameComponent {
     private static final Logger LOGGER = LoggerFactory.getLogger(CurseForgeModComponent.class);
@@ -89,27 +90,15 @@ public record CurseForgeModComponent(Mod mod, File file) implements Reconcilable
                 Map<InstanceFile, PathPopulator> managedPaths = new HashMap<>();
                 var overridesFolder = packContentsRoot.resolve("overrides");
                 try (Stream<Path> stream = Files.find(packContentsRoot, Integer.MAX_VALUE, (path, attrs) -> path.startsWith(overridesFolder) && !attrs.isDirectory())) {
-                    stream.forEach(entry -> {
-                        InstanceFile file = InstanceFile.fromPathString(overridesFolder.relativize(entry).toString());
+                    stream.forEach(overrideInZip -> {
+                        InstanceFile file = InstanceFile.fromPathString(overridesFolder.relativize(overrideInZip).toString());
 
-                        managedPaths.put(file, entryPath -> {
-                            boolean needCopy = false;
+                        managedPaths.put(file, targetOnDisk -> {
+                            if (fileNeedsUpdate(overrideInZip, targetOnDisk, options.updateMode())) {
+                                Files.createDirectories(targetOnDisk.getParent());
 
-                            try {
-                                if (Files.size(entryPath) != Files.size(entry)) {
-                                    needCopy = true;
-                                }
-                            } catch (NoSuchFileException e) {
-                                needCopy = true;
-                            } catch (IOException e) {
-                                throw new RuntimeException(e);
-                            }
-
-                            if (needCopy) {
-                                Files.createDirectories(entryPath.getParent());
-
-                                try (var in = Files.newInputStream(entry)) {
-                                    Files.copy(in, entryPath, StandardCopyOption.REPLACE_EXISTING);
+                                try (var in = Files.newInputStream(overrideInZip)) {
+                                    Files.copy(in, targetOnDisk, StandardCopyOption.REPLACE_EXISTING);
                                 }
                             }
                         });
@@ -126,20 +115,12 @@ public record CurseForgeModComponent(Mod mod, File file) implements Reconcilable
         }
     }
 
-    private CompletableFuture<ReconciliationResult> reconcileFile(CurseForgeClass fileType, Path filePath, ReconcilableInstance instance, ReconciliationOptions options) {
+    private CompletableFuture<ReconciliationResult> reconcileFile(CurseForgeClass fileType, Path cfFilePath, ReconcilableInstance instance, ReconciliationOptions options) {
         InstanceFile destinationFile = new InstanceFile(fileType.subfolder()).resolve(file.fileName());
         return CompletableFuture.completedFuture(new ReconciliationResult(Map.of(destinationFile, destinationPath -> {
-            boolean needUpdate = false;
-            try {
-                if (Files.size(destinationPath) != file.fileLength()) {
-                    needUpdate = true;
-                }
-            } catch (NoSuchFileException e) {
-                needUpdate = true;
-            }
-            if (needUpdate) {
+            if (fileNeedsUpdate(cfFilePath, destinationPath, options.updateMode())) {
                 Files.createDirectories(destinationPath.getParent());
-                Files.copy(filePath, destinationPath);
+                Files.copy(cfFilePath, destinationPath, StandardCopyOption.REPLACE_EXISTING);
             }
         }), i -> {}, null));
     }

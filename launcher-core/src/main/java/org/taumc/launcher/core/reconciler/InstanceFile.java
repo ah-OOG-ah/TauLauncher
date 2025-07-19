@@ -17,6 +17,18 @@ public record InstanceFile(InstanceFile parent, String name) {
         return new InstanceFile(this, name);
     }
 
+    public static InstanceFile fromPath(Path nioPath) {
+        InstanceFile path = null;
+        for (int i = 0; i < nioPath.getNameCount(); i++) {
+            String s = nioPath.getName(i).toString();
+            if (s.isEmpty()) {
+                continue;
+            }
+            path = new InstanceFile(path, s);
+        }
+        return path;
+    }
+
     public static InstanceFile fromPathString(String pathStr) {
         String[] components = pathStr.split("/");
         InstanceFile path = null;

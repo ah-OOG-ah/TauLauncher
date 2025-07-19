@@ -14,21 +14,19 @@ public class TestLauncher {
     public static void main(String[] args) throws Exception {
         Path instanceDir = Paths.get("/tmp/my-test-instance/minecraft");
         Files.createDirectories(instanceDir);
-        for (int i = 0; i < 1000; i++) {
-            RuntimeInstance instance = new RuntimeInstance() {
-                @Override
-                protected void configureProcessBuilder(ProcessBuilder builder) {
-                    builder.inheritIO();
-                }
-            };
-            instance.setInstancePath(instanceDir);
-            instance.getMetadataService().addRepository(HTTPMetaRepository.prism());
-            instance.getMetadataService().addRepository(new CurseForgeMetaRepository());
-            instance.getMetadataService().updateIndex();
-            instance.addComponent(new ComponentCoordinate.Simple("com.curseforge.projects.1039252", "6707705"));
-            instance.setLaunchAccount(new OfflineAccount("Dev"));
-            instance.launch();
-            instance.getCurrentProcess().destroyForcibly();
-        }
+        RuntimeInstance instance = new RuntimeInstance() {
+            @Override
+            protected void configureProcessBuilder(ProcessBuilder builder) {
+                builder.inheritIO();
+            }
+        };
+        instance.setInstancePath(instanceDir);
+        instance.getMetadataService().addRepository(HTTPMetaRepository.prism());
+        instance.getMetadataService().addRepository(new CurseForgeMetaRepository());
+        instance.getMetadataService().updateIndex();
+        instance.addComponent(new ComponentCoordinate.Simple("com.curseforge.projects.1039252", "6707705"));
+        instance.setLaunchAccount(new OfflineAccount("Dev"));
+        instance.launch();
+        instance.getCurrentProcess().destroyForcibly();
     }
 }

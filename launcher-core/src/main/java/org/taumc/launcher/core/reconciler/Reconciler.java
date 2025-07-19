@@ -12,15 +12,19 @@ import org.taumc.launcher.core.meta.json.Requirement;
 import org.taumc.launcher.core.progress.ProgressProvider;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class Reconciler implements ReconcilableInstance {
     private static final Logger LOGGER = LoggerFactory.getLogger(RuntimeInstance.class);
@@ -113,7 +117,18 @@ public class Reconciler implements ReconcilableInstance {
             }
         }
 
+        public Set<Path> computeUnmanagedPaths(Path instancePath) throws IOException {
+            var managedPaths = result.managedPaths();
+            try (Stream<Path> stream = Files.find(instancePath, Integer.MAX_VALUE, (path, attrs) -> !attrs.isDirectory())) {
+                return stream.filter(p -> {
+                    Path relativePath = instancePath.relativize(p);
+                    return !managedPaths.containsKey(InstanceFile.fromPath(relativePath));
+                }).collect(Collectors.toUnmodifiableSet());
+            }
+        }
+
         public CompletableFuture<Void> applyToFilesystem(Path instancePath) {
+            long applicationStart = System.nanoTime();
             var futureList = result.managedPaths().entrySet().stream().map(entry -> CompletableFuture.runAsync(() -> {
                 try {
                     Path targetPath = entry.getKey().toPath(instancePath);
@@ -122,7 +137,10 @@ public class Reconciler implements ReconcilableInstance {
                     throw new RuntimeException(e);
                 }
             })).toList();
-            return CompletableFuture.allOf(futureList.toArray(new CompletableFuture[0]));
+            return CompletableFuture.allOf(futureList.toArray(new CompletableFuture[0])).whenComplete((c, t) -> {
+                long runtime = System.nanoTime() - applicationStart;
+                LOGGER.info("Applying reconciler output to filesystem took {} ms", TimeUnit.NANOSECONDS.toMillis(runtime));
+            });
         }
 
         @Override
