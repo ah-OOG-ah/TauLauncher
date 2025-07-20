@@ -1,11 +1,13 @@
 package org.taumc.launcher.core.mods.curseforge;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.taumc.launcher.core.meta.component.ComponentMetaInfo;
 
 import java.util.List;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record Mod(int id, int classId, String name, String slug, Links links, String summary, int downloadCount, List<Author> authors, Logo logo) implements org.taumc.launcher.core.mods.Mod {
+public record Mod(int id, int classId, String name, String slug, Links links, String summary, int downloadCount, List<Author> authors, Logo logo)
+        implements org.taumc.launcher.core.mods.Mod, ComponentMetaInfo {
     @Override
     public String smallIconUrl() {
         if (logo != null) {
@@ -18,6 +20,11 @@ public record Mod(int id, int classId, String name, String slug, Links links, St
     @Override
     public String modId() {
         return String.valueOf(id);
+    }
+
+    @Override
+    public boolean isUserInstallable() {
+        return true;
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

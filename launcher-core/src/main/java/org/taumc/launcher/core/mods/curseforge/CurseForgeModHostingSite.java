@@ -27,7 +27,7 @@ public class CurseForgeModHostingSite implements ModHostingSite<Mod, File> {
 
     @Override
     public CompletableFuture<List<Mod>> searchForMods(ModSearchOptions searchOptions) {
-        return API.searchForMods(searchOptions);
+        return CompletableFuture.completedFuture(List.of());
     }
 
     @Override

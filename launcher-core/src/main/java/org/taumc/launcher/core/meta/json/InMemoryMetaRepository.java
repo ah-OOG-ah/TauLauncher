@@ -1,6 +1,7 @@
 package org.taumc.launcher.core.meta.json;
 
 import org.taumc.launcher.core.meta.component.ComponentMetaInfo;
+import org.taumc.launcher.core.meta.component.ComponentSearchQuery;
 import org.taumc.launcher.core.meta.component.GameComponent;
 
 import java.io.IOException;
@@ -48,7 +49,7 @@ public abstract class InMemoryMetaRepository implements MetaRepository {
     }
 
     @Override
-    public CompletableFuture<SequencedCollection<? extends GameComponent>> getKnownVersions(String pkgName) {
+    public CompletableFuture<SequencedCollection<? extends GameComponent>> getKnownVersions(String pkgName, ComponentSearchQuery searchQuery) {
         return getInitializationFuture().thenApply($ -> {
             var idx = packageIndexes.get(pkgName);
             if (idx == null) {

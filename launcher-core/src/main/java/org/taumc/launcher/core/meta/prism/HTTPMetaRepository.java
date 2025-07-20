@@ -8,6 +8,7 @@ import com.github.mizosoft.methanol.Methanol;
 import org.taumc.launcher.core.http.DownloadThrottler;
 import org.taumc.launcher.core.http.JacksonBodyHandler;
 import org.taumc.launcher.core.meta.component.ComponentMetaInfo;
+import org.taumc.launcher.core.meta.component.ComponentSearchQuery;
 import org.taumc.launcher.core.meta.component.GameComponent;
 import org.taumc.launcher.core.meta.component.ReconcilableGameComponent;
 import org.taumc.launcher.core.meta.json.JsonDecoder;
@@ -65,7 +66,7 @@ public final class HTTPMetaRepository implements MetaRepository {
     }
 
     @Override
-    public CompletableFuture<SequencedCollection<? extends GameComponent>> getKnownVersions(String pkgName) {
+    public CompletableFuture<SequencedCollection<? extends GameComponent>> getKnownVersions(String pkgName, ComponentSearchQuery searchQuery) {
         return obtainFile(url + "/" + pkgName + "/index.json", new TypeReference<PackageIndex>() {
         }).thenApply(r -> {
             return r.body().versions();

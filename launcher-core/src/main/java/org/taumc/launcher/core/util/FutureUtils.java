@@ -41,4 +41,14 @@ public class FutureUtils {
     public static <T> CompletableFuture<T> anySuccessful(CompletableFuture<? extends T>... futures) {
         return anySuccessful(Arrays.asList(futures));
     }
+
+    public static <T> CompletableFuture<List<T>> allOfWithResults(Collection<CompletableFuture<T>> futures) {
+        CompletableFuture<Void> allDone = CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+
+        return allDone.thenApply(v ->
+                futures.stream()
+                        .map(CompletableFuture::join)
+                        .toList()
+        );
+    }
 }

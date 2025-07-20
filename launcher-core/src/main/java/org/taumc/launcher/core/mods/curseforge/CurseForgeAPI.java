@@ -7,10 +7,12 @@ import com.github.mizosoft.methanol.Methanol;
 import org.taumc.launcher.core.constants.APIKeys;
 import org.taumc.launcher.core.http.JacksonBodyHandler;
 import org.taumc.launcher.core.http.URIBuilder;
+import org.taumc.launcher.core.meta.component.ComponentSearchQuery;
 import org.taumc.launcher.core.meta.json.JsonDecoder;
 import org.taumc.launcher.core.meta.json.MMCPack;
 import org.taumc.launcher.core.mods.ModSearchOptions;
 import org.taumc.launcher.core.mods.ProjectType;
+import org.taumc.launcher.core.util.EnumUtils;
 import org.taumc.launcher.core.util.StreamUtils;
 
 import java.io.Closeable;
@@ -24,8 +26,10 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 public class CurseForgeAPI implements Closeable {
@@ -83,24 +87,27 @@ public class CurseForgeAPI implements Closeable {
         };
     }
 
-    public CompletableFuture<List<Mod>> searchForMods(ModSearchOptions modSearchOptions) {
+    public CompletableFuture<List<Mod>> searchForMods(ComponentSearchQuery query) {
         var params = new HashMap<String, Object>();
         params.put("gameId", "432");
         params.put("sortField", 1);
         params.put("sortOrder", "desc");
-        params.put("classId", getClassId(modSearchOptions.projectType));
-        if (!modSearchOptions.filterText.isBlank()) {
-            params.put("searchFilter", modSearchOptions.filterText);
+        if (query.projectType() != null) {
+            params.put("classId", getClassId(query.projectType()));
+        }
+        if (query.name() != null) {
+            params.put("searchFilter", query.name());
         }
         List<ModLoaderType> loaderTypes;
-        if (modSearchOptions.componentFilter != null) {
-            modSearchOptions.componentFilter.stream().filter(c -> c.uid().equals("net.minecraft")).findFirst().ifPresent(mc -> {
-                params.put("gameVersion", mc.version());
-            });
-            loaderTypes = modSearchOptions.componentFilter.stream().map(c -> MOD_LOADER_TYPE_MAP.get(c.uid())).filter(Objects::nonNull).toList();
+        if (query.modLoaders() != null) {
+            loaderTypes = query.modLoaders().stream().map(s -> EnumUtils.valueOfOptional(ModLoaderType.class, s.toLowerCase(Locale.ROOT))).flatMap(Optional::stream).toList();
         } else {
             loaderTypes = List.of(ModLoaderType.ANY);
         }
+        if (query.gameVersion() != null) {
+            params.put("gameVersion", query.gameVersion());
+        }
+
         // Execute one search per compatible mod loader, then join the lists by mod ID to get a non-duplicated listing
         List<CompletableFuture<List<Mod>>> futures = new ArrayList<>();
         for (var type : loaderTypes) {

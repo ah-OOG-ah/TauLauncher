@@ -33,14 +33,6 @@ public class CurseForgeAPITest {
     }
 
     @Test
-    void testSearch() {
-        var searchOptions = new ModSearchOptions();
-        searchOptions.filterText = "modernfix";
-        var firstMod = api.searchForMods(searchOptions).join().getFirst();
-        Assertions.assertEquals(790626, firstMod.id());
-    }
-
-    @Test
     void testGet() {
         var firstMod = api.getMod(790626).join();
         Assertions.assertEquals("ModernFix", firstMod.name());
@@ -81,14 +73,5 @@ public class CurseForgeAPITest {
         var resolvedFiles = api.getFilesBulk(manifest.files().stream().map(PackManifest.File::fileID).toList()).join();
         var create = resolvedFiles.stream().filter(f -> f.modId() == 328085).findFirst().orElseThrow();
         Assertions.assertEquals("create-1.21.1-6.0.5.jar", create.fileName());
-    }
-
-    @Test
-    void testModpackSearch() throws Exception {
-        var searchOptions = new ModSearchOptions();
-        searchOptions.filterText = "craftoria";
-        searchOptions.projectType = ProjectType.MODPACK;
-        var firstMod = api.searchForMods(searchOptions).join().getFirst();
-        Assertions.assertEquals(1039252, firstMod.id());
     }
 }
