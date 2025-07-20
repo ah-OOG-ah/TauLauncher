@@ -7,15 +7,21 @@ import org.kordamp.ikonli.fontawesome6.FontAwesomeSolid;
 import org.kordamp.ikonli.swing.FontIcon;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.taumc.launcher.core.meta.component.ReconcilableGameComponent;
 import org.taumc.launcher.core.meta.json.ComponentCoordinate;
 import org.taumc.launcher.core.meta.json.MetadataService;
 import org.taumc.launcher.core.qsettings.Settings;
+import org.taumc.launcher.core.reconciler.ReconciliationHelpers;
+import org.taumc.launcher.core.reconciler.intervention.ConsoleInterventionHandler;
+import org.taumc.launcher.core.reconciler.tree.ComponentTreeNode;
+import org.taumc.launcher.gui.SwingHelpers;
 import org.taumc.launcher.gui.UIPaths;
 import org.taumc.launcher.core.meta.json.MMCPack;
 import org.taumc.launcher.gui.components.MultiSectionFrame;
 import org.taumc.launcher.gui.icon.IconRegistry;
 import org.taumc.launcher.gui.launch.LaunchHandler;
 import org.taumc.launcher.gui.launch.LogViewFrame;
+import org.taumc.launcher.gui.launch.ProgressDialog;
 import org.taumc.launcher.gui.screens.home.HomeView;
 
 import javax.swing.*;
@@ -30,7 +36,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
-import java.util.stream.IntStream;
 
 public class InstanceEditView extends MultiSectionFrame {
     private static final Logger LOGGER = LoggerFactory.getLogger(InstanceEditView.class);
@@ -41,12 +46,14 @@ public class InstanceEditView extends MultiSectionFrame {
     private final String instance;
     private final Path instancePath;
     private final Path mmcPackJson, instanceCfgPath;
-    private final DefaultListModel<ComponentCoordinate.Simple> componentList = new DefaultListModel<>();
+    private final DefaultListModel<ReconcilableGameComponent> componentList = new DefaultListModel<>();
     private final Settings instanceCfg;
 
     private final Map<ComponentCoordinate.Simple, CompletableFuture<String>> componentFutureMap = new HashMap<>();
 
     private final CompletableFuture<MetadataService> metadataService;
+
+    private final ProgressDialog progressDialog;
 
     private record Page(String name, Function<InstanceEditView, JPanel> builder) {}
 
@@ -60,11 +67,6 @@ public class InstanceEditView extends MultiSectionFrame {
         this.mmcPackJson = this.instancePath.resolve("mmc-pack.json");
         this.instanceCfgPath = this.instancePath.resolve("instance.cfg");
         this.instanceCfg = new Settings();
-        try {
-            this.readCurrentConfig();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
 
         var icon = IconRegistry.findIcon(this.instanceCfg.getValue("iconKey").orElse("default_instance"),this.instancePath);
 
@@ -81,18 +83,18 @@ public class InstanceEditView extends MultiSectionFrame {
             return service;
         });
 
+        this.progressDialog = new ProgressDialog(this);
+
         this.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
         // Add pages
         var pages = List.of(
                 new Page("Components", InstanceEditView::createComponentsPanel),
                 new Page("Memory & JVM", InstanceEditView::createMemoryPanel),
-                new Page("Mods", InstanceEditView::createModsPanel),
                 new Page("Logs", InstanceEditView::mountLogsPanel)
         );
         pages.forEach(page -> this.addPage(page.name, () -> page.builder.apply(this)));
 
-        this.setVisible(true);
         OPEN_EDIT_VIEWS.put(instance, this);
         this.addWindowListener(new WindowAdapter() {
             @Override
@@ -103,6 +105,14 @@ public class InstanceEditView extends MultiSectionFrame {
                 owner.refreshSidebar();
             }
         });
+
+        try {
+            this.readCurrentConfig();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        this.setVisible(true);
     }
 
     public static boolean isLocked(String instance) {
@@ -123,7 +133,7 @@ public class InstanceEditView extends MultiSectionFrame {
         var mapper = new ObjectMapper();
         var mmcPack = mapper.readValue(this.mmcPackJson.toFile(), MMCPack.class);
         this.componentList.clear();
-        this.componentList.addAll(mmcPack.components());
+        this.componentList.addAll(mmcPack.components().stream().map(coord -> this.metadataService.thenCompose(s -> s.getComponent(coord)).join()).toList());
 
         this.instanceCfg.clear();
         if (Files.exists(this.instanceCfgPath)) {
@@ -131,16 +141,12 @@ public class InstanceEditView extends MultiSectionFrame {
         }
     }
 
-    private List<ComponentCoordinate.Simple> getCurrentComponents() {
-        return IntStream.range(0, this.componentList.size()).mapToObj(this.componentList::getElementAt).toList();
-    }
-
     private void saveCurrentConfig() {
         var mapper = new ObjectMapper();
         DefaultPrettyPrinter prettyPrinter = new DefaultPrettyPrinter();
         prettyPrinter.indentArraysWith(DefaultIndenter.SYSTEM_LINEFEED_INSTANCE);
         prettyPrinter.indentObjectsWith(DefaultIndenter.SYSTEM_LINEFEED_INSTANCE);
-        var mmcPack = new MMCPack(1, this.getCurrentComponents());
+        var mmcPack = new MMCPack(1, SwingHelpers.immutableListOf(componentList).stream().map(ComponentCoordinate.Simple::new).toList());
         try {
             mapper.writer(prettyPrinter).writeValue(this.mmcPackJson.toFile(), mmcPack);
         } catch (IOException e) {
@@ -173,7 +179,7 @@ public class InstanceEditView extends MultiSectionFrame {
 
         panel.add(sidebar, BorderLayout.EAST);
 
-        JList<ComponentCoordinate.Simple> components = new JList<>(componentList) {
+        JList<ReconcilableGameComponent> components = new JList<>(componentList) {
             final String[] messageLines = {
                     "No components are currently installed.",
                     "Add components using the + button on the right."
@@ -234,17 +240,8 @@ public class InstanceEditView extends MultiSectionFrame {
             public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
                 super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
 
-                if (value instanceof ComponentCoordinate.Simple component) {
-                    var future = componentFutureMap.computeIfAbsent(component, coord -> metadataService.thenComposeAsync(meta -> {
-                        return meta.getComponent(coord.uid(), coord.version());
-                    }).handle((c, t) -> {
-                        if (c != null) {
-                            return c.name() + " " + c.version();
-                        } else {
-                            return coord.uid() + " " + coord.version();
-                        }
-                    }).whenCompleteAsync((s, t) -> components.repaint(), SwingUtilities::invokeLater));
-                    setText(future.getNow(component.uid() + " " + component.version()));
+                if (value instanceof ReconcilableGameComponent component) {
+                    setText(component.name() + " " + component.friendlyVersion());
                 }
 
                 return this;
@@ -264,20 +261,19 @@ public class InstanceEditView extends MultiSectionFrame {
                 saveCurrentConfig();
             }
         });
-        /*
-        editButton.addActionListener(e -> {
-            var current = components.getSelectedValue();
-            new NewComponentDialog(this, this.getCurrentComponents(), coordinate -> {
-                componentList.removeElement(current);
-                componentList.addElement(new ComponentCoordinate.Simple(coordinate.uid(), coordinate.version()));
-                saveCurrentConfig();
-            }, current);
-        });
 
-         */
         addButton.addActionListener(e -> {
-            var view = new ComponentSearchView(this.metadataService.join().getRepositories(), newComponents -> {
-                newComponents.forEach(componentList::addElement);
+            var metaService = this.metadataService.join();
+            var view = new ComponentSearchView(metaService.getRepositories(), newComponents -> {
+                var oldRoot = new ComponentTreeNode(null, SwingHelpers.immutableListOf(componentList).stream().map(ComponentTreeNode::new).toList());
+                var newRoot = oldRoot.clone();
+                newComponents.forEach(coord -> newRoot.addChild(new ComponentTreeNode(metaService.getComponent(coord).join())));
+                ReconciliationHelpers.migrateInstance(LaunchHandler.computeMinecraftFolder(instancePath),
+                        oldRoot,
+                        newRoot,
+                        metaService,
+                        this.progressDialog,
+                        new ConsoleInterventionHandler());
                 saveCurrentConfig();
                 refreshCurrentPanel();
                 return CompletableFuture.completedFuture(null);
@@ -291,10 +287,6 @@ public class InstanceEditView extends MultiSectionFrame {
 
     private JPanel createMemoryPanel() {
         return new MemorySettingsPanel(this.instanceCfg);
-    }
-
-    private JPanel createModsPanel() {
-        return new ModManagerPanel(instancePath, this, this.componentList);
     }
 
     private JPanel mountLogsPanel() {

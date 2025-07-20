@@ -2,6 +2,11 @@ package org.taumc.launcher.core.reconciler;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.taumc.launcher.core.meta.json.MetadataService;
+import org.taumc.launcher.core.progress.ProgressProvider;
+import org.taumc.launcher.core.reconciler.intervention.UserInterventionHandler;
+import org.taumc.launcher.core.reconciler.tree.ComponentTreeNode;
+import org.taumc.launcher.core.util.SetUtils;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -31,5 +36,24 @@ public class ReconciliationHelpers {
         }
 
         return needCopy;
+    }
+
+    public static void migrateInstance(Path instancePath, ComponentTreeNode oldRoot, ComponentTreeNode newRoot, MetadataService metadataService, ProgressProvider progressProvider, UserInterventionHandler interventionHandler) {
+        var oldReconciler = new Reconciler(oldRoot, metadataService, progressProvider, interventionHandler);
+        var newReconciler = new Reconciler(newRoot, metadataService, progressProvider, interventionHandler);
+        try (var oldOutput = oldReconciler.runReconciliation(ReconciliationOptions.builder().updateMode(ReconciliationOptions.UpdateMode.UPDATE_IF_MISSING).build());
+             var newOutput = newReconciler.runReconciliation(ReconciliationOptions.builder().updateMode(ReconciliationOptions.UpdateMode.UPDATE_IF_DIFFERENT).build())) {
+            var difference = SetUtils.diffSets(oldOutput.result().managedPaths().keySet(), newOutput.result().managedPaths().keySet());
+
+            // Apply the new reconciler's output
+            newOutput.applyToFilesystem(instancePath);
+
+            // Delete files that are no longer needed
+            for (var remove : difference.removed()) {
+                Files.deleteIfExists(remove.toPath(instancePath));
+            }
+        } catch (Exception e) {
+            LOGGER.error("Exception occurred during instance migration", e);
+        }
     }
 }

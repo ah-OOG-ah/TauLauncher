@@ -21,8 +21,13 @@ public class ComponentTreeNode implements Iterable<ComponentTreeNode>, Cloneable
     final ReconcilableGameComponent component;
     final List<ComponentTreeNode> children = new ArrayList<>();
 
-    public ComponentTreeNode(@Nullable ReconcilableGameComponent component) {
+    public ComponentTreeNode(@Nullable ReconcilableGameComponent component, List<ComponentTreeNode> children) {
         this.component = component;
+        this.children.addAll(children);
+    }
+
+    public ComponentTreeNode(@Nullable ReconcilableGameComponent component) {
+        this(null, List.of());
     }
 
     public void addChild(ComponentTreeNode child) {

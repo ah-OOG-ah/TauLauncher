@@ -1,6 +1,7 @@
 package org.taumc.launcher.core.reconciler;
 
 import lombok.Getter;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.taumc.launcher.core.launch.RuntimeInstance;
@@ -41,16 +42,13 @@ public class Reconciler implements ReconcilableInstance {
 
     @Getter
     private final ComponentTreeNode componentRoot;
-    @Getter
-    private final Path instancePath;
     private final MetadataService metadataService;
     @Getter
     private final ProgressProvider progressProvider;
 
     private final UserInterventionHandler interventionHandler;
 
-    public Reconciler(Path instancePath, ComponentTreeNode tree, MetadataService metadataService, ProgressProvider progressProvider, UserInterventionHandler interventionHandler) {
-        this.instancePath = instancePath;
+    public Reconciler(ComponentTreeNode tree, MetadataService metadataService, ProgressProvider progressProvider, UserInterventionHandler interventionHandler) {
         this.metadataService = metadataService;
         this.progressProvider = progressProvider;
         this.interventionHandler = interventionHandler;
