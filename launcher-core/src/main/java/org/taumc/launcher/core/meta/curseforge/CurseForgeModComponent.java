@@ -35,6 +35,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -141,7 +142,7 @@ public record CurseForgeModComponent(Mod mod, File file) implements Reconcilable
             });
         });
         return downloadFuture.thenComposeAsync(cachedFilePath -> {
-            if (fileType == CurseForgeClass.MODPACKS) {
+            if (fileType == CurseForgeClass.MODPACK) {
                 return reconcileModpack(cachedFilePath, instance, options);
             } else {
                 return reconcileFile(fileType, cachedFilePath, instance, options);
@@ -161,6 +162,12 @@ public record CurseForgeModComponent(Mod mod, File file) implements Reconcilable
 
     @Override
     public @NotNull String toString() {
-        return "CurseForge file " + file.id() + " from project " + mod.id();
+        String fileTypeName;
+        try {
+            fileTypeName = CurseForgeClass.byClassId(mod.classId()).name().toLowerCase(Locale.ROOT);
+        } catch (Exception e) {
+            fileTypeName = "file";
+        }
+        return mod.name() + " (CF " + fileTypeName + " " + file.id() + " from project " + mod.id() + ")";
     }
 }

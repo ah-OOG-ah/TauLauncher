@@ -13,12 +13,12 @@ import java.util.stream.Collectors;
 @Getter
 @Accessors(fluent = true)
 public enum CurseForgeClass {
-    MODS(6, "mods", "mc-mods"),
-    RESOURCEPACKS(12, "resourcepacks", "texture-packs"),
-    WORLDS(17, "worlds", null),
-    SHADERPACKS(6552, "shaderpacks", "shaders"),
-    DATAPACKS(6945, "datapacks", "data-packs"),
-    MODPACKS(4471, null, "modpacks");
+    MOD(6, "mods", "mc-mods"),
+    RESOURCEPACK(12, "resourcepacks", "texture-packs"),
+    WORLD(17, "worlds", null),
+    SHADERPACK(6552, "shaderpacks", "shaders"),
+    DATAPACK(6945, "datapacks", "data-packs"),
+    MODPACK(4471, null, "modpacks");
 
     private final int classId;
     private final String subfolder;
