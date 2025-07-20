@@ -14,7 +14,7 @@ import java.util.Optional;
 import java.util.Set;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record PackageIndex(String name, String uid, List<Version> versions, Metadata tauMetadata) {
+public record PackageIndex(String name, String uid, List<Version> versions, Metadata tauMetadata) implements ComponentMetaInfo {
     private static final Set<String> TOP_LEVEL_COMPONENTS = Set.of("net.minecraft", "net.minecraftforge", "net.fabricmc.fabric-loader", "net.neoforged");
 
     @JsonCreator
@@ -33,18 +33,9 @@ public record PackageIndex(String name, String uid, List<Version> versions, Meta
         return versions.stream().filter(v -> version.equals(v.version)).findFirst();
     }
 
-    public ComponentMetaInfo getMetadata() {
-        return new ComponentMetaInfo() {
-            @Override
-            public String name() {
-                return name;
-            }
-
-            @Override
-            public boolean isUserInstallable() {
-                return tauMetadata != null ? tauMetadata.isUserInstallable() : TOP_LEVEL_COMPONENTS.contains(uid);
-            }
-        };
+    @Override
+    public boolean isUserInstallable() {
+        return tauMetadata != null ? tauMetadata.isUserInstallable() : TOP_LEVEL_COMPONENTS.contains(uid);
     }
 
     public record Version(

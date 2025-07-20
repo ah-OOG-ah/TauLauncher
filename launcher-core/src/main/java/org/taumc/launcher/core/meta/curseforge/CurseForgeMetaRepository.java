@@ -5,6 +5,7 @@ import org.taumc.launcher.core.http.DownloadThrottler;
 import org.taumc.launcher.core.meta.component.ComponentMetaInfo;
 import org.taumc.launcher.core.meta.component.ComponentSearchQuery;
 import org.taumc.launcher.core.meta.component.ComponentSearchResults;
+import org.taumc.launcher.core.meta.component.GameComponent;
 import org.taumc.launcher.core.meta.component.ReconcilableGameComponent;
 import org.taumc.launcher.core.meta.json.MetaRepository;
 import org.taumc.launcher.core.mods.curseforge.CurseForgeAPI;
@@ -13,6 +14,7 @@ import org.taumc.launcher.core.mods.curseforge.Mod;
 
 import java.io.IOException;
 import java.util.OptionalInt;
+import java.util.SequencedCollection;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.regex.Pattern;
@@ -65,6 +67,18 @@ public class CurseForgeMetaRepository implements MetaRepository {
     }
 
     @Override
+    public CompletableFuture<SequencedCollection<? extends GameComponent>> getKnownVersions(String pkgName, ComponentSearchQuery searchQuery) {
+        var projectId = getProjectId(pkgName);
+        if (!projectId.isPresent()) {
+            return failedFuture();
+        }
+        var mod = getMod(projectId.getAsInt());
+        return CurseForgeAPI.INSTANCE.getModFiles(projectId.getAsInt(), searchQuery).thenApply(fileList -> {
+            return fileList.stream().map(file -> new CurseForgeModComponent(mod.join(), file)).toList();
+        });
+    }
+
+    @Override
     public CompletableFuture<ComponentSearchResults> search(ComponentSearchQuery searchQuery) {
         return CurseForgeAPI.INSTANCE.searchForMods(searchQuery).thenApply(modList -> {
             return new ComponentSearchResults(modList.stream().map(mod -> new ComponentSearchResults.Result(getUidFromProjectId(mod.id()), mod)).toList());
@@ -74,5 +88,10 @@ public class CurseForgeMetaRepository implements MetaRepository {
     @Override
     public void close() {
 
+    }
+
+    @Override
+    public String toString() {
+        return "CurseForge";
     }
 }

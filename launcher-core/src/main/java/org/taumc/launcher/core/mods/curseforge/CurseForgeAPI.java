@@ -145,16 +145,16 @@ public class CurseForgeAPI implements Closeable {
                 .thenApply(r -> r.body().data());
     }
 
-    public CompletableFuture<List<File>> getModFiles(int modId, ModSearchOptions modSearchOptions) {
+    public CompletableFuture<List<File>> getModFiles(int modId, ComponentSearchQuery query) {
         var params = new HashMap<String, Object>();
         List<ModLoaderType> loaderTypes;
-        if (modSearchOptions.componentFilter != null) {
-            modSearchOptions.componentFilter.stream().filter(c -> c.uid().equals("net.minecraft")).findFirst().ifPresent(mc -> {
-                params.put("gameVersion", mc.version());
-            });
-            loaderTypes = modSearchOptions.componentFilter.stream().map(c -> MOD_LOADER_TYPE_MAP.get(c.uid())).filter(Objects::nonNull).toList();
+        if (query.modLoaders() != null) {
+            loaderTypes = query.modLoaders().stream().map(s -> EnumUtils.valueOfOptional(ModLoaderType.class, s.toLowerCase(Locale.ROOT))).flatMap(Optional::stream).toList();
         } else {
             loaderTypes = List.of(ModLoaderType.ANY);
+        }
+        if (query.gameVersion() != null) {
+            params.put("gameVersion", query.gameVersion());
         }
         // Execute one search per compatible mod loader, then join the lists by mod ID to get a non-duplicated listing
         List<CompletableFuture<List<File>>> futures = new ArrayList<>();

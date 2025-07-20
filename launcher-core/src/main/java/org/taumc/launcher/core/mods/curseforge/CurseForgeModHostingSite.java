@@ -32,7 +32,7 @@ public class CurseForgeModHostingSite implements ModHostingSite<Mod, File> {
 
     @Override
     public CompletableFuture<List<File>> getModFiles(Mod mod, ModSearchOptions modSearchOptions) {
-        return API.getModFiles(mod.id(), modSearchOptions);
+        return CompletableFuture.completedFuture(List.of());
     }
 
     @Override
@@ -75,6 +75,7 @@ public class CurseForgeModHostingSite implements ModHostingSite<Mod, File> {
                     } catch (InterruptedException e) {
                         throw new RuntimeException(e);
                     }
+                    /*
                     updates.add(API.getModFiles(match.file().modId(), searchOptions).whenComplete((c, t) -> semaphore.release()).thenApply(fileList -> {
                         var latest = fileList.stream().filter(f -> f.downloadUrl() != null).findFirst();
                         if (latest.isEmpty() || latest.get().id() == match.file().id()) {
@@ -82,6 +83,8 @@ public class CurseForgeModHostingSite implements ModHostingSite<Mod, File> {
                         }
                         return new ModUpdate(originalPath, latest.get());
                     }));
+
+                     */
                 }
                 return CompletableFuture.allOf(updates.toArray(new CompletableFuture[0])).thenApply($ -> updates.stream().map(CompletableFuture::join).filter(Objects::nonNull).toList());
             });

@@ -43,7 +43,7 @@ public interface MetaRepository extends Closeable {
         return getKnownPackages().thenCompose(packages -> {
             return FutureUtils.allOfWithResults(packages.stream().map(pkg -> {
                 var metaFuture = retrieveComponentMeta(pkg);
-                return metaFuture.thenApply(meta -> new ComponentSearchResults.Result(pkg, meta));
+                return metaFuture.thenApply(meta -> searchQuery.matches(meta) ? new ComponentSearchResults.Result(pkg, meta) : null);
             }).toList()).thenApply(list -> list.stream().filter(Objects::nonNull).toList());
         }).thenApply(ComponentSearchResults::new);
     }

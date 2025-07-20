@@ -12,6 +12,7 @@ import java.util.Objects;
 import java.util.SequencedCollection;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 
 public abstract class InMemoryMetaRepository implements MetaRepository {
     private final Map<String, PackageIndex> packageIndexes = new HashMap<>();
@@ -66,7 +67,7 @@ public abstract class InMemoryMetaRepository implements MetaRepository {
 
     @Override
     public CompletableFuture<ComponentMetaInfo> retrieveComponentMeta(String pkgName) {
-        return getPackageIndex(pkgName).thenApply(PackageIndex::getMetadata);
+        return getPackageIndex(pkgName).thenApply(Function.identity());
     }
 
     @Override

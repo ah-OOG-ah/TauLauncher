@@ -1,9 +1,11 @@
 package org.taumc.launcher.core.mods.curseforge;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.jetbrains.annotations.Nullable;
 import org.taumc.launcher.core.meta.component.ComponentMetaInfo;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record Mod(int id, int classId, String name, String slug, Links links, String summary, int downloadCount, List<Author> authors, Logo logo)
@@ -23,8 +25,22 @@ public record Mod(int id, int classId, String name, String slug, Links links, St
     }
 
     @Override
+    public CompletableFuture<String> description() {
+        return CurseForgeAPI.INSTANCE.getModDescription(id);
+    }
+
+    @Override
     public boolean isUserInstallable() {
         return true;
+    }
+
+    @Override
+    public @Nullable String logoUrl() {
+        if (logo != null) {
+            return logo.url();
+        } else {
+            return null;
+        }
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

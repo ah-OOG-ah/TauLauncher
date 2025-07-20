@@ -42,6 +42,8 @@ public record File(int id, int gameId, int modId, boolean isAvailable, String do
 
     @Override
     public CompletableFuture<List<? extends DownloadableFile>> getDependencies(List<ComponentCoordinate.Simple> components, Set<String> existingModIds) {
+        return CompletableFuture.completedFuture(List.of());
+        /*
         if (dependencies == null || dependencies.isEmpty()) {
             return CompletableFuture.completedFuture(List.of());
         }
@@ -58,6 +60,8 @@ public record File(int id, int gameId, int modId, boolean isAvailable, String do
                 .toList();
         return CompletableFuture.allOf(dependencyFutures.toArray(CompletableFuture[]::new))
                 .thenApply($ -> dependencyFutures.stream().map(CompletableFuture::join).flatMap(Optional::stream).toList());
+
+         */
     }
 
     @Override

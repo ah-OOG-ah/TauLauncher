@@ -47,6 +47,10 @@ public class MetadataService implements Closeable {
         }
     }
 
+    public List<MetaRepository> getRepositories() {
+        return Collections.unmodifiableList(this.repositories);
+    }
+
     public void addRepository(MetaRepository repository) {
         this.repositories.add(repository);
         this.indexed = false;

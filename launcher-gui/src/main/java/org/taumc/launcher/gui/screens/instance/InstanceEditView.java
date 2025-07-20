@@ -264,6 +264,7 @@ public class InstanceEditView extends MultiSectionFrame {
                 saveCurrentConfig();
             }
         });
+        /*
         editButton.addActionListener(e -> {
             var current = components.getSelectedValue();
             new NewComponentDialog(this, this.getCurrentComponents(), coordinate -> {
@@ -272,12 +273,16 @@ public class InstanceEditView extends MultiSectionFrame {
                 saveCurrentConfig();
             }, current);
         });
+
+         */
         addButton.addActionListener(e -> {
-            new NewComponentDialog(this, this.getCurrentComponents(), coordinate -> {
-                componentList.addElement(new ComponentCoordinate.Simple(coordinate.uid(), coordinate.version()));
+            var view = new ComponentSearchView(this.metadataService.join().getRepositories(), newComponents -> {
+                newComponents.forEach(componentList::addElement);
                 saveCurrentConfig();
-                this.refreshCurrentPanel();
+                refreshCurrentPanel();
+                return CompletableFuture.completedFuture(null);
             });
+            view.setVisible(true);
         });
         panel.add(components, BorderLayout.CENTER);
 

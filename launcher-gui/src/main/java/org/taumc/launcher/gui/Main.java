@@ -5,6 +5,7 @@ import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.taumc.launcher.core.auth.AccountService;
+import org.taumc.launcher.core.meta.curseforge.CurseForgeMetaRepository;
 import org.taumc.launcher.core.meta.fabric.OrnitheIntermediaryMetaRepository;
 import org.taumc.launcher.core.meta.prism.BuiltinMetaRepository;
 import org.taumc.launcher.core.meta.json.MetaRepository;
@@ -76,6 +77,6 @@ public class Main {
     }
 
     public static List<MetaRepository> getDefaultRepositories() {
-        return List.of(HTTPMetaRepository.prism(), new BuiltinMetaRepository(), new OrnitheIntermediaryMetaRepository());
+        return List.of(HTTPMetaRepository.prism(), new BuiltinMetaRepository(), new OrnitheIntermediaryMetaRepository(), new CurseForgeMetaRepository());
     }
 }

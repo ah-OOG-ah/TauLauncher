@@ -91,13 +91,16 @@ public final class HTTPMetaRepository implements MetaRepository {
             return CompletableFuture.failedFuture(new IOException("Filtered"));
         }
         return obtainFile(url + "/" + pkgName + "/index.json", new TypeReference<PackageIndex>() {
-        }).thenApply(index -> {
-            return index.body().getMetadata();
-        });
+        }).thenApply(HttpResponse::body);
     }
 
     @Override
     public void close() {
 
+    }
+
+    @Override
+    public String toString() {
+        return url;
     }
 }
