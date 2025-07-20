@@ -8,6 +8,10 @@ public interface ComponentCoordinate {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     record Simple(String uid, String version) implements ComponentCoordinate {
+        public Simple(ComponentCoordinate coordinate) {
+            this(coordinate.uid(), coordinate.version());
+        }
+
         @Override
         public String toString() {
             return uid + "@" + version;

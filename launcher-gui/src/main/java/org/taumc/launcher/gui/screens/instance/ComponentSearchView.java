@@ -8,6 +8,7 @@ import org.taumc.launcher.core.meta.component.ComponentSearchResults;
 import org.taumc.launcher.core.meta.component.GameComponent;
 import org.taumc.launcher.core.meta.json.ComponentCoordinate;
 import org.taumc.launcher.core.meta.json.MetaRepository;
+import org.taumc.launcher.gui.SwingHelpers;
 import org.taumc.launcher.gui.components.TauLauncherFrame;
 import org.taumc.launcher.gui.icon.IconUtil;
 
@@ -47,7 +48,7 @@ public class ComponentSearchView extends TauLauncherFrame {
     private final JButton downloadButton = new JButton("Download");
     private final JButton cancelButton = new JButton("Cancel");
 
-    private final Map<String, String> selectedVersions = new HashMap<>();
+    private final Map<String, ComponentCoordinate.Simple> selectedVersions = new HashMap<>();
 
     public ComponentSearchView(Collection<MetaRepository> repositories, Function<List<ComponentCoordinate.Simple>, CompletableFuture<Void>> componentConsumer) {
         this.repositories = repositories;
@@ -111,12 +112,12 @@ public class ComponentSearchView extends TauLauncherFrame {
         selectButton.addActionListener(e -> {
             var pair = resultList.getSelectedValue();
             if (pair != null && versionDropdown.getSelectedItem() != null) {
-                String version = (String) versionDropdown.getSelectedItem();
+                GameComponent version = (GameComponent) versionDropdown.getSelectedItem();
                 var result = pair.result();
                 String label = result.metaInfo().name() + " - " + version;
                 if (!selectedVersions.containsKey(result.uid())) {
                     selectedComponentsModel.addElement(label);
-                    selectedVersions.put(result.uid(), version);
+                    selectedVersions.put(result.uid(), new ComponentCoordinate.Simple(version));
                 } else {
                     for (int i = 0; i < selectedComponentsModel.size(); i++) {
                         String item = selectedComponentsModel.get(i);
@@ -133,8 +134,7 @@ public class ComponentSearchView extends TauLauncherFrame {
         cancelButton.addActionListener(e -> this.dispose());
         downloadButton.addActionListener(ev -> {
             this.setVisible(false);
-            this.componentConsumer.apply(selectedVersions.entrySet().stream().map(e ->
-                    new ComponentCoordinate.Simple(e.getKey(), e.getValue())).toList()).whenCompleteAsync((v, t) -> {
+            this.componentConsumer.apply(List.copyOf(selectedVersions.values())).whenCompleteAsync((v, t) -> {
                 if (t != null) {
                     LOGGER.error("Error downloading mods", t);
                 }
@@ -296,7 +296,9 @@ public class ComponentSearchView extends TauLauncherFrame {
             titleLabel.setText(info.name());
 
             // Placeholder summary (replace with real description field when available)
-            summaryLabel.setText(info.summary());
+            int labelWidth = list.getWidth() - ICON_SIZE - 20 - 20;
+
+            summaryLabel.setText(SwingHelpers.ellipsize(summaryLabel.getFontMetrics(summaryLabel.getFont()), info.summary(), labelWidth));
 
             repoLabel.setText(value.repository().toString());
 
@@ -316,6 +318,17 @@ public class ComponentSearchView extends TauLauncherFrame {
             }
 
             setOpaque(true);
+
+            int availableWidth = list.getWidth() - ICON_SIZE - 30; // 30 for spacing/margin
+            if (availableWidth > 0) {
+                Dimension constraint = new Dimension(availableWidth, Short.MAX_VALUE);
+                titleLabel.setSize(constraint);
+                summaryLabel.setSize(constraint);
+
+                titleLabel.setPreferredSize(titleLabel.getPreferredSize());
+                summaryLabel.setPreferredSize(summaryLabel.getPreferredSize());
+            }
+
             return this;
         }
     }
