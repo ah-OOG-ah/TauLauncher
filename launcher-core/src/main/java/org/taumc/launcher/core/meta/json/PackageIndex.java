@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AccessLevel;
 import lombok.With;
+import org.jetbrains.annotations.NotNull;
 import org.taumc.launcher.core.meta.component.ComponentMetaInfo;
 import org.taumc.launcher.core.meta.component.GameComponent;
 
@@ -49,6 +50,11 @@ public record PackageIndex(String name, String uid, List<Version> versions, Meta
     ) implements GameComponent {
         public static Version simple(String version, List<Requirement> requires) {
             return new Version(false, null, requires, version, null, null, null);
+        }
+
+        @Override
+        public @NotNull String toString() {
+            return version;
         }
     }
 }

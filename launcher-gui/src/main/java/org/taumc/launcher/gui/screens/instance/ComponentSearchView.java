@@ -38,7 +38,7 @@ public class ComponentSearchView extends TauLauncherFrame {
     private final JList<RepoResultPair> resultList = new JList<>(resultListModel);
 
     private final JEditorPane descriptionArea = new JEditorPane();
-    private final JComboBox<String> versionDropdown = new JComboBox<>();
+    private final JComboBox<GameComponent> versionDropdown = new JComboBox<>();
     private final JButton selectButton = new JButton("Select");
 
     private final DefaultListModel<String> selectedComponentsModel = new DefaultListModel<>();
@@ -193,7 +193,6 @@ public class ComponentSearchView extends TauLauncherFrame {
 
         versionDropdown.removeAllItems();
         versionDropdown.setEnabled(false);
-        versionDropdown.addItem("Loading versions...");
 
         ComponentSearchQuery query = ComponentSearchQuery.builder()
                 .name(result.metaInfo().name()) // Or null if that doesn't filter properly
@@ -203,14 +202,14 @@ public class ComponentSearchView extends TauLauncherFrame {
             SwingUtilities.invokeLater(() -> {
                 versionDropdown.removeAllItems();
                 for (GameComponent component : components) {
-                    versionDropdown.addItem(component.version());
+                    versionDropdown.addItem(component);
                 }
                 versionDropdown.setEnabled(true);
             });
         }).exceptionally(ex -> {
             SwingUtilities.invokeLater(() -> {
                 versionDropdown.removeAllItems();
-                versionDropdown.addItem("Error loading versions");
+                JOptionPane.showMessageDialog(null, "There was an error loading versions: " + ex);
                 versionDropdown.setEnabled(false);
             });
             ex.printStackTrace();

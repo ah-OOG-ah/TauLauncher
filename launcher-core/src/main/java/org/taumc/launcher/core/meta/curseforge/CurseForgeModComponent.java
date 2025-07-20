@@ -34,7 +34,6 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -161,12 +160,6 @@ public record CurseForgeModComponent(Mod mod, File file) implements Reconcilable
 
     @Override
     public @NotNull String toString() {
-        String fileTypeName;
-        try {
-            fileTypeName = CurseForgeClass.byClassId(mod.classId()).name().toLowerCase(Locale.ROOT);
-        } catch (Exception e) {
-            fileTypeName = "file";
-        }
-        return mod.name() + " (CF " + fileTypeName + " " + file.id() + " from project " + mod.id() + ")";
+        return file.fileName();
     }
 }
