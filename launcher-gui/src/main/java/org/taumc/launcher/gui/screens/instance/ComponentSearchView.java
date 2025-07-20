@@ -50,6 +50,8 @@ public class ComponentSearchView extends TauLauncherFrame {
 
     private final Map<String, ComponentCoordinate.Simple> selectedVersions = new HashMap<>();
 
+    private final JProgressBar loadingBar = new JProgressBar();
+
     public ComponentSearchView(Collection<MetaRepository> repositories, Function<List<ComponentCoordinate.Simple>, CompletableFuture<Void>> componentConsumer) {
         this.repositories = repositories;
         this.componentConsumer = componentConsumer;
@@ -57,9 +59,17 @@ public class ComponentSearchView extends TauLauncherFrame {
         setLayout(new BorderLayout(10, 10));
 
         JPanel searchPanel = new JPanel(new BorderLayout(5, 5));
+
         searchPanel.add(searchField, BorderLayout.CENTER);
         searchPanel.add(searchButton, BorderLayout.EAST);
-        add(searchPanel, BorderLayout.NORTH);
+
+        loadingBar.setIndeterminate(true);
+        loadingBar.setVisible(false);
+
+        JPanel northPanel = new JPanel(new BorderLayout());
+        northPanel.add(loadingBar, BorderLayout.NORTH);
+        northPanel.add(searchPanel, BorderLayout.SOUTH);
+        add(northPanel, BorderLayout.NORTH);
 
         JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
         splitPane.setResizeWeight(0.4);
@@ -98,6 +108,8 @@ public class ComponentSearchView extends TauLauncherFrame {
     }
 
     private void wireEvents() {
+        searchField.addActionListener(e -> searchButton.doClick());
+
         searchButton.addActionListener(e -> this.performSearch());
 
         resultList.addListSelectionListener(e -> {
@@ -157,8 +169,16 @@ public class ComponentSearchView extends TauLauncherFrame {
                 .map(repo -> repo.search(query))
                 .toList();
 
+        loadingBar.setVisible(true);
+        searchField.setEnabled(false);
+        searchButton.setEnabled(false);
         CompletableFuture
                 .allOf(futures.toArray(new CompletableFuture[0]))
+                .whenCompleteAsync((c, t) -> {
+                    loadingBar.setVisible(false);
+                    searchField.setEnabled(true);
+                    searchButton.setEnabled(true);
+                }, SwingUtilities::invokeLater)
                 .thenApply(v -> {
                     List<RepoResultPair> results = new ArrayList<>();
                     Iterator<MetaRepository> repoIt = repositories.iterator();
@@ -196,6 +216,7 @@ public class ComponentSearchView extends TauLauncherFrame {
 
         versionDropdown.removeAllItems();
         versionDropdown.setEnabled(false);
+        loadingBar.setVisible(true);
 
         ComponentSearchQuery query = ComponentSearchQuery.builder()
                 .name(result.metaInfo().name()) // Or null if that doesn't filter properly
@@ -208,12 +229,14 @@ public class ComponentSearchView extends TauLauncherFrame {
                     versionDropdown.addItem(component);
                 }
                 versionDropdown.setEnabled(true);
+                loadingBar.setVisible(false);
             });
         }).exceptionally(ex -> {
             SwingUtilities.invokeLater(() -> {
                 versionDropdown.removeAllItems();
                 JOptionPane.showMessageDialog(null, "There was an error loading versions: " + ex);
                 versionDropdown.setEnabled(false);
+                loadingBar.setVisible(false);
             });
             ex.printStackTrace();
             return null;
