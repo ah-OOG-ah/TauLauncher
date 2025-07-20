@@ -19,7 +19,6 @@ import org.taumc.launcher.core.reconciler.ReconcilableInstance;
 import org.taumc.launcher.core.reconciler.ReconciliationOptions;
 import org.taumc.launcher.core.reconciler.ReconciliationResult;
 import org.taumc.launcher.core.reconciler.exceptions.UserInterventionRequiredException;
-import org.taumc.launcher.core.reconciler.intervention.InterventionAction;
 import org.taumc.launcher.core.reconciler.intervention.ManualDownloadIntervention;
 
 import java.io.IOException;
