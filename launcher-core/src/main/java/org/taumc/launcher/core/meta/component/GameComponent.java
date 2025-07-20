@@ -18,4 +18,8 @@ public interface GameComponent extends ComponentCoordinate {
     default String name() {
         return uid();
     }
+
+    default String friendlyVersion() {
+        return version();
+    }
 }

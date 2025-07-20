@@ -159,6 +159,16 @@ public record CurseForgeModComponent(Mod mod, File file) implements Reconcilable
     }
 
     @Override
+    public String name() {
+        return file.fileName();
+    }
+
+    @Override
+    public String friendlyVersion() {
+        return file.displayName();
+    }
+
+    @Override
     public @NotNull String toString() {
         return file.fileName();
     }
