@@ -167,6 +167,9 @@ public class ComponentSearchView extends TauLauncherFrame {
                         ComponentSearchResults res = future.join();
                         var repo = repoIt.next(); // Or use a `.getName()` if you have one
                         for (var r : res.results()) {
+                            if (!r.metaInfo().isUserInstallable()) {
+                                continue;
+                            }
                             results.add(new RepoResultPair(repo, r));
                         }
                     }
@@ -273,8 +276,8 @@ public class ComponentSearchView extends TauLauncherFrame {
 
         private void styleRepoLabel(JLabel label) {
             label.setOpaque(true);
-            label.setBackground(new Color(220, 220, 220)); // light gray
-            label.setForeground(Color.DARK_GRAY);
+            label.setBackground(new Color(60, 60, 60)); // light gray
+            label.setForeground(Color.WHITE);
             label.setBorder(BorderFactory.createCompoundBorder(
                     BorderFactory.createLineBorder(new Color(180, 180, 180), 1, true),
                     BorderFactory.createEmptyBorder(2, 6, 2, 6) // padding
