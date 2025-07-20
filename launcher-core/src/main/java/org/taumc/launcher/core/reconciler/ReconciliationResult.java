@@ -17,6 +17,10 @@ public record ReconciliationResult(Map<InstanceFile, PathPopulator> managedPaths
                                    @Nullable AutoCloseable closeFunction) {
     public static final ReconciliationResult EMPTY = new ReconciliationResult(Map.of(), i -> {}, null);
 
+    public static ReconciliationResult configuring(Consumer<RuntimeInstance> consumer) {
+        return new ReconciliationResult(Map.of(), consumer, null);
+    }
+
     public ReconciliationResult mergeWith(Collection<ReconciliationResult> otherResults) {
         Map<InstanceFile, PathPopulator> managedPaths = new HashMap<>();
         for (var result : otherResults) {

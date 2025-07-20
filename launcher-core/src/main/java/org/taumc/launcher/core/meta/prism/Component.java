@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Singular;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.taumc.launcher.core.components.BuiltinComponents;
@@ -90,6 +91,11 @@ public record Component(
         }
 
         return requires;
+    }
+
+    @Override
+    public @NotNull String toString() {
+        return name + " (" + uid + ") version " + version;
     }
 
     @Override

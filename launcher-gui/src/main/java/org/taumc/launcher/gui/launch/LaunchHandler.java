@@ -3,6 +3,7 @@ package org.taumc.launcher.gui.launch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.taumc.launcher.core.auth.Account;
+import org.taumc.launcher.core.components.InstanceCfgComponent;
 import org.taumc.launcher.core.launch.InstanceCfg;
 import org.taumc.launcher.core.meta.json.MMCPack;
 import org.taumc.launcher.core.meta.json.MetadataService;
@@ -76,7 +77,7 @@ public class LaunchHandler {
                     .forEach(future -> this.gameInstance.getComponents().addChild(new ComponentTreeNode(future.join())));
 
             // Apply configuration from instance.cfg
-            InstanceCfg.configureInstanceWithCfg(this.gameInstance, instancePath.resolve("instance.cfg"));
+            this.gameInstance.getComponents().addChild(new ComponentTreeNode(new InstanceCfgComponent(instancePath.resolve("instance.cfg"))));
 
             // Configure selected account
             this.gameInstance.setLaunchAccount(account);

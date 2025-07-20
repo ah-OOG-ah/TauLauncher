@@ -256,9 +256,11 @@ public class Reconciler implements ReconcilableInstance {
         this.scanDependencies();
 
         Output output;
+
         long reconciliationStartTime = System.nanoTime();
         // Perform reconciliation
         do {
+            LOGGER.info("Executing reconciliation on tree:\n{}", this.componentRoot.toPrettyPrintedString());
             var future = this.buildReconciliationFuture(options, this.componentRoot);
 
             try {

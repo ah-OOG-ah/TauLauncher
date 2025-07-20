@@ -96,4 +96,23 @@ public class ComponentTreeNode implements Iterable<ComponentTreeNode>, Cloneable
         }
     }
 
+    private static void buildTreeString(ComponentTreeNode node, String prefix, boolean isLast, StringBuilder sb) {
+        sb.append(prefix)
+                .append(isLast ? "\\-- " : "|-- ")
+                .append(node.component != null ? node.component.toString() : "[none]")
+                .append('\n');
+
+        List<ComponentTreeNode> children = node.children;
+        for (int i = 0; i < children.size(); i++) {
+            boolean last = (i == children.size() - 1);
+            String newPrefix = prefix + (isLast ? "    " : "|   ");
+            buildTreeString(children.get(i), newPrefix, last, sb);
+        }
+    }
+
+    public String toPrettyPrintedString() {
+        StringBuilder sb = new StringBuilder();
+        buildTreeString(this, "", true, sb);
+        return sb.toString();
+    }
 }
