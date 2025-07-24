@@ -26,9 +26,9 @@ public class TestReconciler {
         var newHolder = new ComponentTreeNode(newPack);
 
         // Determine change
-        Reconciler reconciler = new Reconciler(null, oldHolder, metaService, ProgressProvider.LOGGING, new ConsoleInterventionHandler());
+        Reconciler reconciler = new Reconciler(oldHolder, metaService, ProgressProvider.LOGGING, new ConsoleInterventionHandler());
 
-        Reconciler newReconciler = new Reconciler(null, newHolder, metaService, ProgressProvider.LOGGING, new ConsoleInterventionHandler());
+        Reconciler newReconciler = new Reconciler(newHolder, metaService, ProgressProvider.LOGGING, new ConsoleInterventionHandler());
         var opts = ReconciliationOptions.builder().updateMode(ReconciliationOptions.UpdateMode.UPDATE_IF_MISSING).build();
         try (var oldOutput = reconciler.runReconciliation(opts);
              var newOutput = newReconciler.runReconciliation(opts)) {
