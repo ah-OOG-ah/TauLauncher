@@ -27,7 +27,7 @@ public class ComponentTreeNode implements Iterable<ComponentTreeNode>, Cloneable
     }
 
     public ComponentTreeNode(@Nullable ReconcilableGameComponent component) {
-        this(null, List.of());
+        this(component, List.of());
     }
 
     public void addChild(ComponentTreeNode child) {
