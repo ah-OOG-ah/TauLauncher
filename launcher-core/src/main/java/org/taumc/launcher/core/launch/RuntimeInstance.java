@@ -94,7 +94,9 @@ public class RuntimeInstance {
     private final Map<String, String> gameArgumentTemplateParameters = new HashMap<>();
 
     public void addComponent(ComponentCoordinate.Simple coordinate) {
-        this.components.children().add(new ComponentTreeNode(this.service.getComponent(coordinate).join()));
+        var component = this.service.getComponent(coordinate).join();
+        Objects.requireNonNull(component, () -> "Component " + coordinate + " not found");
+        this.components.addChild(new ComponentTreeNode(component));
     }
 
     public void addLibraries(Collection<Library> libraries) {
