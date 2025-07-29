@@ -88,6 +88,9 @@ public class CurseForgeAPI implements Closeable {
     }
 
     public CompletableFuture<List<Mod>> searchForMods(ComponentSearchQuery query) {
+        if (query.projectType() != ProjectType.MODPACK && query.gameVersion() == null) {
+            return CompletableFuture.completedFuture(List.of());
+        }
         var params = new HashMap<String, Object>();
         params.put("gameId", "432");
         params.put("sortField", 1);

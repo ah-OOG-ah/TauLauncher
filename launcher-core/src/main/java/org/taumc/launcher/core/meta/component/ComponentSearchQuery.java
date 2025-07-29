@@ -22,6 +22,19 @@ public record ComponentSearchQuery(@Nullable String name,
         return "component search query";
     }
 
+    @Override
+    public @Nullable String gameVersion() {
+        if (gameVersion != null) {
+            return gameVersion;
+        } else if (currentComponents != null) {
+            var mc = currentComponents.get("net.minecraft");
+            if (mc != null) {
+                return mc.version();
+            }
+        }
+        return null;
+    }
+
     public boolean matches(ComponentMetaInfo metaInfo) {
         if (name != null && !metaInfo.name().toLowerCase(Locale.ROOT).contains(name.toLowerCase(Locale.ROOT))) {
             return false;

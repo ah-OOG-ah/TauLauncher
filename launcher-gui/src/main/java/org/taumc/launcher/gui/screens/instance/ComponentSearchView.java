@@ -6,6 +6,7 @@ import org.taumc.launcher.core.meta.component.ComponentMetaInfo;
 import org.taumc.launcher.core.meta.component.ComponentSearchQuery;
 import org.taumc.launcher.core.meta.component.ComponentSearchResults;
 import org.taumc.launcher.core.meta.component.GameComponent;
+import org.taumc.launcher.core.meta.component.ReconcilableGameComponent;
 import org.taumc.launcher.core.meta.json.ComponentCoordinate;
 import org.taumc.launcher.core.meta.json.MetaRepository;
 import org.taumc.launcher.gui.SwingHelpers;
@@ -29,7 +30,9 @@ public class ComponentSearchView extends TauLauncherFrame {
     public record RepoResultPair(MetaRepository repository, ComponentSearchResults.Result result) {}
 
     private final Collection<MetaRepository> repositories;
+    private final Map<String, ReconcilableGameComponent> existingComponents;
     private final Function<List<ComponentCoordinate.Simple>, CompletableFuture<Void>> componentConsumer;
+
     private final Map<String, CompletableFuture<ImageIcon>> modIcons = new HashMap<>();
 
     private final JTextField searchField = new JTextField();
@@ -52,8 +55,11 @@ public class ComponentSearchView extends TauLauncherFrame {
 
     private final JProgressBar loadingBar = new JProgressBar();
 
-    public ComponentSearchView(Collection<MetaRepository> repositories, Function<List<ComponentCoordinate.Simple>, CompletableFuture<Void>> componentConsumer) {
+    public ComponentSearchView(Collection<MetaRepository> repositories,
+                               Map<String, ReconcilableGameComponent> existingComponents,
+                               Function<List<ComponentCoordinate.Simple>, CompletableFuture<Void>> componentConsumer) {
         this.repositories = repositories;
+        this.existingComponents = existingComponents;
         this.componentConsumer = componentConsumer;
 
         setLayout(new BorderLayout(10, 10));
@@ -159,6 +165,7 @@ public class ComponentSearchView extends TauLauncherFrame {
         String queryText = searchField.getText().trim();
         ComponentSearchQuery query = ComponentSearchQuery.builder()
                 .name(queryText.isEmpty() ? null : queryText)
+                .currentComponents(existingComponents)
                 .build();
 
         resultListModel.clear();
@@ -219,7 +226,8 @@ public class ComponentSearchView extends TauLauncherFrame {
         loadingBar.setVisible(true);
 
         ComponentSearchQuery query = ComponentSearchQuery.builder()
-                .name(result.metaInfo().name()) // Or null if that doesn't filter properly
+                .name(result.metaInfo().name())
+                .currentComponents(existingComponents)
                 .build();
 
         pair.repository().getKnownVersions(result.uid(), query).thenAccept(components -> {

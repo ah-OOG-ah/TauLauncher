@@ -266,7 +266,7 @@ public class InstanceEditView extends MultiSectionFrame {
                     this.updateInstance(oldRoot, newRoot);
                     componentList.removeElement(component);
                 } catch (Exception e) {
-                    JOptionPane.showMessageDialog(this, ExceptionUtils.getStackTrace(e), "Error removing component", JOptionPane.ERROR_MESSAGE);
+                    JOptionPane.showMessageDialog(this, e.toString(), "Error removing component", JOptionPane.ERROR_MESSAGE);
                     LOGGER.error("Error removing component", e);
                 }
             }
@@ -274,8 +274,8 @@ public class InstanceEditView extends MultiSectionFrame {
 
         addButton.addActionListener(ev -> {
             var metaService = this.metadataService.join();
-            var view = new ComponentSearchView(metaService.getRepositories(), newComponents -> {
-                var oldRoot = new ComponentTreeNode(null, SwingHelpers.immutableListOf(componentList).stream().map(ComponentTreeNode::new).toList());
+            var oldRoot = new ComponentTreeNode(null, SwingHelpers.immutableListOf(componentList).stream().map(ComponentTreeNode::new).toList());
+            var view = new ComponentSearchView(metaService.getRepositories(), oldRoot.buildIndex(), newComponents -> {
                 var newRoot = oldRoot.clone();
                 var reconcilableComponents = newComponents.stream().map(c -> metaService.getComponent(c).join()).toList();
                 reconcilableComponents.forEach(r -> newRoot.addChild(new ComponentTreeNode(r)));
@@ -283,7 +283,7 @@ public class InstanceEditView extends MultiSectionFrame {
                     this.updateInstance(oldRoot, newRoot);
                     componentList.addAll(reconcilableComponents);
                 } catch (Exception e) {
-                    JOptionPane.showMessageDialog(this, ExceptionUtils.getStackTrace(e), "Error adding component", JOptionPane.ERROR_MESSAGE);
+                    JOptionPane.showMessageDialog(this, e.toString(), "Error adding component", JOptionPane.ERROR_MESSAGE);
                     LOGGER.error("Error adding component", e);
                 }
                 return CompletableFuture.completedFuture(null);
