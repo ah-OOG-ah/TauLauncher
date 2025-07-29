@@ -67,6 +67,7 @@ public class MultiSectionFrame extends TauLauncherFrame {
         }
         JPanel newPanel = panelConstructors.get(page).get();
         this.cardPanel.add(newPanel, page);
+        this.panels.put(page, newPanel);
         ((CardLayout)this.cardPanel.getLayout()).show(this.cardPanel, page);
     }
 
@@ -81,7 +82,7 @@ public class MultiSectionFrame extends TauLauncherFrame {
 
     public void setCurrentPage(String page) {
         if (!panels.containsKey(page)) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException(page);
         }
         CardLayout cl = (CardLayout) cardPanel.getLayout();
         cl.show(cardPanel, page);

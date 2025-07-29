@@ -24,9 +24,8 @@ public class TestLauncher {
         instance.getMetadataService().addRepository(HTTPMetaRepository.prism());
         instance.getMetadataService().addRepository(new CurseForgeMetaRepository());
         instance.getMetadataService().updateIndex();
-        instance.addComponent(new ComponentCoordinate.Simple("com.curseforge.projects.1039252", "6707705"));
+        instance.addComponent(new ComponentCoordinate.Simple("com.curseforge.projects.1091252", "6270870"));
         instance.setLaunchAccount(new OfflineAccount("Dev"));
         instance.launch();
-        instance.getCurrentProcess().destroyForcibly();
     }
 }

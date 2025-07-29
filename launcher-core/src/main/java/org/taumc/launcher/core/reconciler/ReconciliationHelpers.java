@@ -38,7 +38,7 @@ public class ReconciliationHelpers {
         return needCopy;
     }
 
-    public static void migrateInstance(Path instancePath, ComponentTreeNode oldRoot, ComponentTreeNode newRoot, MetadataService metadataService, ProgressProvider progressProvider, UserInterventionHandler interventionHandler) {
+    public static void migrateInstance(Path instancePath, ComponentTreeNode oldRoot, ComponentTreeNode newRoot, MetadataService metadataService, ProgressProvider progressProvider, UserInterventionHandler interventionHandler) throws Exception {
         var oldReconciler = new Reconciler(oldRoot, metadataService, progressProvider, interventionHandler);
         var newReconciler = new Reconciler(newRoot, metadataService, progressProvider, interventionHandler);
         try (var oldOutput = oldReconciler.runReconciliation(ReconciliationOptions.builder().updateMode(ReconciliationOptions.UpdateMode.UPDATE_IF_MISSING).build());
@@ -52,8 +52,6 @@ public class ReconciliationHelpers {
             for (var remove : difference.removed()) {
                 Files.deleteIfExists(remove.toPath(instancePath));
             }
-        } catch (Exception e) {
-            LOGGER.error("Exception occurred during instance migration", e);
         }
     }
 }

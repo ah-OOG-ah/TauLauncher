@@ -3,6 +3,7 @@ package org.taumc.launcher.gui.screens.instance;
 import com.fasterxml.jackson.core.util.DefaultIndenter;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.kordamp.ikonli.fontawesome6.FontAwesomeSolid;
 import org.kordamp.ikonli.swing.FontIcon;
 import org.slf4j.Logger;
@@ -255,27 +256,36 @@ public class InstanceEditView extends MultiSectionFrame {
                 editButton.setEnabled(isSelected);
             }
         });
-        removeButton.addActionListener(e -> {
-            if (components.getSelectedValue() != null) {
-                componentList.removeElement(components.getSelectedValue());
-                saveCurrentConfig();
+        removeButton.addActionListener(ev -> {
+            var component = components.getSelectedValue();
+            if (component != null) {
+                var oldRoot = new ComponentTreeNode(null, SwingHelpers.immutableListOf(componentList).stream().map(ComponentTreeNode::new).toList());
+                var newRoot = oldRoot.clone();
+                newRoot.children().removeIf(c -> component.equals(c.getComponent()));
+                try {
+                    this.updateInstance(oldRoot, newRoot);
+                    componentList.removeElement(component);
+                } catch (Exception e) {
+                    JOptionPane.showMessageDialog(this, ExceptionUtils.getStackTrace(e), "Error removing component", JOptionPane.ERROR_MESSAGE);
+                    LOGGER.error("Error removing component", e);
+                }
             }
         });
 
-        addButton.addActionListener(e -> {
+        addButton.addActionListener(ev -> {
             var metaService = this.metadataService.join();
             var view = new ComponentSearchView(metaService.getRepositories(), newComponents -> {
                 var oldRoot = new ComponentTreeNode(null, SwingHelpers.immutableListOf(componentList).stream().map(ComponentTreeNode::new).toList());
                 var newRoot = oldRoot.clone();
-                newComponents.forEach(coord -> newRoot.addChild(new ComponentTreeNode(metaService.getComponent(coord).join())));
-                ReconciliationHelpers.migrateInstance(LaunchHandler.computeMinecraftFolder(instancePath),
-                        oldRoot,
-                        newRoot,
-                        metaService,
-                        this.progressDialog,
-                        new ConsoleInterventionHandler());
-                saveCurrentConfig();
-                refreshCurrentPanel();
+                var reconcilableComponents = newComponents.stream().map(c -> metaService.getComponent(c).join()).toList();
+                reconcilableComponents.forEach(r -> newRoot.addChild(new ComponentTreeNode(r)));
+                try {
+                    this.updateInstance(oldRoot, newRoot);
+                    componentList.addAll(reconcilableComponents);
+                } catch (Exception e) {
+                    JOptionPane.showMessageDialog(this, ExceptionUtils.getStackTrace(e), "Error adding component", JOptionPane.ERROR_MESSAGE);
+                    LOGGER.error("Error adding component", e);
+                }
                 return CompletableFuture.completedFuture(null);
             });
             view.setVisible(true);
@@ -283,6 +293,17 @@ public class InstanceEditView extends MultiSectionFrame {
         panel.add(components, BorderLayout.CENTER);
 
         return panel;
+    }
+
+    private void updateInstance(ComponentTreeNode oldRoot, ComponentTreeNode newRoot) throws Exception {
+        ReconciliationHelpers.migrateInstance(LaunchHandler.computeMinecraftFolder(instancePath),
+                oldRoot,
+                newRoot,
+                this.metadataService.join(),
+                this.progressDialog,
+                new ConsoleInterventionHandler());
+        saveCurrentConfig();
+        refreshCurrentPanel();
     }
 
     private JPanel createMemoryPanel() {

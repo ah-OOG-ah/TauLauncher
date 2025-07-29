@@ -7,7 +7,6 @@ import org.taumc.launcher.core.meta.component.ReconcilableGameComponent;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -15,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
-public class ComponentTreeNode implements Iterable<ComponentTreeNode>, Cloneable {
+public final class ComponentTreeNode implements Iterable<ComponentTreeNode>, Cloneable {
     @Getter
     @Nullable
     final ReconcilableGameComponent component;
@@ -35,7 +34,7 @@ public class ComponentTreeNode implements Iterable<ComponentTreeNode>, Cloneable
     }
 
     public List<ComponentTreeNode> children() {
-        return Collections.unmodifiableList(children);
+        return children;
     }
 
     public boolean isEmpty() {
