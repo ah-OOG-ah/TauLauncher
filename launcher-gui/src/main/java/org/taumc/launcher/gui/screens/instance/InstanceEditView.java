@@ -24,6 +24,7 @@ import org.taumc.launcher.gui.launch.LaunchHandler;
 import org.taumc.launcher.gui.launch.LogViewFrame;
 import org.taumc.launcher.gui.launch.ProgressDialog;
 import org.taumc.launcher.gui.screens.home.HomeView;
+import org.taumc.launcher.gui.util.ExceptionUtil;
 
 import javax.swing.*;
 import java.awt.*;
@@ -283,7 +284,7 @@ public class InstanceEditView extends MultiSectionFrame {
                     this.updateInstance(oldRoot, newRoot);
                     componentList.addAll(reconcilableComponents);
                 } catch (Exception e) {
-                    JOptionPane.showMessageDialog(this, e.toString(), "Error adding component", JOptionPane.ERROR_MESSAGE);
+                    JOptionPane.showMessageDialog(this, ExceptionUtil.getCompactErrorMessage(e), "Error adding component", JOptionPane.ERROR_MESSAGE);
                     LOGGER.error("Error adding component", e);
                 }
                 return CompletableFuture.completedFuture(null);
