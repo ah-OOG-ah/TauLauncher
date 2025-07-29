@@ -15,6 +15,8 @@ import org.taumc.launcher.gui.icon.IconUtil;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -123,6 +125,18 @@ public class ComponentSearchView extends TauLauncherFrame {
                 RepoResultPair selectedPair = resultList.getSelectedValue();
                 if (selectedPair != null) {
                     showComponentDetail(selectedPair);
+                }
+            }
+        });
+
+        resultList.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2 && SwingUtilities.isLeftMouseButton(e)) {
+                    int index = resultList.locationToIndex(e.getPoint());
+                    if (index != -1 && index == resultList.getSelectedIndex()) {
+                        selectButton.doClick();
+                    }
                 }
             }
         });
