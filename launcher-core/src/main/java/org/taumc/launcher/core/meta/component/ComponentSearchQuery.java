@@ -6,6 +6,7 @@ import org.jetbrains.annotations.Nullable;
 import org.taumc.launcher.core.mods.ProjectType;
 
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
 
@@ -22,23 +23,40 @@ public record ComponentSearchQuery(@Nullable String name,
         return "component search query";
     }
 
-    @Override
-    public @Nullable String gameVersion() {
-        if (gameVersion != null) {
-            return gameVersion;
-        } else if (currentComponents != null) {
-            var mc = currentComponents.get("net.minecraft");
-            if (mc != null) {
-                return mc.version();
-            }
-        }
-        return null;
-    }
-
     public boolean matches(ComponentMetaInfo metaInfo) {
         if (name != null && !metaInfo.name().toLowerCase(Locale.ROOT).contains(name.toLowerCase(Locale.ROOT))) {
             return false;
         }
         return true;
+    }
+
+    public static class ComponentSearchQueryBuilder {
+        public ComponentSearchQuery build() {
+            if (currentComponents != null) {
+                if (gameVersion == null) {
+                    var mc = currentComponents.get("net.minecraft");
+                    if (mc != null) {
+                        gameVersion = mc.version();
+                    }
+                }
+                if (modLoaders == null) {
+                    modLoaders = new HashSet<>();
+                    for (var c : currentComponents.keySet()) {
+                        switch (c) {
+                            case "net.minecraftforge" -> modLoaders.add("forge");
+                            case "net.neoforged" -> modLoaders.add("neoforge");
+                            case "net.fabricmc.fabric-loader" -> modLoaders.add("fabric");
+                        }
+                    }
+                }
+            }
+            return new ComponentSearchQuery(
+                    name,
+                    gameVersion,
+                    modLoaders,
+                    projectType,
+                    currentComponents
+            );
+        }
     }
 }

@@ -165,7 +165,7 @@ public record CurseForgeModComponent(Mod mod, File file) implements Reconcilable
 
     @Override
     public String friendlyVersion() {
-        return file.displayName();
+        return "";
     }
 
     @Override

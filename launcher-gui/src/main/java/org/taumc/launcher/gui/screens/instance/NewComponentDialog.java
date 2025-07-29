@@ -37,7 +37,7 @@ public class NewComponentDialog extends JDialog {
 
         var componentMap = existingComponents.stream().collect(Collectors.toUnmodifiableMap(ComponentCoordinate.Simple::uid, Function.identity()));
 
-        Predicate<Requirement> requirementsSatisfied = r -> r.isSatisfied(componentMap, Main.METADATA);
+        Predicate<Requirement> requirementsSatisfied = r -> r.isSatisfied(componentMap);
         // Compute the valid components to add
         for (String pkg : Main.METADATA.getKnownPackages()) {
             if (initialSelection == null && existingComponents.stream().anyMatch(c -> c.uid().equals(pkg))) {

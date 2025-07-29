@@ -68,7 +68,7 @@ public class Reconciler implements ReconcilableInstance {
                 }
                 var unsatisfiedRequirements = new ArrayList<Requirement>();
                 for (var r : component.requires()) {
-                    if (!r.isSatisfied(dependencyIndex, this.metadataService)) {
+                    if (!r.isSatisfied(dependencyIndex)) {
                         unsatisfiedRequirements.add(r);
                     }
                 }
@@ -118,7 +118,7 @@ public class Reconciler implements ReconcilableInstance {
     @Override
     public void validateRequirements(List<Requirement> requirements) throws MissingDependenciesException {
         var dependencyIndex = this.componentRoot.buildIndex();
-        var needed = requirements.stream().filter(r -> !r.isSatisfied(dependencyIndex, this.metadataService)).toList();
+        var needed = requirements.stream().filter(r -> !r.isSatisfied(dependencyIndex)).toList();
         if (!needed.isEmpty()) {
             throw new MissingDependenciesException(needed);
         }

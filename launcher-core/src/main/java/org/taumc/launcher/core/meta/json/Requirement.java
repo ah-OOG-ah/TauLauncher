@@ -4,7 +4,7 @@ import java.util.Map;
 import java.util.Optional;
 
 public record Requirement(String uid, Optional<String> suggests, Optional<String> equals) {
-    public boolean isSatisfied(Map<String, ? extends ComponentCoordinate> components, MetadataService metadataService) {
+    public boolean isSatisfied(Map<String, ? extends ComponentCoordinate> components) {
         var coord = components.get(uid);
         if (coord != null) {
             return equals.isEmpty() || coord.version().equals(equals.get());

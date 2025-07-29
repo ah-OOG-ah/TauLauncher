@@ -103,7 +103,7 @@ public class CurseForgeAPI implements Closeable {
         }
         List<ModLoaderType> loaderTypes;
         if (query.modLoaders() != null) {
-            loaderTypes = query.modLoaders().stream().map(s -> EnumUtils.valueOfOptional(ModLoaderType.class, s.toLowerCase(Locale.ROOT))).flatMap(Optional::stream).toList();
+            loaderTypes = query.modLoaders().stream().map(s -> EnumUtils.valueOfOptional(ModLoaderType.class, s.toUpperCase(Locale.ROOT))).flatMap(Optional::stream).toList();
         } else {
             loaderTypes = List.of(ModLoaderType.ANY);
         }
@@ -152,7 +152,7 @@ public class CurseForgeAPI implements Closeable {
         var params = new HashMap<String, Object>();
         List<ModLoaderType> loaderTypes;
         if (query.modLoaders() != null) {
-            loaderTypes = query.modLoaders().stream().map(s -> EnumUtils.valueOfOptional(ModLoaderType.class, s.toLowerCase(Locale.ROOT))).flatMap(Optional::stream).toList();
+            loaderTypes = query.modLoaders().stream().map(s -> EnumUtils.valueOfOptional(ModLoaderType.class, s.toUpperCase(Locale.ROOT))).flatMap(Optional::stream).toList();
         } else {
             loaderTypes = List.of(ModLoaderType.ANY);
         }

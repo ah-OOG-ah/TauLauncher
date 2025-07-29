@@ -69,7 +69,20 @@ public final class HTTPMetaRepository implements MetaRepository {
     public CompletableFuture<SequencedCollection<? extends GameComponent>> getKnownVersions(String pkgName, ComponentSearchQuery searchQuery) {
         return obtainFile(url + "/" + pkgName + "/index.json", new TypeReference<PackageIndex>() {
         }).thenApply(r -> {
-            return r.body().versions();
+            var versionStream = r.body().versions().stream();
+            var components = searchQuery.currentComponents();
+            if (components != null) {
+                versionStream = versionStream.filter(v -> {
+                    var requirements = v.requires();
+                    for (var req : requirements) {
+                        if (components.containsKey(req.uid()) && !req.isSatisfied(components)) {
+                            return false;
+                        }
+                    }
+                    return true;
+                });
+            }
+            return versionStream.toList();
         });
     }
 
