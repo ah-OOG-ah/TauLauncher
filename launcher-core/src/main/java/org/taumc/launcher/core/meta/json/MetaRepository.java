@@ -5,7 +5,6 @@ import org.taumc.launcher.core.meta.component.ComponentMetaInfo;
 import org.taumc.launcher.core.meta.component.ComponentSearchQuery;
 import org.taumc.launcher.core.meta.component.ComponentSearchResults;
 import org.taumc.launcher.core.meta.component.GameComponent;
-import org.taumc.launcher.core.meta.component.ReconcilableGameComponent;
 import org.taumc.launcher.core.util.FutureUtils;
 
 import java.io.Closeable;
@@ -15,7 +14,7 @@ import java.util.SequencedCollection;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
-public interface MetaRepository extends Closeable {
+public interface MetaRepository extends ComponentRetriever, Closeable {
     default boolean couldHavePackage(String uid) {
         return true;
     }
@@ -47,8 +46,6 @@ public interface MetaRepository extends Closeable {
             }).toList()).thenApply(list -> list.stream().filter(Objects::nonNull).toList());
         }).thenApply(ComponentSearchResults::new);
     }
-
-    CompletableFuture<ReconcilableGameComponent> retrieveComponent(String pkgName, String version);
 
     void close();
 }

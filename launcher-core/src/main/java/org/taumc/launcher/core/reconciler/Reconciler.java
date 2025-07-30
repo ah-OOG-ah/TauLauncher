@@ -48,7 +48,7 @@ public class Reconciler implements ReconcilableInstance {
     private final UserInterventionHandler interventionHandler;
 
     public Reconciler(ComponentTreeNode tree, MetadataService metadataService, ProgressProvider progressProvider, UserInterventionHandler interventionHandler) {
-        this.metadataService = metadataService;
+        this.metadataService = new MetadataService(metadataService.getRepositories());
         this.progressProvider = progressProvider;
         this.interventionHandler = interventionHandler;
         this.componentRoot = tree.clone();
@@ -73,7 +73,7 @@ public class Reconciler implements ReconcilableInstance {
                 }
                 if (!unsatisfiedRequirements.isEmpty()) {
                     try {
-                        adaptToRequirements(dependencyIndex, node, unsatisfiedRequirements);
+                        adaptToRequirements(dependencyIndex, node, new MissingDependenciesException(unsatisfiedRequirements));
                     } catch (Exception e) {
                         throw new IllegalStateException("Exception satisfying requirements for " + component.uid() + ": " + e, e);
                     }
@@ -83,8 +83,9 @@ public class Reconciler implements ReconcilableInstance {
         }
     }
 
-    private void adaptToRequirements(Map<String, ReconcilableGameComponent> dependencyIndex, ComponentTreeNode node, List<Requirement> requirementsToFix) {
+    private void adaptToRequirements(Map<String, ReconcilableGameComponent> dependencyIndex, ComponentTreeNode node, MissingDependenciesException e) {
         List<ComponentCoordinate.Simple> componentsToAdd = new ArrayList<>();
+        var requirementsToFix = e.getAdditionalDependencies();
         for (var r : requirementsToFix) {
             var component = dependencyIndex.get(r.uid());
             if (component != null) {
@@ -308,7 +309,7 @@ public class Reconciler implements ReconcilableInstance {
                         switch (recoverable) {
                             case MissingDependenciesException deps -> {
                                 LOGGER.info("Injecting {} additional dependencies requested by {}", deps.getAdditionalDependencies().size(), treeNodeExc.thrower.getComponent());
-                                adaptToRequirements(depIndex, treeNodeExc.thrower, deps.getAdditionalDependencies());
+                                adaptToRequirements(depIndex, treeNodeExc.thrower, deps);
                                 scanDependencies();
                             }
                             case UserInterventionRequiredException user -> {

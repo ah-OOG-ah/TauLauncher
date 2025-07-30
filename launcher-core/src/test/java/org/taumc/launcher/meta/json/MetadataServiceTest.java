@@ -16,7 +16,6 @@ public class MetadataServiceTest {
     @BeforeAll
     static void setupService() throws Exception {
         SERVICE.addRepository(HTTPMetaRepository.prism());
-        SERVICE.updateIndex();
     }
 
 

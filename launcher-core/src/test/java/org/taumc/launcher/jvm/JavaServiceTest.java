@@ -23,7 +23,6 @@ public class JavaServiceTest {
     @BeforeAll
     static void setupService() throws Exception {
         META.addRepository(HTTPMetaRepository.prism());
-        META.updateIndex();
     }
 
     @ParameterizedTest

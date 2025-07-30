@@ -27,18 +27,11 @@ public class MetadataService implements Closeable {
     private boolean indexed = false;
 
     public MetadataService() {
-        this.repositories = new ArrayList<>();
+        this(List.of());
     }
 
-    @Deprecated
-    public MetadataService(String url) {
-        this();
-        this.addRepository(new HTTPMetaRepository(url, null));
-        try {
-            this.updateIndex();
-        } catch (IOException e) {
-            throw new IllegalStateException("Unexpected error", e);
-        }
+    public MetadataService(List<MetaRepository> repositories) {
+        this.repositories = new ArrayList<>(repositories);
     }
 
     private void checkIndexed() {
@@ -53,17 +46,24 @@ public class MetadataService implements Closeable {
 
     public void addRepository(MetaRepository repository) {
         this.repositories.add(repository);
-        this.indexed = false;
+        synchronized (this) {
+            this.indexed = false;
+        }
     }
 
-    public void updateIndex() throws IOException {
-        this.knownPackages.clear();
-        this.knownPackages.addAll(this.repositories.parallelStream().flatMap(r -> r.getKnownPackages().join().stream()).collect(Collectors.toUnmodifiableSet()));
-        this.indexed = true;
+    public void addRepositoryFirst(MetaRepository repository) {
+        this.repositories.addFirst(repository);
+        synchronized (this) {
+            this.indexed = false;
+        }
     }
 
-    public Set<String> getKnownPackages() {
-        this.checkIndexed();
+    public synchronized Set<String> getKnownPackages() {
+        if (!this.indexed) {
+            this.knownPackages.clear();
+            this.knownPackages.addAll(this.repositories.parallelStream().flatMap(r -> r.getKnownPackages().join().stream()).collect(Collectors.toUnmodifiableSet()));
+            this.indexed = true;
+        }
         return Collections.unmodifiableSet(this.knownPackages);
     }
 

@@ -16,7 +16,6 @@ public class TestReconciler {
         var metaService = new MetadataService();
         metaService.addRepository(HTTPMetaRepository.prism());
         metaService.addRepository(new CurseForgeMetaRepository());
-        metaService.updateIndex();
 
         var newPack = metaService.getComponent(new ComponentCoordinate.Simple("com.curseforge.projects.1039252", "6707705")).join();
         var oldPack = metaService.getComponent(new ComponentCoordinate.Simple("com.curseforge.projects.1039252", "6634170")).join();
