@@ -144,7 +144,7 @@ public class Reconciler implements ReconcilableInstance {
 
         public CompletableFuture<Void> applyToFilesystem(ProgressProvider progressProvider, Path instancePath) {
             long applicationStart = System.nanoTime();
-            var task = progressProvider.addTask("Installing components");
+            var task = progressProvider.addTask("Updating components");
             var counter = new Counter(result.managedPaths().size(), task);
             var futureList = result.managedPaths().entrySet().stream().map(entry -> CompletableFuture.runAsync(() -> {
                 try {

@@ -1,16 +1,25 @@
 package org.taumc.launcher.gui.launch;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.taumc.launcher.core.progress.ProgressProvider;
 import org.taumc.launcher.gui.SwingHelpers;
 
 import javax.swing.*;
 import java.awt.*;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 public class ProgressDialog extends JDialog implements ProgressProvider {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ProgressDialog.class);
+
     private final JPanel taskPanel;
     private final Map<String, JProgressBar> taskMap = new ConcurrentHashMap<>();
+
+    private boolean pendingVisibility;
+    private Timer visibilityUpdateTimer;
 
     public ProgressDialog(Frame owner) {
         super(owner, "Working...", ModalityType.DOCUMENT_MODAL);
@@ -28,7 +37,22 @@ public class ProgressDialog extends JDialog implements ProgressProvider {
         setLocationRelativeTo(owner);
     }
 
-    public synchronized void startTask(String taskId, String message) {
+    private void changeVisibilityNow() {
+        setVisible(pendingVisibility);
+        visibilityUpdateTimer = null;
+    }
+
+    private void changeVisibility(boolean visibility) {
+        pendingVisibility = visibility;
+        // Only update real visibility once every 500 ms
+        if (visibilityUpdateTimer == null) {
+            visibilityUpdateTimer = new Timer(500, e -> changeVisibilityNow());
+            visibilityUpdateTimer.setRepeats(false);
+            visibilityUpdateTimer.start();
+        }
+    }
+
+    private void startTask(String taskId, String message) {
         SwingUtilities.invokeLater(() -> {
             if (taskMap.containsKey(taskId)) return;
 
@@ -44,7 +68,8 @@ public class ProgressDialog extends JDialog implements ProgressProvider {
             taskPanel.repaint();
 
             if (!isVisible()) {
-                setVisible(true);
+                LOGGER.debug("Making progress dialog visible due to task: {}", taskId);
+                changeVisibility(true);
 
                 if (SwingHelpers.isAnyWindowFocused()) {
                     setAlwaysOnTop(true);
@@ -56,7 +81,7 @@ public class ProgressDialog extends JDialog implements ProgressProvider {
         });
     }
 
-    public synchronized void endTask(String taskId) {
+    private void endTask(String taskId) {
         SwingUtilities.invokeLater(() -> {
             JProgressBar bar = taskMap.remove(taskId);
             if (bar != null) {
@@ -65,11 +90,10 @@ public class ProgressDialog extends JDialog implements ProgressProvider {
                 taskPanel.repaint();
             }
 
-            SwingUtilities.invokeLater(() -> {
-                if (taskMap.isEmpty()) {
-                    setVisible(false); // Closes modal dialog
-                }
-            });
+            if (taskMap.isEmpty()) {
+                LOGGER.debug("Making progress dialog invisible");
+                changeVisibility(false);
+            }
         });
     }
 
@@ -84,17 +108,18 @@ public class ProgressDialog extends JDialog implements ProgressProvider {
 
     @Override
     public Task addTask(String taskName) {
-        startTask(taskName, taskName);
+        var taskId = UUID.randomUUID().toString();
+        startTask(taskId, taskName);
         return new Task() {
             @Override
             public void setMessage(String message) {
-                updateTaskMessage(taskName, message);
+                updateTaskMessage(taskId, message);
             }
 
             @Override
             public void setProgress(float progress) {
                 SwingUtilities.invokeLater(() -> {
-                    JProgressBar bar = taskMap.get(taskName);
+                    JProgressBar bar = taskMap.get(taskId);
                     if (bar != null) {
                         bar.setIndeterminate(false);
                         bar.setMinimum(0);
@@ -106,7 +131,7 @@ public class ProgressDialog extends JDialog implements ProgressProvider {
 
             @Override
             public void close() {
-                endTask(taskName);
+                endTask(taskId);
             }
         };
     }
