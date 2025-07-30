@@ -46,10 +46,11 @@ public class ReconciliationHelpers {
             var difference = SetUtils.diffSets(oldOutput.result().managedPaths().keySet(), newOutput.result().managedPaths().keySet());
 
             // Apply the new reconciler's output
-            newOutput.applyToFilesystem(progressProvider, instancePath);
+            newOutput.applyToFilesystem(progressProvider, instancePath).join();
 
             // Delete files that are no longer needed
             for (var remove : difference.removed()) {
+                LOGGER.info("Deleting {} as it's no longer referenced by a managed component", remove);
                 Files.deleteIfExists(remove.toPath(instancePath));
             }
         }
