@@ -17,6 +17,17 @@ public record InstanceFile(InstanceFile parent, String name) {
         return new InstanceFile(this, name);
     }
 
+    public InstanceFile resolve(InstanceFile file) {
+        InstanceFile parent;
+        if (file.parent == null) {
+            parent = this;
+        } else {
+            parent = this.resolve(file.parent);
+        }
+        return parent.resolve(file.name);
+    }
+
+
     public static InstanceFile fromPath(Path nioPath) {
         InstanceFile path = null;
         for (int i = 0; i < nioPath.getNameCount(); i++) {

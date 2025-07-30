@@ -1,0 +1,103 @@
+package org.taumc.launcher.core.meta.prism;
+
+import com.github.mizosoft.methanol.Methanol;
+import org.taumc.launcher.core.cache.ResourceCache;
+import org.taumc.launcher.core.http.DownloadProgressTracker;
+import org.taumc.launcher.core.meta.component.ReconcilableGameComponent;
+import org.taumc.launcher.core.reconciler.InstanceFile;
+import org.taumc.launcher.core.reconciler.PathPopulator;
+import org.taumc.launcher.core.reconciler.ReconcilableInstance;
+import org.taumc.launcher.core.reconciler.ReconciliationOptions;
+import org.taumc.launcher.core.reconciler.ReconciliationResult;
+
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Stream;
+
+import static org.taumc.launcher.core.reconciler.ReconciliationHelpers.fileNeedsUpdate;
+
+public record PrismZipExportComponent(String uid, String version, URI prismExport) implements ReconcilableGameComponent {
+    private static final ResourceCache DOWNLOADED_INSTANCE_CACHE = new ResourceCache("prism_export_files");
+    private static final Methanol CLIENT = Methanol.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
+
+    @Override
+    public int order() {
+        return 0;
+    }
+
+    private static Path findBasePathInZip(FileSystem zipfs) throws IOException {
+        Path zipRoot = zipfs.getRootDirectories().iterator().next();
+        try (var stream = Files.list(zipRoot)) {
+            var entries = stream.toList();
+
+            if (entries.size() == 1 && Files.isDirectory(entries.getFirst())) {
+                return entries.getFirst();
+            }
+        }
+        return zipRoot;
+    }
+
+    @Override
+    public CompletableFuture<ReconciliationResult> reconcile(ReconcilableInstance instance, ReconciliationOptions options) {
+        CompletableFuture<Path> prismExportPath;
+        if ("file".equals(prismExport.getScheme())) {
+            prismExportPath = CompletableFuture.completedFuture(Paths.get(prismExport));
+        } else {
+            prismExportPath = DOWNLOADED_INSTANCE_CACHE.computeIfAbsent(uid + "." + version, destination -> {
+                return DownloadProgressTracker.trackAsync(HttpResponse.BodyHandlers.ofFile(destination),
+                        handler -> CLIENT.sendAsync(HttpRequest.newBuilder().uri(prismExport).build(), handler),
+                        instance.getProgressProvider(),
+                        "Downloading " + prismExport);
+            });
+        }
+        return prismExportPath.thenCompose(zipPath -> {
+            Map<InstanceFile, PathPopulator> managedPaths = new HashMap<>();
+            try {
+                FileSystem zipfs = FileSystems.newFileSystem(zipPath, Map.of("create", "false"));
+                try {
+                    Path packContentsRoot = findBasePathInZip(zipfs);
+                    Path legacyMinecraftFolder = zipfs.getPath(".minecraft");
+                    try (Stream<Path> stream = Files.find(packContentsRoot, Integer.MAX_VALUE, (path, attrs) -> !attrs.isDirectory())) {
+                        stream.map(packContentsRoot::relativize).forEach(overrideInZip -> {
+                            InstanceFile file;
+                            if (overrideInZip.startsWith(legacyMinecraftFolder)) {
+                                file = new InstanceFile("minecraft").resolve(InstanceFile.fromPathString(legacyMinecraftFolder.relativize(overrideInZip).toString()));
+                            } else {
+                                file = InstanceFile.fromPathString(overrideInZip.toString());
+                            }
+
+                            managedPaths.put(file, targetOnDisk -> {
+                                Path fileInZip = packContentsRoot.resolve(overrideInZip);
+                                if (fileNeedsUpdate(fileInZip, targetOnDisk, options.updateMode())) {
+                                    Files.createDirectories(targetOnDisk.getParent());
+
+                                    try (var in = Files.newInputStream(fileInZip)) {
+                                        Files.copy(in, targetOnDisk, StandardCopyOption.REPLACE_EXISTING);
+                                    }
+                                }
+                            });
+                        });
+                    }
+                    return CompletableFuture.completedFuture(new ReconciliationResult(managedPaths, i -> {}, zipfs));
+                } catch (IOException e) {
+                    zipfs.close();
+                    throw e;
+                }
+            } catch (IOException e) {
+                return CompletableFuture.failedFuture(e);
+            }
+        });
+    }
+}
