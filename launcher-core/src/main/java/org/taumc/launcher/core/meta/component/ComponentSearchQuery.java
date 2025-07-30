@@ -40,13 +40,16 @@ public record ComponentSearchQuery(@Nullable String name,
                     }
                 }
                 if (modLoaders == null) {
-                    modLoaders = new HashSet<>();
+                    var loaders = new HashSet<String>();
                     for (var c : currentComponents.keySet()) {
                         switch (c) {
-                            case "net.minecraftforge" -> modLoaders.add("forge");
-                            case "net.neoforged" -> modLoaders.add("neoforge");
-                            case "net.fabricmc.fabric-loader" -> modLoaders.add("fabric");
+                            case "net.minecraftforge" -> loaders.add("forge");
+                            case "net.neoforged" -> loaders.add("neoforge");
+                            case "net.fabricmc.fabric-loader" -> loaders.add("fabric");
                         }
+                    }
+                    if (!loaders.isEmpty()) {
+                        modLoaders = loaders;
                     }
                 }
             }

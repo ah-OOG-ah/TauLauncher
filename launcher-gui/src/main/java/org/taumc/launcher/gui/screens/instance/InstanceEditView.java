@@ -263,13 +263,7 @@ public class InstanceEditView extends MultiSectionFrame {
                 var oldRoot = new ComponentTreeNode(null, SwingHelpers.immutableListOf(componentList).stream().map(ComponentTreeNode::new).toList());
                 var newRoot = oldRoot.clone();
                 newRoot.children().removeIf(c -> component.equals(c.getComponent()));
-                try {
-                    this.updateInstance(oldRoot, newRoot);
-                    componentList.removeElement(component);
-                } catch (Exception e) {
-                    JOptionPane.showMessageDialog(this, e.toString(), "Error removing component", JOptionPane.ERROR_MESSAGE);
-                    LOGGER.error("Error removing component", e);
-                }
+                this.updateInstance(oldRoot, newRoot, () -> componentList.removeElement(component));
             }
         });
 
@@ -280,14 +274,7 @@ public class InstanceEditView extends MultiSectionFrame {
                 var newRoot = oldRoot.clone();
                 var reconcilableComponents = newComponents.stream().map(c -> metaService.getComponent(c).join()).toList();
                 reconcilableComponents.forEach(r -> newRoot.addChild(new ComponentTreeNode(r)));
-                try {
-                    this.updateInstance(oldRoot, newRoot);
-                    componentList.addAll(reconcilableComponents);
-                } catch (Exception e) {
-                    JOptionPane.showMessageDialog(this, ExceptionUtil.getCompactErrorMessage(e), "Error adding component", JOptionPane.ERROR_MESSAGE);
-                    LOGGER.error("Error adding component", e);
-                }
-                return CompletableFuture.completedFuture(null);
+                return this.updateInstance(oldRoot, newRoot, () -> componentList.addAll(reconcilableComponents));
             });
             view.setVisible(true);
         });
@@ -296,15 +283,28 @@ public class InstanceEditView extends MultiSectionFrame {
         return panel;
     }
 
-    private void updateInstance(ComponentTreeNode oldRoot, ComponentTreeNode newRoot) throws Exception {
-        ReconciliationHelpers.migrateInstance(LaunchHandler.computeMinecraftFolder(instancePath),
-                oldRoot,
-                newRoot,
-                this.metadataService.join(),
-                this.progressDialog,
-                new ConsoleInterventionHandler());
-        saveCurrentConfig();
-        refreshCurrentPanel();
+    private CompletableFuture<Void> updateInstance(ComponentTreeNode oldRoot, ComponentTreeNode newRoot, Runnable applyUpdate) {
+        return CompletableFuture.runAsync(() -> {
+            try {
+                ReconciliationHelpers.migrateInstance(LaunchHandler.computeMinecraftFolder(instancePath),
+                        oldRoot,
+                        newRoot,
+                        this.metadataService.join(),
+                        this.progressDialog,
+                        new ConsoleInterventionHandler());
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }).whenCompleteAsync((c, e) -> {
+            if (e != null) {
+                JOptionPane.showMessageDialog(this, e.toString(), "Error updating instance", JOptionPane.ERROR_MESSAGE);
+                LOGGER.error("Error updating instance", e);
+            } else {
+                applyUpdate.run();
+                saveCurrentConfig();
+                refreshCurrentPanel();
+            }
+        }, SwingUtilities::invokeLater);
     }
 
     private JPanel createMemoryPanel() {

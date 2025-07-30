@@ -10,6 +10,7 @@ import org.taumc.launcher.core.meta.component.ReconcilableGameComponent;
 import org.taumc.launcher.core.meta.json.ComponentCoordinate;
 import org.taumc.launcher.core.meta.json.MetadataService;
 import org.taumc.launcher.core.meta.json.Requirement;
+import org.taumc.launcher.core.progress.Counter;
 import org.taumc.launcher.core.progress.ProgressProvider;
 import org.taumc.launcher.core.reconciler.exceptions.MissingDependenciesException;
 import org.taumc.launcher.core.reconciler.exceptions.RecoverableReconcilerException;
@@ -141,8 +142,10 @@ public class Reconciler implements ReconcilableInstance {
             }
         }
 
-        public CompletableFuture<Void> applyToFilesystem(Path instancePath) {
+        public CompletableFuture<Void> applyToFilesystem(ProgressProvider progressProvider, Path instancePath) {
             long applicationStart = System.nanoTime();
+            var task = progressProvider.addTask("Installing components");
+            var counter = new Counter(result.managedPaths().size(), task);
             var futureList = result.managedPaths().entrySet().stream().map(entry -> CompletableFuture.runAsync(() -> {
                 try {
                     Path targetPath = entry.getKey().toPath(instancePath);
@@ -150,8 +153,9 @@ public class Reconciler implements ReconcilableInstance {
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
-            })).toList();
+            }).whenComplete((c, t) -> counter.increment())).toList();
             return CompletableFuture.allOf(futureList.toArray(new CompletableFuture[0])).whenComplete((c, t) -> {
+                task.close();
                 long runtime = System.nanoTime() - applicationStart;
                 LOGGER.info("Applying reconciler output to filesystem took {} ms", TimeUnit.NANOSECONDS.toMillis(runtime));
             });

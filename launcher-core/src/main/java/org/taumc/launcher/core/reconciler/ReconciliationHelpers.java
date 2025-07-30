@@ -46,7 +46,7 @@ public class ReconciliationHelpers {
             var difference = SetUtils.diffSets(oldOutput.result().managedPaths().keySet(), newOutput.result().managedPaths().keySet());
 
             // Apply the new reconciler's output
-            newOutput.applyToFilesystem(instancePath);
+            newOutput.applyToFilesystem(progressProvider, instancePath);
 
             // Delete files that are no longer needed
             for (var remove : difference.removed()) {

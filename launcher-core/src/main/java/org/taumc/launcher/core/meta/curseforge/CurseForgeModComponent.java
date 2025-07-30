@@ -6,6 +6,7 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.taumc.launcher.core.cache.ResourceCache;
+import org.taumc.launcher.core.http.DownloadProgressTracker;
 import org.taumc.launcher.core.meta.component.ReconcilableGameComponent;
 import org.taumc.launcher.core.meta.json.ComponentCoordinate;
 import org.taumc.launcher.core.meta.json.Requirement;
@@ -136,7 +137,10 @@ public record CurseForgeModComponent(Mod mod, File file) implements Reconcilable
             }
             return THROTTLER.throttle(() -> {
                 LOGGER.info("Downloading file {}", file.fileName());
-                return CLIENT.sendAsync(HttpRequest.newBuilder().uri(URI.create(file.downloadUrl())).build(), HttpResponse.BodyHandlers.ofFile(destination));
+                return DownloadProgressTracker.trackAsync(HttpResponse.BodyHandlers.ofFile(destination),
+                        handler -> CLIENT.sendAsync(HttpRequest.newBuilder().uri(URI.create(file.downloadUrl())).build(), handler),
+                        instance.getProgressProvider(),
+                        "Downloading " + file.fileName());
             });
         });
         return downloadFuture.thenComposeAsync(cachedFilePath -> {
