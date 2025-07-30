@@ -1,11 +1,9 @@
 package org.taumc.launcher.core.reconciler;
 
 import lombok.Getter;
-import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.taumc.launcher.core.launch.RuntimeInstance;
-import org.taumc.launcher.core.meta.component.GameComponent;
 import org.taumc.launcher.core.meta.component.ReconcilableGameComponent;
 import org.taumc.launcher.core.meta.json.ComponentCoordinate;
 import org.taumc.launcher.core.meta.json.MetadataService;
@@ -109,8 +107,19 @@ public class Reconciler implements ReconcilableInstance {
         }
         var componentObjects = componentsToAdd.stream().map(c -> this.metadataService.getComponent(c)).toList();
         CompletableFuture.allOf(componentObjects.toArray(new CompletableFuture[0])).join();
-        for (var c : componentObjects) {
-            var component = c.join();
+        injectComponents(dependencyIndex, node, componentObjects.stream().map(CompletableFuture::join).toList());
+    }
+
+    private void injectComponents(Map<String, ReconcilableGameComponent> dependencyIndex, ComponentTreeNode node, List<ReconcilableGameComponent> components) {
+        for (var component : components) {
+            for (var uid : component.providedUids()) {
+                var existing = dependencyIndex.get(uid);
+                if (existing != null) {
+                    throw new IllegalStateException("Cannot inject component " + component + " when component " + existing + " is already present");
+                }
+            }
+        }
+        for (var component : components) {
             component.providedUids().forEach(uid -> dependencyIndex.put(uid, component));
             node.addChild(new ComponentTreeNode(component));
         }
@@ -125,7 +134,7 @@ public class Reconciler implements ReconcilableInstance {
         }
     }
 
-    public record Output(ReconciliationResult result, List<ReconcilableGameComponent> components) implements AutoCloseable {
+    public record Output(ReconciliationResult result) implements AutoCloseable {
         public void configureInstance(RuntimeInstance instance) {
             if (result.instanceConfigurer() != null) {
                 result.instanceConfigurer().accept(instance);
@@ -323,7 +332,7 @@ public class Reconciler implements ReconcilableInstance {
 
                 continue;
             }
-            output = new Output(future.join(), this.componentRoot.buildIndex().values().stream().distinct().sorted(Comparator.comparingInt(ReconcilableGameComponent::order)).toList());
+            output = new Output(future.join());
             break;
         } while (true);
 
