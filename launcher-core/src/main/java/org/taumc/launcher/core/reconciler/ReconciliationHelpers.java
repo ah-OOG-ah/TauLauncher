@@ -9,9 +9,14 @@ import org.taumc.launcher.core.reconciler.tree.ComponentTreeNode;
 import org.taumc.launcher.core.util.SetUtils;
 
 import java.io.IOException;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 public class ReconciliationHelpers {
     private static final Logger LOGGER = LoggerFactory.getLogger(ReconciliationHelpers.class);
@@ -48,10 +53,37 @@ public class ReconciliationHelpers {
             // Apply the new reconciler's output
             newOutput.applyToFilesystem(progressProvider, instancePath).join();
 
-            // Delete files that are no longer needed
-            for (var remove : difference.removed()) {
-                LOGGER.info("Deleting {} as it's no longer referenced by a managed component", remove);
-                Files.deleteIfExists(remove.toPath(instancePath));
+            ArrayList<InstanceFile> pathsToRemove = new ArrayList<>(difference.removed());
+
+            while (!pathsToRemove.isEmpty()) {
+                pathsToRemove.sort(Comparator.comparingInt(InstanceFile::getNameCount).reversed());
+
+                Set<InstanceFile> touchedDirs = new LinkedHashSet<>();
+
+                // Delete files that are no longer needed
+                for (var remove : pathsToRemove) {
+                    LOGGER.info("Deleting {} as it's no longer referenced by a managed component", remove);
+                    Path nioPath = remove.toPath(instancePath);
+                    if (remove.parent() != null) {
+                        touchedDirs.add(remove.parent());
+                    }
+                    Files.deleteIfExists(nioPath);
+                }
+
+                pathsToRemove.clear();
+
+                for (var dir : touchedDirs) {
+                    Path nioPath = dir.toPath(instancePath);
+                    if (Files.isDirectory(nioPath)) {
+                        boolean isEmpty;
+                        try (DirectoryStream<Path> stream = Files.newDirectoryStream(nioPath)) {
+                            isEmpty = !stream.iterator().hasNext();
+                        }
+                        if (isEmpty) {
+                            pathsToRemove.add(dir);
+                        }
+                    }
+                }
             }
         }
     }

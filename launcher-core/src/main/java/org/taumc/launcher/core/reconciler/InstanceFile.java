@@ -60,6 +60,14 @@ public record InstanceFile(InstanceFile parent, String name) {
         }
     }
 
+    public int getNameCount() {
+        if (parent != null) {
+            return parent.getNameCount() + 1;
+        } else {
+            return 1;
+        }
+    }
+
     private void toStringHelper(StringBuilder sb) {
         if (parent != null) {
             parent.toStringHelper(sb);
