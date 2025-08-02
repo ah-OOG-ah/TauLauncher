@@ -17,7 +17,9 @@ import org.taumc.launcher.core.reconciler.intervention.InterventionAction;
 import org.taumc.launcher.core.reconciler.intervention.UserInterventionHandler;
 import org.taumc.launcher.core.reconciler.tree.ComponentTreeNode;
 
+import java.io.BufferedOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
@@ -161,6 +163,8 @@ public class Reconciler implements ReconcilableInstance {
     }
 
     public record Output(ReconciliationResult result) implements AutoCloseable {
+        private static final String GITIGNORE_START = "# TauLauncher start";
+        private static final String GITIGNORE_END = "# TauLauncher end";
         public void configureInstance(RuntimeInstance instance) {
             if (result.instanceConfigurer() != null) {
                 result.instanceConfigurer().accept(instance);
@@ -177,18 +181,57 @@ public class Reconciler implements ReconcilableInstance {
             }
         }
 
+        private void updateGitignore(Path instancePath) {
+            var gitignoreFile = instancePath.resolve(".gitignore");
+            List<String> gitignoreContents = new ArrayList<>();
+            try {
+                gitignoreContents.addAll(Files.readAllLines(gitignoreFile));
+            } catch (IOException ignored) {
+            }
+            int tauStart = gitignoreContents.indexOf(GITIGNORE_START);
+            int tauEnd = gitignoreContents.indexOf(GITIGNORE_END);
+            List<String> previousEntries;
+            if (tauStart != -1 && tauEnd != -1 && tauEnd >= tauStart) {
+                var sublist = gitignoreContents.subList(tauStart + 1, tauEnd);
+                previousEntries = List.copyOf(sublist);
+                sublist.clear();
+                tauEnd = tauStart + 1;
+            } else {
+                previousEntries = List.of();
+                gitignoreContents.removeIf(s -> s.equals(GITIGNORE_START) || s.equals(GITIGNORE_END));
+                tauStart = gitignoreContents.size();
+                tauEnd = gitignoreContents.size() + 1;
+                gitignoreContents.add(tauStart, GITIGNORE_START);
+                gitignoreContents.add(tauEnd, GITIGNORE_END);
+            }
+            var ignoredPaths = result.managedPaths().keySet().stream().map(InstanceFile::toString).sorted().toList();
+            if (previousEntries.equals(ignoredPaths)) {
+                return;
+            }
+            gitignoreContents.subList(tauStart, tauEnd).addAll(1, ignoredPaths);
+            try (var os = new BufferedOutputStream(Files.newOutputStream(gitignoreFile))) {
+                for (var line : gitignoreContents) {
+                    os.write(line.getBytes(StandardCharsets.UTF_8));
+                    os.write('\n');
+                }
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
         public CompletableFuture<Void> applyToFilesystem(ProgressProvider progressProvider, Path instancePath) {
             long applicationStart = System.nanoTime();
             var task = progressProvider.addTask("Updating components");
             var counter = new Counter(result.managedPaths().size(), task);
-            var futureList = result.managedPaths().entrySet().stream().map(entry -> CompletableFuture.runAsync(() -> {
+            ArrayList<CompletableFuture<Void>> futureList = result.managedPaths().entrySet().stream().map(entry -> CompletableFuture.runAsync(() -> {
                 try {
                     Path targetPath = entry.getKey().toPath(instancePath);
                     entry.getValue().populate(targetPath);
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
-            }).whenComplete((c, t) -> counter.increment())).toList();
+            }).whenComplete((c, t) -> counter.increment())).collect(Collectors.toCollection(ArrayList::new));
+            futureList.add(CompletableFuture.runAsync(() -> updateGitignore(instancePath)));
             return CompletableFuture.allOf(futureList.toArray(new CompletableFuture[0])).whenComplete((c, t) -> {
                 task.close();
                 long runtime = System.nanoTime() - applicationStart;
