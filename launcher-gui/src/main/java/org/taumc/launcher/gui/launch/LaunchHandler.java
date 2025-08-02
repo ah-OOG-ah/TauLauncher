@@ -52,7 +52,6 @@ public class LaunchHandler {
             metadataService.addRepository(new PatchesFolderMetaRepository(patchesFolder));
         }
         Main.getDefaultRepositories().forEach(metadataService::addRepository);
-        metadataService.updateIndex();
     }
 
     public CompletableFuture<Void> doLaunch() {

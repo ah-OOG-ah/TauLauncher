@@ -286,7 +286,7 @@ public class InstanceEditView extends MultiSectionFrame {
     private CompletableFuture<Void> updateInstance(ComponentTreeNode oldRoot, ComponentTreeNode newRoot, Runnable applyUpdate) {
         return CompletableFuture.runAsync(() -> {
             try {
-                ReconciliationHelpers.migrateInstance(LaunchHandler.computeMinecraftFolder(instancePath),
+                ReconciliationHelpers.migrateInstance(instancePath,
                         oldRoot,
                         newRoot,
                         this.metadataService.join(),

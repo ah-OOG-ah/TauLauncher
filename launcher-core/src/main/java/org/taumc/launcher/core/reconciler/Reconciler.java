@@ -41,6 +41,7 @@ public class Reconciler implements ReconcilableInstance {
 
     @Getter
     private final ComponentTreeNode componentRoot;
+    @Getter
     private final MetadataService metadataService;
     @Getter
     private final ProgressProvider progressProvider;
@@ -73,7 +74,7 @@ public class Reconciler implements ReconcilableInstance {
                 }
                 if (!unsatisfiedRequirements.isEmpty()) {
                     try {
-                        adaptToRequirements(dependencyIndex, node, new MissingDependenciesException(unsatisfiedRequirements));
+                        adaptToRequirements(dependencyIndex, node, new MissingDependenciesException(convertRequirementsToComponents(dependencyIndex, unsatisfiedRequirements)));
                     } catch (Exception e) {
                         throw new IllegalStateException("Exception satisfying requirements for " + component.uid() + ": " + e, e);
                     }
@@ -84,31 +85,13 @@ public class Reconciler implements ReconcilableInstance {
     }
 
     private void adaptToRequirements(Map<String, ReconcilableGameComponent> dependencyIndex, ComponentTreeNode node, MissingDependenciesException e) {
-        List<ComponentCoordinate.Simple> componentsToAdd = new ArrayList<>();
-        var requirementsToFix = e.getAdditionalDependencies();
-        for (var r : requirementsToFix) {
+        for (var r : e.getAdditionalComponents()) {
             var component = dependencyIndex.get(r.uid());
             if (component != null) {
                 throw new IllegalStateException("Component has requirement " + r + ", but version " + component.version() + " is already added");
             }
-            String version;
-            if (r.recommendedVersion().isPresent()) {
-                version = r.recommendedVersion().get();
-            } else if (r.uid().equals("net.fabricmc.intermediary")) {
-                // Match with Minecraft version
-                var minecraftComponent = dependencyIndex.get("net.minecraft");
-                if (minecraftComponent == null) {
-                    throw new IllegalArgumentException("Minecraft must be present to use Fabric");
-                }
-                version = minecraftComponent.version();
-            } else {
-                version = this.metadataService.getKnownVersions(r.uid()).join().getLast().version();
-            }
-            componentsToAdd.add(new ComponentCoordinate.Simple(r.uid(), version));
         }
-        var componentObjects = componentsToAdd.stream().map(c -> this.metadataService.getComponent(c)).toList();
-        CompletableFuture.allOf(componentObjects.toArray(new CompletableFuture[0])).join();
-        injectComponents(dependencyIndex, node, componentObjects.stream().map(CompletableFuture::join).toList());
+        injectComponents(dependencyIndex, node, e.getAdditionalComponents());
     }
 
     private void injectComponents(Map<String, ReconcilableGameComponent> dependencyIndex, ComponentTreeNode node, List<ReconcilableGameComponent> components) {
@@ -126,12 +109,54 @@ public class Reconciler implements ReconcilableInstance {
         }
     }
 
+    private List<ReconcilableGameComponent> convertRequirementsToComponents(Map<String, ReconcilableGameComponent> dependencyIndex, List<Requirement> needed) {
+        List<ComponentCoordinate.Simple> componentsToAdd = new ArrayList<>();
+        for (var r : needed) {
+            String version;
+            if (r.recommendedVersion().isPresent()) {
+                version = r.recommendedVersion().get();
+            } else if (r.uid().equals("net.fabricmc.intermediary")) {
+                // Match with Minecraft version
+                var minecraftComponent = dependencyIndex.get("net.minecraft");
+                if (minecraftComponent == null) {
+                    throw new IllegalArgumentException("Minecraft must be present to use Fabric");
+                }
+                version = minecraftComponent.version();
+            } else {
+                version = this.metadataService.getKnownVersions(r.uid()).join().getLast().version();
+            }
+            componentsToAdd.add(new ComponentCoordinate.Simple(r.uid(), version));
+        }
+        var componentObjects = componentsToAdd.stream().map(this.metadataService::getComponent).toList();
+        CompletableFuture.allOf(componentObjects.toArray(new CompletableFuture[0])).join();
+        return componentObjects.stream().map(CompletableFuture::join).toList();
+    }
+
     @Override
     public void validateRequirements(List<Requirement> requirements) throws MissingDependenciesException {
         var dependencyIndex = this.componentRoot.buildIndex();
         var needed = requirements.stream().filter(r -> !r.isSatisfied(dependencyIndex)).toList();
         if (!needed.isEmpty()) {
-            throw new MissingDependenciesException(needed);
+            throw new MissingDependenciesException(convertRequirementsToComponents(dependencyIndex, needed));
+        }
+    }
+
+    @Override
+    public void validateComponents(List<ReconcilableGameComponent> components) throws MissingDependenciesException {
+        var dependencyIndex = this.componentRoot.buildIndex();
+        var missingComponents = new ArrayList<ReconcilableGameComponent>();
+        for (var c : components) {
+            var foundComponent = dependencyIndex.get(c.uid());
+            if (!c.equals(foundComponent)) {
+                if (foundComponent == null) {
+                    missingComponents.add(c);
+                } else {
+                    throw new IllegalStateException("Conflict detected for component " + c + ", as instance already has " + foundComponent);
+                }
+            }
+        }
+        if (!missingComponents.isEmpty()) {
+            throw new MissingDependenciesException(missingComponents);
         }
     }
 
@@ -308,7 +333,7 @@ public class Reconciler implements ReconcilableInstance {
                     try {
                         switch (recoverable) {
                             case MissingDependenciesException deps -> {
-                                LOGGER.info("Injecting {} additional dependencies requested by {}", deps.getAdditionalDependencies().size(), treeNodeExc.thrower.getComponent());
+                                LOGGER.info("Injecting {} additional dependencies requested by {}", deps.getAdditionalComponents().size(), treeNodeExc.thrower.getComponent());
                                 adaptToRequirements(depIndex, treeNodeExc.thrower, deps);
                                 scanDependencies();
                             }

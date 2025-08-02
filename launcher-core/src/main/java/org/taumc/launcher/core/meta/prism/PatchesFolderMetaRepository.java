@@ -2,7 +2,6 @@ package org.taumc.launcher.core.meta.prism;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.taumc.launcher.core.meta.component.ComponentMetaInfo;
-import org.taumc.launcher.core.meta.component.GameComponent;
 import org.taumc.launcher.core.meta.component.ReconcilableGameComponent;
 import org.taumc.launcher.core.meta.json.JsonDecoder;
 import org.taumc.launcher.core.meta.json.MetaRepository;

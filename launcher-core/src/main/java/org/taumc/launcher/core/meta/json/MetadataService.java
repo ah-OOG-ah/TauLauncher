@@ -34,9 +34,11 @@ public class MetadataService implements Closeable {
         this.repositories = new ArrayList<>(repositories);
     }
 
-    private void checkIndexed() {
+    private synchronized void checkIndexed() {
         if (!this.indexed) {
-            throw new IllegalStateException("Metadata service has not been indexed yet");
+            this.knownPackages.clear();
+            this.knownPackages.addAll(this.repositories.parallelStream().flatMap(r -> r.getKnownPackages().join().stream()).collect(Collectors.toUnmodifiableSet()));
+            this.indexed = true;
         }
     }
 
@@ -58,12 +60,8 @@ public class MetadataService implements Closeable {
         }
     }
 
-    public synchronized Set<String> getKnownPackages() {
-        if (!this.indexed) {
-            this.knownPackages.clear();
-            this.knownPackages.addAll(this.repositories.parallelStream().flatMap(r -> r.getKnownPackages().join().stream()).collect(Collectors.toUnmodifiableSet()));
-            this.indexed = true;
-        }
+    public Set<String> getKnownPackages() {
+        this.checkIndexed();
         return Collections.unmodifiableSet(this.knownPackages);
     }
 

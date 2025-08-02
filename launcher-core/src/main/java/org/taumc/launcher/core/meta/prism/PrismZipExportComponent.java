@@ -4,11 +4,13 @@ import com.github.mizosoft.methanol.Methanol;
 import org.taumc.launcher.core.cache.ResourceCache;
 import org.taumc.launcher.core.http.DownloadProgressTracker;
 import org.taumc.launcher.core.meta.component.ReconcilableGameComponent;
+import org.taumc.launcher.core.meta.json.MMCPack;
 import org.taumc.launcher.core.reconciler.InstanceFile;
 import org.taumc.launcher.core.reconciler.PathPopulator;
 import org.taumc.launcher.core.reconciler.ReconcilableInstance;
 import org.taumc.launcher.core.reconciler.ReconciliationOptions;
 import org.taumc.launcher.core.reconciler.ReconciliationResult;
+import org.taumc.launcher.core.reconciler.exceptions.MissingDependenciesException;
 
 import java.io.IOException;
 import java.net.URI;
@@ -24,6 +26,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static org.taumc.launcher.core.reconciler.ReconciliationHelpers.fileNeedsUpdate;
@@ -68,6 +71,21 @@ public record PrismZipExportComponent(String uid, String version, URI prismExpor
                 FileSystem zipfs = FileSystems.newFileSystem(zipPath, Map.of("create", "false"));
                 try {
                     Path packContentsRoot = findBasePathInZip(zipfs);
+                    var mmcPack = MMCPack.read(packContentsRoot.resolve("mmc-pack.json"));
+                    try (var patchesRepo = new PatchesFolderMetaRepository(packContentsRoot.resolve("patches"))) {
+                        var requiredComponents = mmcPack.components().stream().map(c -> {
+                            return patchesRepo.retrieveComponent(c.uid(), c.version()).handle((r, t) -> {
+                                if (r != null) {
+                                    return CompletableFuture.completedFuture(r);
+                                } else {
+                                    return instance.getMetadataService().getComponent(c);
+                                }
+                            }).thenCompose(Function.identity());
+                        }).toList();
+                        CompletableFuture.allOf(requiredComponents.toArray(new CompletableFuture[0])).join();
+                        instance.validateComponents(requiredComponents.stream().map(CompletableFuture::join).toList());
+                    }
+                    // Relative path fragment, not the exact path
                     Path legacyMinecraftFolder = zipfs.getPath(".minecraft");
                     try (Stream<Path> stream = Files.find(packContentsRoot, Integer.MAX_VALUE, (path, attrs) -> !attrs.isDirectory())) {
                         stream.map(packContentsRoot::relativize).forEach(overrideInZip -> {
@@ -91,11 +109,11 @@ public record PrismZipExportComponent(String uid, String version, URI prismExpor
                         });
                     }
                     return CompletableFuture.completedFuture(new ReconciliationResult(managedPaths, i -> {}, zipfs));
-                } catch (IOException e) {
+                } catch (IOException | MissingDependenciesException e) {
                     zipfs.close();
                     throw e;
                 }
-            } catch (IOException e) {
+            } catch (IOException | MissingDependenciesException e) {
                 return CompletableFuture.failedFuture(e);
             }
         });

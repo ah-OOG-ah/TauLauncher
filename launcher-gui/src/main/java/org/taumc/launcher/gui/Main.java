@@ -58,7 +58,6 @@ public class Main {
         SwingUtilities.invokeLater(() -> {
             try {
                 getDefaultRepositories().forEach(METADATA::addRepository);
-                METADATA.updateIndex();
             } catch (Exception e) {
                 LOGGER.error("Error updating metadata", e);
                 JOptionPane.showMessageDialog(null, e.getMessage(), "Error updating metadata", JOptionPane.ERROR_MESSAGE);

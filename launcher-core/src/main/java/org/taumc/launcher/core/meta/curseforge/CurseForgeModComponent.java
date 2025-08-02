@@ -91,9 +91,10 @@ public record CurseForgeModComponent(Mod mod, File file) implements Reconcilable
                 instance.validateRequirements(dependencies);
                 Map<InstanceFile, PathPopulator> managedPaths = new HashMap<>();
                 var overridesFolder = packContentsRoot.resolve("overrides");
+                var minecraftPath = new InstanceFile("minecraft");
                 try (Stream<Path> stream = Files.find(packContentsRoot, Integer.MAX_VALUE, (path, attrs) -> path.startsWith(overridesFolder) && !attrs.isDirectory())) {
                     stream.forEach(overrideInZip -> {
-                        InstanceFile file = InstanceFile.fromPathString(overridesFolder.relativize(overrideInZip).toString());
+                        InstanceFile file = minecraftPath.resolve(InstanceFile.fromPathString(overridesFolder.relativize(overrideInZip).toString()));
 
                         managedPaths.put(file, targetOnDisk -> {
                             if (fileNeedsUpdate(overrideInZip, targetOnDisk, options.updateMode())) {
@@ -118,7 +119,7 @@ public record CurseForgeModComponent(Mod mod, File file) implements Reconcilable
     }
 
     private CompletableFuture<ReconciliationResult> reconcileFile(CurseForgeClass fileType, Path cfFilePath, ReconcilableInstance instance, ReconciliationOptions options) {
-        InstanceFile destinationFile = new InstanceFile(fileType.subfolder()).resolve(file.fileName());
+        InstanceFile destinationFile = new InstanceFile("minecraft").resolve(fileType.subfolder()).resolve(file.fileName());
         return CompletableFuture.completedFuture(new ReconciliationResult(Map.of(destinationFile, destinationPath -> {
             if (fileNeedsUpdate(cfFilePath, destinationPath, options.updateMode())) {
                 Files.createDirectories(destinationPath.getParent());
