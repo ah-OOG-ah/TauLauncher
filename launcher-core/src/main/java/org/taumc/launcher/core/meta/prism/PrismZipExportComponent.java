@@ -6,7 +6,8 @@ import org.taumc.launcher.core.http.DownloadProgressTracker;
 import org.taumc.launcher.core.meta.component.ReconcilableGameComponent;
 import org.taumc.launcher.core.meta.json.MMCPack;
 import org.taumc.launcher.core.reconciler.InstanceFile;
-import org.taumc.launcher.core.reconciler.PathPopulator;
+import org.taumc.launcher.core.reconciler.PathContentEntry;
+import org.taumc.launcher.core.reconciler.PopulatableEntry;
 import org.taumc.launcher.core.reconciler.ReconcilableInstance;
 import org.taumc.launcher.core.reconciler.ReconciliationOptions;
 import org.taumc.launcher.core.reconciler.ReconciliationResult;
@@ -22,14 +23,11 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Stream;
-
-import static org.taumc.launcher.core.reconciler.ReconciliationHelpers.fileNeedsUpdate;
 
 public record PrismZipExportComponent(String uid, String version, URI prismExport) implements ReconcilableGameComponent {
     private static final ResourceCache DOWNLOADED_INSTANCE_CACHE = new ResourceCache("prism_export_files");
@@ -66,7 +64,7 @@ public record PrismZipExportComponent(String uid, String version, URI prismExpor
             });
         }
         return prismExportPath.thenCompose(zipPath -> {
-            Map<InstanceFile, PathPopulator> managedPaths = new HashMap<>();
+            Map<InstanceFile, PopulatableEntry> managedPaths = new HashMap<>();
             try {
                 FileSystem zipfs = FileSystems.newFileSystem(zipPath, Map.of("create", "false"));
                 try {
@@ -96,16 +94,7 @@ public record PrismZipExportComponent(String uid, String version, URI prismExpor
                                 file = InstanceFile.fromPathString(overrideInZip.toString());
                             }
 
-                            managedPaths.put(file, targetOnDisk -> {
-                                Path fileInZip = packContentsRoot.resolve(overrideInZip);
-                                if (fileNeedsUpdate(fileInZip, targetOnDisk, options.updateMode())) {
-                                    Files.createDirectories(targetOnDisk.getParent());
-
-                                    try (var in = Files.newInputStream(fileInZip)) {
-                                        Files.copy(in, targetOnDisk, StandardCopyOption.REPLACE_EXISTING);
-                                    }
-                                }
-                            });
+                            managedPaths.put(file, new PathContentEntry(packContentsRoot.resolve(overrideInZip)));
                         });
                     }
                     return CompletableFuture.completedFuture(new ReconciliationResult(managedPaths, i -> {}, zipfs));

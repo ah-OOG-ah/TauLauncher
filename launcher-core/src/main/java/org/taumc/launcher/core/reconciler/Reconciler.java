@@ -219,14 +219,17 @@ public class Reconciler implements ReconcilableInstance {
             }
         }
 
-        public CompletableFuture<Void> applyToFilesystem(ProgressProvider progressProvider, Path instancePath) {
+        public CompletableFuture<Void> applyToFilesystem(ProgressProvider progressProvider, Path instancePath, ReconciliationOptions.UpdateMode updateMode) {
             long applicationStart = System.nanoTime();
             var task = progressProvider.addTask("Updating components");
             var counter = new Counter(result.managedPaths().size(), task);
             ArrayList<CompletableFuture<Void>> futureList = result.managedPaths().entrySet().stream().map(entry -> CompletableFuture.runAsync(() -> {
                 try {
                     Path targetPath = entry.getKey().toPath(instancePath);
-                    entry.getValue().populate(targetPath);
+                    var componentFile = entry.getValue();
+                    if (componentFile.needsUpdate(targetPath, updateMode)) {
+                        componentFile.populateOnDisk(targetPath);
+                    }
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }

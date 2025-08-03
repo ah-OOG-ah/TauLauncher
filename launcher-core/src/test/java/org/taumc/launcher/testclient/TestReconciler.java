@@ -28,7 +28,7 @@ public class TestReconciler {
         Reconciler reconciler = new Reconciler(oldHolder, metaService, ProgressProvider.LOGGING, new ConsoleInterventionHandler());
 
         Reconciler newReconciler = new Reconciler(newHolder, metaService, ProgressProvider.LOGGING, new ConsoleInterventionHandler());
-        var opts = ReconciliationOptions.builder().updateMode(ReconciliationOptions.UpdateMode.UPDATE_IF_MISSING).build();
+        var opts = ReconciliationOptions.builder().build();
         try (var oldOutput = reconciler.runReconciliation(opts);
              var newOutput = newReconciler.runReconciliation(opts)) {
             var oldPaths = oldOutput.result().managedPaths().keySet();

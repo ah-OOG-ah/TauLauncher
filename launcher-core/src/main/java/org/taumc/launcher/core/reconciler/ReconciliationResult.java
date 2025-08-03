@@ -12,7 +12,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-public record ReconciliationResult(Map<InstanceFile, PathPopulator> managedPaths,
+public record ReconciliationResult(Map<InstanceFile, PopulatableEntry> managedPaths,
                                    Consumer<RuntimeInstance> instanceConfigurer,
                                    @Nullable AutoCloseable closeFunction) {
     public static final ReconciliationResult EMPTY = new ReconciliationResult(Map.of(), i -> {}, null);
@@ -22,7 +22,7 @@ public record ReconciliationResult(Map<InstanceFile, PathPopulator> managedPaths
     }
 
     public ReconciliationResult mergeWith(Collection<ReconciliationResult> otherResults) {
-        Map<InstanceFile, PathPopulator> managedPaths = new HashMap<>();
+        Map<InstanceFile, PopulatableEntry> managedPaths = new HashMap<>();
         for (var result : otherResults) {
             managedPaths.putAll(result.managedPaths);
         }

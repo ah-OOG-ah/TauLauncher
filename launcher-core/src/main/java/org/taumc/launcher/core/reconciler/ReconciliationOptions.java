@@ -1,10 +1,9 @@
 package org.taumc.launcher.core.reconciler;
 
 import lombok.Builder;
-import lombok.NonNull;
 
 @Builder
-public record ReconciliationOptions(@NonNull UpdateMode updateMode) {
+public record ReconciliationOptions() {
     /**
      * Controls how existing files in the instance are updated.
      */

@@ -14,8 +14,9 @@ import org.taumc.launcher.core.mods.curseforge.File;
 import org.taumc.launcher.core.mods.curseforge.Mod;
 import org.taumc.launcher.core.mods.curseforge.PackManifest;
 import org.taumc.launcher.core.reconciler.InstanceFile;
+import org.taumc.launcher.core.reconciler.PathContentEntry;
+import org.taumc.launcher.core.reconciler.PopulatableEntry;
 import org.taumc.launcher.core.reconciler.exceptions.MissingDependenciesException;
-import org.taumc.launcher.core.reconciler.PathPopulator;
 import org.taumc.launcher.core.reconciler.ReconcilableInstance;
 import org.taumc.launcher.core.reconciler.ReconciliationOptions;
 import org.taumc.launcher.core.reconciler.ReconciliationResult;
@@ -41,7 +42,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
 import static org.taumc.launcher.core.meta.curseforge.CurseForgeMetaRepository.THROTTLER;
-import static org.taumc.launcher.core.reconciler.ReconciliationHelpers.fileNeedsUpdate;
 
 public record CurseForgeModComponent(Mod mod, File file) implements ReconcilableGameComponent {
     private static final Logger LOGGER = LoggerFactory.getLogger(CurseForgeModComponent.class);
@@ -89,22 +89,14 @@ public record CurseForgeModComponent(Mod mod, File file) implements Reconcilable
                         .toList());
                 dependencies.addAll(getMinecraftAndLoaderComponents(manifest).stream().map(Requirement::strict).toList());
                 instance.validateRequirements(dependencies);
-                Map<InstanceFile, PathPopulator> managedPaths = new HashMap<>();
+                Map<InstanceFile, PopulatableEntry> managedPaths = new HashMap<>();
                 var overridesFolder = packContentsRoot.resolve("overrides");
                 var minecraftPath = new InstanceFile("minecraft");
                 try (Stream<Path> stream = Files.find(packContentsRoot, Integer.MAX_VALUE, (path, attrs) -> path.startsWith(overridesFolder) && !attrs.isDirectory())) {
                     stream.forEach(overrideInZip -> {
                         InstanceFile file = minecraftPath.resolve(InstanceFile.fromPathString(overridesFolder.relativize(overrideInZip).toString()));
 
-                        managedPaths.put(file, targetOnDisk -> {
-                            if (fileNeedsUpdate(overrideInZip, targetOnDisk, options.updateMode())) {
-                                Files.createDirectories(targetOnDisk.getParent());
-
-                                try (var in = Files.newInputStream(overrideInZip)) {
-                                    Files.copy(in, targetOnDisk, StandardCopyOption.REPLACE_EXISTING);
-                                }
-                            }
-                        });
+                        managedPaths.put(file, new PathContentEntry(overrideInZip));
                     });
                 }
 
@@ -120,12 +112,8 @@ public record CurseForgeModComponent(Mod mod, File file) implements Reconcilable
 
     private CompletableFuture<ReconciliationResult> reconcileFile(CurseForgeClass fileType, Path cfFilePath, ReconcilableInstance instance, ReconciliationOptions options) {
         InstanceFile destinationFile = new InstanceFile("minecraft").resolve(fileType.subfolder()).resolve(file.fileName());
-        return CompletableFuture.completedFuture(new ReconciliationResult(Map.of(destinationFile, destinationPath -> {
-            if (fileNeedsUpdate(cfFilePath, destinationPath, options.updateMode())) {
-                Files.createDirectories(destinationPath.getParent());
-                Files.copy(cfFilePath, destinationPath, StandardCopyOption.REPLACE_EXISTING);
-            }
-        }), i -> {}, null));
+        return CompletableFuture.completedFuture(new ReconciliationResult(
+                Map.of(destinationFile, new PathContentEntry(cfFilePath)), i -> {}, null));
     }
 
     @Override

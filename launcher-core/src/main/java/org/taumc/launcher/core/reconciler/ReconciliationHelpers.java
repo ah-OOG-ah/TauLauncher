@@ -8,10 +8,8 @@ import org.taumc.launcher.core.reconciler.intervention.UserInterventionHandler;
 import org.taumc.launcher.core.reconciler.tree.ComponentTreeNode;
 import org.taumc.launcher.core.util.SetUtils;
 
-import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -21,37 +19,15 @@ import java.util.Set;
 public class ReconciliationHelpers {
     private static final Logger LOGGER = LoggerFactory.getLogger(ReconciliationHelpers.class);
 
-    public static boolean fileNeedsUpdate(Path sourcePath, Path destinationPath, ReconciliationOptions.UpdateMode updateMode) {
-        boolean needCopy = false;
-
-        try {
-            if (updateMode == ReconciliationOptions.UpdateMode.UPDATE_IF_MISSING) {
-                needCopy = !Files.exists(destinationPath);
-            } else if (updateMode == ReconciliationOptions.UpdateMode.UPDATE_IF_DIFFERENT) {
-                needCopy = Files.size(destinationPath) != Files.size(sourcePath) || Files.mismatch(sourcePath, destinationPath) != -1;
-                if (needCopy) {
-                    LOGGER.info("Updating {} due to content mismatch", destinationPath.getFileName().toString());
-                }
-            }
-        } catch (NoSuchFileException e) {
-            LOGGER.info("Updating {} due to not existing", destinationPath.getFileName().toString());
-            needCopy = true;
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
-        return needCopy;
-    }
-
     public static void migrateInstance(Path instancePath, ComponentTreeNode oldRoot, ComponentTreeNode newRoot, MetadataService metadataService, ProgressProvider progressProvider, UserInterventionHandler interventionHandler) throws Exception {
         var oldReconciler = new Reconciler(oldRoot, metadataService, progressProvider, interventionHandler);
         var newReconciler = new Reconciler(newRoot, metadataService, progressProvider, interventionHandler);
-        try (var oldOutput = oldReconciler.runReconciliation(ReconciliationOptions.builder().updateMode(ReconciliationOptions.UpdateMode.UPDATE_IF_MISSING).build());
-             var newOutput = newReconciler.runReconciliation(ReconciliationOptions.builder().updateMode(ReconciliationOptions.UpdateMode.UPDATE_IF_DIFFERENT).build())) {
+        try (var oldOutput = oldReconciler.runReconciliation(ReconciliationOptions.builder().build());
+             var newOutput = newReconciler.runReconciliation(ReconciliationOptions.builder().build())) {
             var difference = SetUtils.diffSets(oldOutput.result().managedPaths().keySet(), newOutput.result().managedPaths().keySet());
 
             // Apply the new reconciler's output
-            newOutput.applyToFilesystem(progressProvider, instancePath).join();
+            newOutput.applyToFilesystem(progressProvider, instancePath, ReconciliationOptions.UpdateMode.UPDATE_IF_DIFFERENT).join();
 
             ArrayList<InstanceFile> pathsToRemove = new ArrayList<>(difference.removed());
 

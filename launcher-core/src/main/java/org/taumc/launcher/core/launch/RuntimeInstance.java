@@ -351,8 +351,8 @@ public class RuntimeInstance {
 
         Reconciler reconciler = new Reconciler(this.components, this.getMetadataService(), this.progressProvider, new ConsoleInterventionHandler());
 
-        try (var output = reconciler.runReconciliation(ReconciliationOptions.builder().updateMode(ReconciliationOptions.UpdateMode.UPDATE_IF_MISSING).build())) {
-            output.applyToFilesystem(this.progressProvider, getInstancePath().getParent()).join();
+        try (var output = reconciler.runReconciliation(ReconciliationOptions.builder().build())) {
+            output.applyToFilesystem(this.progressProvider, getInstancePath().getParent(), ReconciliationOptions.UpdateMode.UPDATE_IF_MISSING).join();
             output.configureInstance(this);
         }
 
