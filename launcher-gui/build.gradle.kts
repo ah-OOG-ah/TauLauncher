@@ -11,7 +11,9 @@ dependencies {
 
     implementation("com.miglayout:miglayout-swing:11.4.2")
 
+    // Image support
     implementation("com.twelvemonkeys.imageio:imageio-webp:3.12.0")
+    implementation("com.formdev:flatlaf-extras:3.6")
 
     implementation("org.apache.logging.log4j:log4j-api:2.20.0")     // Log4j2 API
     implementation("org.apache.logging.log4j:log4j-core:2.20.0")    // Log4j2 Core impl
@@ -51,6 +53,7 @@ tasks.jar {
     manifest {
         attributes["Implementation-Version"] = project.version
     }
+    from("3RD-PARTY-LICENSES")
 }
 
 runtime {
