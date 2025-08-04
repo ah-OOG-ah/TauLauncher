@@ -2,7 +2,6 @@ package org.taumc.launcher.gui.screens.instance;
 
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 import com.formdev.flatlaf.extras.components.FlatTextField;
-import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import javax.swing.BoxLayout;
@@ -26,7 +25,7 @@ public class InstanceCreateFrame extends JFrame {
         var content = boxPanel(BoxLayout.Y_AXIS);
         setContentPane(content);
 
-        content.add(createIconNameGroupPane(), BorderLayout.PAGE_START);
+        content.add(createIconNameGroupPane());
     }
 
     private static JPanel createIconNameGroupPane() {
