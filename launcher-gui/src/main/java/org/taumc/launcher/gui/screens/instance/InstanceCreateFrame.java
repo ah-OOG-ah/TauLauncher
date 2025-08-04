@@ -113,6 +113,9 @@ public class InstanceCreateFrame extends JFrame {
             button.addActionListener(new ToggleGroupAction(components));
         }
 
+        // Start with the first selected
+        ((JToggleButton) components[0]).setSelected(true);
+
         typePane.setMaximumSize(new Dimension(maxSize.width, Integer.MAX_VALUE));
         return typePane;
     }
