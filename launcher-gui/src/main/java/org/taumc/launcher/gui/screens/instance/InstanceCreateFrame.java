@@ -20,6 +20,7 @@ public class InstanceCreateFrame extends JFrame {
     private static final Border STD_MARGIN = new EmptyBorder(8, 8, 8, 8);
     private static final Border HALF_MARGIN = new EmptyBorder(4, 4, 4, 4);
     private static final Dimension STD_DIM_TEXTFIELD = new Dimension(320, 32);
+    private static final Dimension STD_DIM_MAX_TEXTFIELD = new Dimension(Integer.MAX_VALUE, 32);
 
     public InstanceCreateFrame() {
         var content = boxPanel(BoxLayout.Y_AXIS);
@@ -48,12 +49,14 @@ public class InstanceCreateFrame extends JFrame {
         nameSelect.setLeadingComponent(new JLabel("Name: ", null, SwingConstants.LEFT));
         nameSelect.setMinimumSize(STD_DIM_TEXTFIELD);
         nameSelect.setPreferredSize(STD_DIM_TEXTFIELD);
+        nameSelect.setMaximumSize(STD_DIM_MAX_TEXTFIELD);
         nameGroupPane.add(wrapWithMargin(nameSelect, HALF_MARGIN));
 
         var groupSelect = new FlatTextField();
         groupSelect.setLeadingComponent(new JLabel("Group: ", null, SwingConstants.LEFT));
         groupSelect.setMinimumSize(STD_DIM_TEXTFIELD);
         groupSelect.setPreferredSize(STD_DIM_TEXTFIELD);
+        groupSelect.setMaximumSize(STD_DIM_MAX_TEXTFIELD);
         nameGroupPane.add(wrapWithMargin(groupSelect, HALF_MARGIN));
 
         return nameGroupPane;
