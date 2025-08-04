@@ -73,6 +73,7 @@ public class InstanceCreateFrame extends JFrame {
 
         var configPane = boxPanel(BoxLayout.Y_AXIS);
         configPane.setBorder(STD_BORDER);
+        configPane.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
         typeConfigPane.add(configPane);
 
         return typeConfigPane;
