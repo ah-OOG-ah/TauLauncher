@@ -106,6 +106,10 @@ public class InstanceCreateFrame extends JFrame {
 
         typePane.add(typeList);
 
+        var spacer = new JPanel();
+        spacer.setMaximumSize(new Dimension(-1, Integer.MAX_VALUE));
+        typePane.add(spacer);
+
         return typePane;
     }
 
