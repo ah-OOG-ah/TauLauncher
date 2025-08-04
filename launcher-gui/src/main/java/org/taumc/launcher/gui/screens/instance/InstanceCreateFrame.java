@@ -30,6 +30,8 @@ public class InstanceCreateFrame extends JFrame {
 
         content.add(createIconNameGroupPane());
         content.add(createTypeConfigPane());
+
+        setMinimumSize(content.getMinimumSize());
     }
 
     private static JPanel createIconNameGroupPane() {
@@ -73,6 +75,11 @@ public class InstanceCreateFrame extends JFrame {
 
         var configPane = boxPanel(BoxLayout.Y_AXIS);
         configPane.setBorder(STD_BORDER);
+
+        // Arbitrary size similar to what Poly does
+        var minSize = new Dimension(500, 600);
+        configPane.setMinimumSize(minSize);
+        configPane.setPreferredSize(minSize);
         configPane.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
         typeConfigPane.add(configPane);
 
