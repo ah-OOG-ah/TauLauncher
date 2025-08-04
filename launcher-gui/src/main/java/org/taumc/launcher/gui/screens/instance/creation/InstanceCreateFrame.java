@@ -1,21 +1,19 @@
 package org.taumc.launcher.gui.screens.instance.creation;
 
-import static java.lang.Math.max;
-
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 import com.formdev.flatlaf.extras.components.FlatTextField;
+import java.awt.CardLayout;
 import java.awt.Color;
-import java.awt.Component;
 import java.awt.Dimension;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import javax.swing.BoxLayout;
+import javax.swing.DefaultListModel;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.JPanel;
-import javax.swing.JToggleButton;
+import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
 import javax.swing.border.Border;
 import javax.swing.border.EmptyBorder;
@@ -27,6 +25,9 @@ public class InstanceCreateFrame extends JFrame {
     private static final Border HALF_MARGIN = new EmptyBorder(4, 4, 4, 4);
     private static final Dimension STD_DIM_TEXTFIELD = new Dimension(320, 32);
     private static final Dimension STD_DIM_MAX_TEXTFIELD = new Dimension(Integer.MAX_VALUE, 32);
+
+    private final LinkedHashMap<InstanceCreationModel.Type, JPanel> typePanelMap = new LinkedHashMap<>();
+    private JPanel configPanelHolder;
 
     public InstanceCreateFrame() {
         var content = boxPanel(BoxLayout.Y_AXIS);
@@ -71,13 +72,54 @@ public class InstanceCreateFrame extends JFrame {
         return nameGroupPane;
     }
 
-    private static JPanel createTypeConfigPane() {
+    private JPanel createTypeConfigPane() {
         var typeConfigPane = boxPanel(BoxLayout.X_AXIS);
         typeConfigPane.setBorder(STD_BORDER);
 
         typeConfigPane.add(createTypePane());
 
-        var configPane = boxPanel(BoxLayout.Y_AXIS);
+        configPanelHolder = new JPanel(new CardLayout());
+        createConfigPanes();
+        typeConfigPane.add(configPanelHolder);
+
+        return typeConfigPane;
+    }
+
+    private JPanel createTypePane() {
+        var typePane = boxPanel(BoxLayout.Y_AXIS);
+        typePane.setBorder(STD_BORDER);
+
+        var typeListModel = new DefaultListModel<InstanceCreationModel.Type>();
+        var typeList = new JList<>(typeListModel);
+        typeList.setCellRenderer(new LabelListRenderer());
+        typeList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        typeList.setSelectedIndex(0);
+
+        for (var type : InstanceCreationModel.TYPES) {
+            typeListModel.addElement(type);
+        }
+
+        typeList.addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                var selected = typeList.getSelectedValue();
+                setCurrentPage(selected);
+            }
+        });
+
+        typePane.add(typeList);
+
+        return typePane;
+    }
+
+    private void createConfigPanes() {
+        for (var type : InstanceCreationModel.TYPES) {
+            var panel = setupConfigPane(type.panelSupplier.get());
+            typePanelMap.put(type, panel);
+            configPanelHolder.add(type.name, panel);
+        }
+    }
+
+    private JPanel setupConfigPane(JPanel configPane) {
         configPane.setBorder(STD_BORDER);
 
         // Arbitrary size similar to what Poly does
@@ -85,39 +127,16 @@ public class InstanceCreateFrame extends JFrame {
         configPane.setMinimumSize(minSize);
         configPane.setPreferredSize(minSize);
         configPane.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
-        typeConfigPane.add(configPane);
 
-        return typeConfigPane;
+        return configPane;
     }
 
-    private static JPanel createTypePane() {
-        var typePane = boxPanel(BoxLayout.Y_AXIS);
-        typePane.setBorder(STD_BORDER);
-
-        var maxSize = new Dimension(-1, -1);
-        for (var type : InstanceCreationModel.TYPES) {
-            var button = new JToggleButton(type.name, new FlatSVGIcon(type.iconName));
-
-            var bMax = button.getMaximumSize();
-            maxSize.width = max(maxSize.width, bMax.width);
-            maxSize.height = max(maxSize.height, bMax.height);
-
-            typePane.add(button);
+    private void setCurrentPage(InstanceCreationModel.Type page) {
+        if (!typePanelMap.containsKey(page)) {
+            throw new IllegalArgumentException(page.name);
         }
-
-        var components = typePane.getComponents();
-        for (var component : components) {
-            if (!(component instanceof JToggleButton button)) continue;
-
-            button.setMaximumSize(maxSize);
-            button.addActionListener(new ToggleGroupAction(components));
-        }
-
-        // Start with the first selected
-        ((JToggleButton) components[0]).setSelected(true);
-
-        typePane.setMaximumSize(new Dimension(maxSize.width, Integer.MAX_VALUE));
-        return typePane;
+        CardLayout cl = (CardLayout) configPanelHolder.getLayout();
+        cl.show(configPanelHolder, page.name);
     }
 
     /**
@@ -141,26 +160,5 @@ public class InstanceCreateFrame extends JFrame {
         //noinspection MagicConstant # intellij, this is *not a constant*
         panel.setLayout(new BoxLayout(panel, axis));
         return panel;
-    }
-
-    private static class ToggleGroupAction implements ActionListener {
-        private final ArrayList<JToggleButton> buttons;
-
-        private ToggleGroupAction(Component[] components) {
-            buttons = new ArrayList<>(components.length);
-
-            for (var comp : components) {
-                if (!(comp instanceof JToggleButton button)) continue;
-                buttons.add(button);
-            }
-        }
-
-        @Override
-        public void actionPerformed(ActionEvent e) {
-            for (var button : buttons) {
-                if (button == e.getSource()) continue;
-                button.setSelected(false);
-            }
-        }
     }
 }
