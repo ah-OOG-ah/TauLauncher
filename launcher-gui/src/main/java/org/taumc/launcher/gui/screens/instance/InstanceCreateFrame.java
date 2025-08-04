@@ -1,5 +1,7 @@
 package org.taumc.launcher.gui.screens.instance;
 
+import static java.lang.Math.max;
+
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 import com.formdev.flatlaf.extras.components.FlatTextField;
 import java.awt.Color;
@@ -9,6 +11,7 @@ import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JToggleButton;
 import javax.swing.SwingConstants;
 import javax.swing.border.Border;
 import javax.swing.border.EmptyBorder;
@@ -26,6 +29,7 @@ public class InstanceCreateFrame extends JFrame {
         setContentPane(content);
 
         content.add(createIconNameGroupPane());
+        content.add(createTypeConfigPane());
     }
 
     private static JPanel createIconNameGroupPane() {
@@ -61,6 +65,41 @@ public class InstanceCreateFrame extends JFrame {
         return nameGroupPane;
     }
 
+    private static JPanel createTypeConfigPane() {
+        var typeConfigPane = boxPanel(BoxLayout.X_AXIS);
+        typeConfigPane.setBorder(STD_BORDER);
+
+        typeConfigPane.add(createTypePane());
+
+        var configPane = boxPanel(BoxLayout.Y_AXIS);
+        configPane.setBorder(STD_BORDER);
+        typeConfigPane.add(configPane);
+
+        return typeConfigPane;
+    }
+
+    private static JPanel createTypePane() {
+        var typePane = boxPanel(BoxLayout.Y_AXIS);
+        typePane.setBorder(STD_BORDER);
+
+        var maxSize = new Dimension(-1, -1);
+        for (var type : InstanceCreationModel.TYPES) {
+            var button = new JToggleButton(type.name, new FlatSVGIcon(type.iconName));
+
+            var bMax = button.getMaximumSize();
+            maxSize.width = max(maxSize.width, bMax.width);
+            maxSize.height = max(maxSize.height, bMax.height);
+
+            typePane.add(button);
+        }
+
+        for (var button : typePane.getComponents()) {
+            button.setMaximumSize(maxSize);
+        }
+
+        typePane.setMaximumSize(new Dimension(maxSize.width, Integer.MAX_VALUE));
+        return typePane;
+    }
 
     /**
      * Wraps the given component with a panel, then adds the border to the panel. Avoids issues with adding borders to
