@@ -5,7 +5,11 @@ import static java.lang.Math.max;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 import com.formdev.flatlaf.extras.components.FlatTextField;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.util.ArrayList;
 import javax.swing.BoxLayout;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
@@ -101,8 +105,12 @@ public class InstanceCreateFrame extends JFrame {
             typePane.add(button);
         }
 
-        for (var button : typePane.getComponents()) {
+        var components = typePane.getComponents();
+        for (var component : components) {
+            if (!(component instanceof JToggleButton button)) continue;
+
             button.setMaximumSize(maxSize);
+            button.addActionListener(new ToggleGroupAction(components));
         }
 
         typePane.setMaximumSize(new Dimension(maxSize.width, Integer.MAX_VALUE));
@@ -130,5 +138,26 @@ public class InstanceCreateFrame extends JFrame {
         //noinspection MagicConstant # intellij, this is *not a constant*
         panel.setLayout(new BoxLayout(panel, axis));
         return panel;
+    }
+
+    private static class ToggleGroupAction implements ActionListener {
+        private final ArrayList<JToggleButton> buttons;
+
+        private ToggleGroupAction(Component[] components) {
+            buttons = new ArrayList<>(components.length);
+
+            for (var comp : components) {
+                if (!(comp instanceof JToggleButton button)) continue;
+                buttons.add(button);
+            }
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            for (var button : buttons) {
+                if (button == e.getSource()) continue;
+                button.setSelected(false);
+            }
+        }
     }
 }
