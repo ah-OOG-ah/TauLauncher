@@ -61,6 +61,16 @@ public class InstanceCreateFrame extends JFrame {
         return nameGroupPane;
     }
 
+
+    /**
+     * Wraps the given component with a panel, then adds the border to the panel. Avoids issues with adding borders to
+     * components not designed to take them. While you can technically pass another JPanel in here, you should generally
+     * prefer adding the border directly.
+     *
+     * @param comp The component to be wrapped
+     * @param margin The border to apply to the wrapper
+     * @return A JPanel wrapping the component
+     */
     private static JPanel wrapWithMargin(JComponent comp, Border margin) {
         var panel = boxPanel(BoxLayout.X_AXIS);
         panel.add(comp);
