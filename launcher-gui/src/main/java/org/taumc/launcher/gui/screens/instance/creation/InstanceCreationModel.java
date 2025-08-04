@@ -1,4 +1,4 @@
-package org.taumc.launcher.gui.screens.instance;
+package org.taumc.launcher.gui.screens.instance.creation;
 
 public class InstanceCreationModel {
     public enum Type {
