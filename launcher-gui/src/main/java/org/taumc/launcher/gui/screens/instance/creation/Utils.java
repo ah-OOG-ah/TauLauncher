@@ -11,6 +11,7 @@ import javax.swing.border.LineBorder;
 
 public class Utils {
     static final Border STD_BORDER = new LineBorder(Color.DARK_GRAY, 2, true);
+    static final Border THIN_BORDER = new LineBorder(Color.BLACK, 1, false);
     static final Border STD_MARGIN = new EmptyBorder(8, 8, 8, 8);
     static final Border HALF_MARGIN = new EmptyBorder(4, 4, 4, 4);
     static final Dimension STD_DIM_TEXTFIELD = new Dimension(320, 32);
