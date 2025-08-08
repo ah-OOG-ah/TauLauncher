@@ -11,8 +11,19 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.ListSelectionModel;
 import javax.swing.table.AbstractTableModel;
+import org.taumc.launcher.core.meta.json.PackageIndex;
+import org.taumc.launcher.core.meta.prism.HTTPMetaRepository;
 
 public class VanillaPane extends JPanel {
+    private static final String[] VANILLA_RELEASE_TYPES = {
+            "Releases",
+            "Snapshots",
+            "Old Snapshots",
+            "Betas",
+            "Alphas",
+            "Experiments"
+    };
+
     public VanillaPane() {
         super();
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
@@ -50,10 +61,7 @@ public class VanillaPane extends JPanel {
         versionPane.setBorder(Utils.STD_MARGIN);
 
         var versionSelectTableModel = new VersionTableModel();
-
-        versionSelectTableModel.addRow(new Version("15w49a", "12/12/12", "alpha"));
-        versionSelectTableModel.addRow(new Version("15w49b", "12/12/13", "alpha"));
-        versionSelectTableModel.addRow(new Version("15w49c", "12/12/14", "release"));
+        HTTPMetaRepository.prism().getMinecraftIndex().versions().forEach(versionSelectTableModel::addRow);
 
         var versionSelectTable = new FlatTable();
         versionSelectTable.setModel(versionSelectTableModel);
@@ -63,8 +71,8 @@ public class VanillaPane extends JPanel {
 
         var filterPane = Utils.boxPanel(BoxLayout.Y_AXIS);
         filterPane.add(new JLabel("Filter"));
-        for (var type : Version.Type.values()) {
-            filterPane.add(new JCheckBox(type.name));
+        for (var type : VANILLA_RELEASE_TYPES) {
+            filterPane.add(new JCheckBox(type));
         }
 
         versionPane.add(filterPane);
@@ -77,7 +85,7 @@ public class VanillaPane extends JPanel {
                 "Version", "Release Date", "Release Type"
         };
 
-        private final ArrayList<Version> data = new ArrayList<>();
+        private final ArrayList<PackageIndex.Version> data = new ArrayList<>();
 
         @Override
         public int getColumnCount() {
@@ -96,43 +104,21 @@ public class VanillaPane extends JPanel {
 
         @Override
         public Object getValueAt(int row, int col) {
-            return data.get(row).get(col);
+            var ver = data.get(row);
+            return switch (col) {
+                case 0 -> ver.version();
+                case 1 -> ver.releaseTime();
+                case 2 -> ver.properties().getOrDefault("type", "unknown");
+                default -> throw new IllegalArgumentException("Invalid column " + col);
+            };
         }
 
-        public void addRow(Version version) {
+        public void addRow(PackageIndex.Version version) {
             data.add(version);
         }
 
         public String[] getColumnNames() {
             return colNames;
-        }
-    }
-
-    private record Version(String name, String release, String type) {
-        public String get(int idx) {
-            return switch (idx) {
-                case 0 -> name;
-                case 1 -> release;
-                case 2 -> type;
-                default -> throw new IllegalArgumentException(String.valueOf(idx));
-            };
-        }
-
-        private enum Type {
-            RELEASE("release", "Releases"),
-            SNAPSHOT("snapshot", "Snapshots"),
-            OLD_SNAPSHOT("old_snapshot", "Old Snapshots"),
-            BETA("old_beta", "Betas"),
-            ALPHA("old_alpha", "Alphas"),
-            EXPERIMENT("experiment", "Experiments");
-
-            public final String id;
-            public final String name;
-
-            Type(String id, String name) {
-                this.id = id;
-                this.name = name;
-            }
         }
     }
 }

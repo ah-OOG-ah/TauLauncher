@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.mizosoft.methanol.CacheControl;
 import com.github.mizosoft.methanol.HttpCache;
 import com.github.mizosoft.methanol.Methanol;
+import java.util.concurrent.ExecutionException;
 import org.taumc.launcher.core.http.DownloadThrottler;
 import org.taumc.launcher.core.http.JacksonBodyHandler;
 import org.taumc.launcher.core.meta.component.ComponentMetaInfo;
@@ -115,5 +116,15 @@ public final class HTTPMetaRepository implements MetaRepository {
     @Override
     public String toString() {
         return url;
+    }
+
+    // TODO: fix this hack
+    public PackageIndex getMinecraftIndex() {
+        try {
+            return obtainFile(url + "/net.minecraft/index.json", new TypeReference<PackageIndex>() {})
+                    .thenApply(HttpResponse::body).get();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
