@@ -1,35 +1,72 @@
 package org.taumc.launcher.gui.screens.instance.creation;
 
+import static java.util.Comparator.comparing;
+import static javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER;
+import static javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED;
 import static org.taumc.launcher.gui.screens.instance.creation.Utils.wrapWithMargin;
 
 import com.formdev.flatlaf.extras.components.FlatTable;
 import java.awt.Color;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
 import javax.swing.BoxLayout;
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
 import javax.swing.ListSelectionModel;
 import javax.swing.table.AbstractTableModel;
 import org.taumc.launcher.core.meta.json.PackageIndex;
 import org.taumc.launcher.core.meta.prism.HTTPMetaRepository;
 
 public class VanillaPane extends JPanel {
-    private static final String[] VANILLA_RELEASE_TYPES = {
-            "Releases",
-            "Snapshots",
-            "Old Snapshots",
-            "Betas",
-            "Alphas",
-            "Experiments"
-    };
+    private final LinkedHashMap<String, String> RELEASE_NAMES = new LinkedHashMap<>();
+    private final HashMap<String, ArrayList<PackageIndex.Version>> RELEASES = new HashMap<>();
 
     public VanillaPane() {
         super();
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
 
+        RELEASE_NAMES.put("Releases", "release");
+        RELEASE_NAMES.put("Snapshots", "snapshot");
+        RELEASE_NAMES.put("Old Snapshots", "old_snapshot");
+        RELEASE_NAMES.put("Betas", "old_beta");
+        RELEASE_NAMES.put("Alphas", "old_alpha");
+        RELEASE_NAMES.put("Experiments", "experiment");
+        loadVersions();
+
         add(createTitlePane());
         add(createMainboxPane());
+    }
+
+    /**
+     * @param typeUnchecked Any object.
+     * @return A release type string if the object equals it - otherwise "unknown"
+     */
+    private String validateReleaseType(Object typeUnchecked) {
+        return RELEASE_NAMES.values().stream()
+                .filter(t -> t.equals(typeUnchecked))
+                .findAny()
+                .orElse("unknown");
+    }
+
+    private void loadVersions() {
+        try {
+            // Loading is synchronous, to make sure that once this method exits the lists are untouched
+            // After that, only the Swing event thread gets to touch them.
+            //noinspection resource # HTTPMetaRepositories noop .close()
+            HTTPMetaRepository.prism().getMinecraftIndex().get().versions().forEach(v -> {
+                var type = validateReleaseType(v.properties().get("type"));
+                var list = RELEASES.computeIfAbsent(type, k -> new ArrayList<>());
+                list.add(v);
+            });
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public static JPanel createTitlePane() {
@@ -45,7 +82,7 @@ public class VanillaPane extends JPanel {
         return titlePane;
     }
 
-    public static JPanel createMainboxPane() {
+    public JPanel createMainboxPane() {
         var mainboxPane = Utils.boxPanel(BoxLayout.Y_AXIS);
         mainboxPane.setOpaque(true);
         mainboxPane.setBackground(Color.BLUE);
@@ -56,24 +93,42 @@ public class VanillaPane extends JPanel {
         return mainboxPane;
     }
 
-    public static JPanel createVersionPane() {
+    public JPanel createVersionPane() {
         var versionPane = Utils.boxPanel(BoxLayout.X_AXIS);
         versionPane.setBorder(Utils.STD_MARGIN);
 
-        var versionSelectTableModel = new VersionTableModel();
-        HTTPMetaRepository.prism().getMinecraftIndex().versions().forEach(versionSelectTableModel::addRow);
+        var versionTableModel = new VersionTableModel();
 
-        var versionSelectTable = new FlatTable();
-        versionSelectTable.setModel(versionSelectTableModel);
-        versionSelectTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        var versionTable = new FlatTable();
+        versionTable.setModel(versionTableModel);
+        versionTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
-        versionPane.add(wrapWithMargin(versionSelectTable, Utils.THIN_BORDER));
+        var versionTableViewport = new JScrollPane(versionTable, VERTICAL_SCROLLBAR_AS_NEEDED, HORIZONTAL_SCROLLBAR_NEVER);
+        versionPane.add(wrapWithMargin(versionTableViewport, Utils.THIN_BORDER));
 
         var filterPane = Utils.boxPanel(BoxLayout.Y_AXIS);
         filterPane.add(new JLabel("Filter"));
-        for (var type : VANILLA_RELEASE_TYPES) {
-            filterPane.add(new JCheckBox(type));
+        JCheckBox releaseCheck = null;
+        for (var type : RELEASE_NAMES.keySet()) {
+            var check = new JCheckBox(type);
+            filterPane.add(check);
+            if (releaseCheck == null) releaseCheck = check;
+
+            check.setActionCommand(RELEASE_NAMES.get(type));
+            check.addActionListener(al -> {
+                var listName = al.getActionCommand();
+                var list = RELEASES.get(listName);
+
+                if (versionTableModel.hasList(listName))
+                    versionTableModel.depopulate(listName, list);
+                else
+                    versionTableModel.populate(listName, list);
+
+                versionTable.repaint();
+            });
         }
+        assert releaseCheck != null;
+        releaseCheck.doClick();
 
         versionPane.add(filterPane);
 
@@ -86,6 +141,7 @@ public class VanillaPane extends JPanel {
         };
 
         private final ArrayList<PackageIndex.Version> data = new ArrayList<>();
+        private final HashSet<String> datasetNames = new HashSet<>();
 
         @Override
         public int getColumnCount() {
@@ -113,8 +169,21 @@ public class VanillaPane extends JPanel {
             };
         }
 
-        public void addRow(PackageIndex.Version version) {
-            data.add(version);
+        public boolean hasList(String name) {
+            return datasetNames.contains(name);
+        }
+
+        public void populate(String name, List<PackageIndex.Version> versions) {
+            if (!datasetNames.add(name)) return;
+
+            data.addAll(versions);
+            data.sort(comparing(PackageIndex.Version::releaseTime).reversed());
+        }
+
+        public void depopulate(String name, List<PackageIndex.Version> versions) {
+            if (!datasetNames.remove(name)) return;
+
+            data.removeAll(versions);
         }
 
         public String[] getColumnNames() {
