@@ -192,10 +192,6 @@ public class VanillaPane extends JPanel {
 
             data.removeAll(versions);
         }
-
-        public String[] getColumnNames() {
-            return colNames;
-        }
     }
 
     // TODO: decide whether the performance oj raw JLabel table cell renderers is an issue
