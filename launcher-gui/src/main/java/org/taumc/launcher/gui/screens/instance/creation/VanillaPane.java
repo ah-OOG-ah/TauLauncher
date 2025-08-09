@@ -147,9 +147,12 @@ public class VanillaPane extends JPanel {
         versionPane.add(wrapWithMargin(versionTableViewport, THIN_BORDER));
 
         var filterPane = boxPanel(Y_AXIS);
+        filterPane.setBorder(STD_MARGIN);
+
         var filterLabel = new JLabel("Filter", null, CENTER);
         filterLabel.setMaximumSize(STD_DIM_MAX_TEXTFIELD);
         filterPane.add(filterLabel);
+
         JCheckBox releaseCheck = null;
         for (var type : RELEASE_NAMES.keySet()) {
             var check = new JCheckBox(type);
