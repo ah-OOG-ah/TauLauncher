@@ -122,7 +122,7 @@ public class InstanceCreateFrame extends JFrame {
     }
 
     private JPanel setupConfigPane(JPanel configPane) {
-        configPane.setBorder(STD_BORDER);
+        configPane.setBorder(STD_MARGIN);
 
         // Arbitrary size similar to what Poly does
         var minSize = new Dimension(500, 600);

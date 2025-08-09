@@ -6,7 +6,6 @@ import static javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED;
 import static org.taumc.launcher.gui.screens.instance.creation.Utils.wrapWithMargin;
 
 import com.formdev.flatlaf.extras.components.FlatTable;
-import java.awt.Color;
 import java.awt.Component;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -79,7 +78,7 @@ public class VanillaPane extends JPanel {
         var titlePane = Utils.boxPanel(BoxLayout.X_AXIS);
         titlePane.setBorder(Utils.STD_MARGIN);
 
-        var title = new JLabel("Vanilla");
+        var title = new JLabel("<html><h2>Vanilla</h2></html>");
         title.setMaximumSize(Utils.STD_DIM_MAX_TEXTFIELD);
         titlePane.add(title);
 
@@ -90,8 +89,6 @@ public class VanillaPane extends JPanel {
 
     public JPanel createMainboxPane() {
         var mainboxPane = Utils.boxPanel(BoxLayout.Y_AXIS);
-        mainboxPane.setOpaque(true);
-        mainboxPane.setBackground(Color.BLUE);
         mainboxPane.setBorder(Utils.THIN_BORDER);
 
         mainboxPane.add(createVersionPane());
