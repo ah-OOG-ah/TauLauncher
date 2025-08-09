@@ -7,6 +7,7 @@ import static org.taumc.launcher.gui.screens.instance.creation.Utils.wrapWithMar
 
 import com.formdev.flatlaf.extras.components.FlatTable;
 import java.awt.Color;
+import java.awt.Component;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -14,14 +15,19 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import javax.swing.BoxLayout;
+import javax.swing.ImageIcon;
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JTable;
 import javax.swing.ListSelectionModel;
+import javax.swing.SwingConstants;
 import javax.swing.table.AbstractTableModel;
+import javax.swing.table.TableCellRenderer;
 import org.taumc.launcher.core.meta.json.PackageIndex;
 import org.taumc.launcher.core.meta.prism.HTTPMetaRepository;
+import org.taumc.launcher.gui.icon.IconRegistry;
 
 public class VanillaPane extends JPanel {
     private final LinkedHashMap<String, String> RELEASE_NAMES = new LinkedHashMap<>();
@@ -101,6 +107,7 @@ public class VanillaPane extends JPanel {
 
         var versionTable = new FlatTable();
         versionTable.setModel(versionTableModel);
+        versionTable.getColumn("Version").setCellRenderer(new VersionCellRenderer());
         versionTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
         var versionTableViewport = new JScrollPane(versionTable, VERTICAL_SCROLLBAR_AS_NEEDED, HORIZONTAL_SCROLLBAR_NEVER);
@@ -161,7 +168,7 @@ public class VanillaPane extends JPanel {
         @Override
         public Object getValueAt(int row, int col) {
             var ver = data.get(row);
-            return switch (col) {
+            return (ver.recommended() && col == 0 ? "REC" : "") + switch (col) {
                 case 0 -> ver.version();
                 case 1 -> ver.releaseTime();
                 case 2 -> ver.properties().getOrDefault("type", "unknown");
@@ -188,6 +195,28 @@ public class VanillaPane extends JPanel {
 
         public String[] getColumnNames() {
             return colNames;
+        }
+    }
+
+    // TODO: decide whether the performance oj raw JLabel table cell renderers is an issue
+    private static class VersionCellRenderer implements TableCellRenderer {
+        private static final ImageIcon STAR = IconRegistry.loadBuiltinIcon("poly/star", 4);
+        private static final ImageIcon EMPTY = IconRegistry.loadBuiltinIcon("empty", 4);
+        private final JLabel RECOMMENDED = new JLabel(null, STAR, SwingConstants.LEFT);
+        private final JLabel NORMAL = new JLabel(null, EMPTY, SwingConstants.LEFT);
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+            var val = (String) value;
+
+            if (val.startsWith("REC")) {
+                val = val.substring(3);
+                RECOMMENDED.setText(val);
+                return RECOMMENDED;
+            } else {
+                NORMAL.setText(val);
+                return NORMAL;
+            }
         }
     }
 }

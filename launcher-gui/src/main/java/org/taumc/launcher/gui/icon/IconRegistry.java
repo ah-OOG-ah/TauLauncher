@@ -49,6 +49,16 @@ public class IconRegistry {
         }
     }
 
+    // TODO remove hack
+    public static ImageIcon loadBuiltinIcon(String iconName, int divScale) {
+        var iconStream = IconRegistry.class.getResourceAsStream("/taulauncher/icons/" + iconName + ".png");
+        if (iconStream != null) {
+            return loadAndScaleImageIcon(iconStream, ICON_HEIGHT / divScale);
+        } else {
+            return loadAndScaleImageIcon(IconRegistry.class.getResourceAsStream("/taulauncher/icons/default_instance.png"), ICON_HEIGHT);
+        }
+    }
+
     private static ImageIcon loadIcon(String iconName, Path instance) {
         var path = instance.resolve(iconName + ".png");
         try {
