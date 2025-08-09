@@ -194,6 +194,10 @@ public class VanillaPane extends JPanel {
         var loaderRadioPane = boxPanel(Y_AXIS);
         loaderRadioPane.setBorder(STD_MARGIN);
 
+        var loaderLabel = new JLabel("Mod Loader", null, CENTER);
+        loaderLabel.setMaximumSize(STD_DIM_MAX_TEXTFIELD);
+        loaderRadioPane.add(loaderLabel);
+
         var loaderButtonGroup = new ButtonGroup();
 
         var noneButton = new JRadioButton("None");
