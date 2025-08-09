@@ -1,10 +1,16 @@
 package org.taumc.launcher.gui.screens.instance.creation;
 
 import static java.util.Comparator.comparing;
+import static javax.swing.BoxLayout.X_AXIS;
+import static javax.swing.BoxLayout.Y_AXIS;
 import static javax.swing.ListSelectionModel.SINGLE_SELECTION;
 import static javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER;
 import static javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED;
+import static javax.swing.SwingConstants.CENTER;
+import static org.taumc.launcher.gui.screens.instance.creation.Utils.STD_DIM_MAX_TEXTFIELD;
 import static org.taumc.launcher.gui.screens.instance.creation.Utils.STD_MARGIN;
+import static org.taumc.launcher.gui.screens.instance.creation.Utils.THIN_BORDER;
+import static org.taumc.launcher.gui.screens.instance.creation.Utils.boxPanel;
 import static org.taumc.launcher.gui.screens.instance.creation.Utils.wrapWithMargin;
 
 import java.awt.Component;
@@ -34,7 +40,7 @@ public class VanillaPane extends JPanel {
 
     public VanillaPane() {
         super();
-        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+        setLayout(new BoxLayout(this, Y_AXIS));
 
         RELEASE_NAMES.put("Releases", "release");
         RELEASE_NAMES.put("Snapshots", "snapshot");
@@ -75,11 +81,11 @@ public class VanillaPane extends JPanel {
     }
 
     public static JPanel createTitlePane() {
-        var titlePane = Utils.boxPanel(BoxLayout.X_AXIS);
-        titlePane.setBorder(Utils.STD_MARGIN);
+        var titlePane = boxPanel(X_AXIS);
+        titlePane.setBorder(STD_MARGIN);
 
         var title = new JLabel("<html><h2>Vanilla</h2></html>");
-        title.setMaximumSize(Utils.STD_DIM_MAX_TEXTFIELD);
+        title.setMaximumSize(STD_DIM_MAX_TEXTFIELD);
         titlePane.add(title);
 
         titlePane.add(new JLabel(InstanceCreationModel.Type.VANILLA.icon));
@@ -88,8 +94,8 @@ public class VanillaPane extends JPanel {
     }
 
     public JPanel createMainboxPane() {
-        var mainboxPane = Utils.boxPanel(BoxLayout.Y_AXIS);
-        mainboxPane.setBorder(Utils.THIN_BORDER);
+        var mainboxPane = boxPanel(Y_AXIS);
+        mainboxPane.setBorder(THIN_BORDER);
 
         mainboxPane.add(createVersionPane());
         mainboxPane.add(createModloaderPane());
@@ -98,8 +104,8 @@ public class VanillaPane extends JPanel {
     }
 
     public JPanel createVersionPane() {
-        var versionPane = Utils.boxPanel(BoxLayout.X_AXIS);
-        versionPane.setBorder(Utils.STD_MARGIN);
+        var versionPane = boxPanel(X_AXIS);
+        versionPane.setBorder(STD_MARGIN);
 
         var versionTableModel = new VersionTableModel();
 
@@ -109,11 +115,11 @@ public class VanillaPane extends JPanel {
         versionTable.setSelectionMode(SINGLE_SELECTION);
 
         var versionTableViewport = new JScrollPane(versionTable, VERTICAL_SCROLLBAR_AS_NEEDED, HORIZONTAL_SCROLLBAR_NEVER);
-        versionPane.add(wrapWithMargin(versionTableViewport, Utils.THIN_BORDER));
+        versionPane.add(wrapWithMargin(versionTableViewport, THIN_BORDER));
 
-        var filterPane = Utils.boxPanel(BoxLayout.Y_AXIS);
-        var filterLabel = new JLabel("Filter", null, SwingConstants.CENTER);
-        filterLabel.setMaximumSize(Utils.STD_DIM_MAX_TEXTFIELD);
+        var filterPane = boxPanel(Y_AXIS);
+        var filterLabel = new JLabel("Filter", null, CENTER);
+        filterLabel.setMaximumSize(STD_DIM_MAX_TEXTFIELD);
         filterPane.add(filterLabel);
         JCheckBox releaseCheck = null;
         for (var type : RELEASE_NAMES.keySet()) {
@@ -143,7 +149,7 @@ public class VanillaPane extends JPanel {
     }
 
     public JPanel createModloaderPane() {
-        var modloaderPane = Utils.boxPanel(BoxLayout.Y_AXIS);
+        var modloaderPane = boxPanel(Y_AXIS);
         modloaderPane.setBorder(STD_MARGIN);
 
         var loaderTableModel = new VersionTableModel();
@@ -153,7 +159,7 @@ public class VanillaPane extends JPanel {
         loaderTable.setSelectionMode(SINGLE_SELECTION);
 
         var loaderTableViewport = new JScrollPane(loaderTable, VERTICAL_SCROLLBAR_AS_NEEDED, HORIZONTAL_SCROLLBAR_NEVER);
-        modloaderPane.add(wrapWithMargin(loaderTableViewport, Utils.THIN_BORDER));
+        modloaderPane.add(wrapWithMargin(loaderTableViewport, THIN_BORDER));
 
 
         return modloaderPane;
