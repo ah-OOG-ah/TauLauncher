@@ -80,7 +80,7 @@ public class VanillaPane extends JPanel {
         }
     }
 
-    public static JPanel createTitlePane() {
+    private static JPanel createTitlePane() {
         var titlePane = boxPanel(X_AXIS);
         titlePane.setBorder(STD_MARGIN);
 
@@ -93,7 +93,7 @@ public class VanillaPane extends JPanel {
         return titlePane;
     }
 
-    public JPanel createMainboxPane() {
+    private JPanel createMainboxPane() {
         var mainboxPane = boxPanel(Y_AXIS);
         mainboxPane.setBorder(THIN_BORDER);
 
@@ -103,7 +103,7 @@ public class VanillaPane extends JPanel {
         return mainboxPane;
     }
 
-    public JPanel createVersionPane() {
+    private JPanel createVersionPane() {
         var versionPane = boxPanel(X_AXIS);
         versionPane.setBorder(STD_MARGIN);
 
@@ -148,7 +148,7 @@ public class VanillaPane extends JPanel {
         return versionPane;
     }
 
-    public JPanel createModloaderPane() {
+    private JPanel createModloaderPane() {
         var modloaderPane = boxPanel(Y_AXIS);
         modloaderPane.setBorder(STD_MARGIN);
 
