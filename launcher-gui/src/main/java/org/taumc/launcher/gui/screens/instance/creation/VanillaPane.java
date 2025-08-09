@@ -42,13 +42,7 @@ public class VanillaPane extends JPanel {
         super();
         setLayout(new BoxLayout(this, Y_AXIS));
 
-        RELEASE_NAMES.put("Releases", "release");
-        RELEASE_NAMES.put("Snapshots", "snapshot");
-        RELEASE_NAMES.put("Old Snapshots", "old_snapshot");
-        RELEASE_NAMES.put("Betas", "old_beta");
-        RELEASE_NAMES.put("Alphas", "old_alpha");
-        RELEASE_NAMES.put("Experiments", "experiment");
-        loadVersions();
+        loadMCVersions();
 
         add(createTitlePane());
         add(createMainboxPane());
@@ -65,7 +59,14 @@ public class VanillaPane extends JPanel {
                 .orElse("unknown");
     }
 
-    private void loadVersions() {
+    private void loadMCVersions() {
+        RELEASE_NAMES.put("Releases", "release");
+        RELEASE_NAMES.put("Snapshots", "snapshot");
+        RELEASE_NAMES.put("Old Snapshots", "old_snapshot");
+        RELEASE_NAMES.put("Betas", "old_beta");
+        RELEASE_NAMES.put("Alphas", "old_alpha");
+        RELEASE_NAMES.put("Experiments", "experiment");
+
         try {
             // Loading is synchronous, to make sure that once this method exits the lists are untouched
             // After that, only the Swing event thread gets to touch them.
