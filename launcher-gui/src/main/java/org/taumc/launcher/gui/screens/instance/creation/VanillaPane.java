@@ -1,11 +1,11 @@
 package org.taumc.launcher.gui.screens.instance.creation;
 
 import static java.util.Comparator.comparing;
+import static javax.swing.ListSelectionModel.SINGLE_SELECTION;
 import static javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER;
 import static javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED;
 import static org.taumc.launcher.gui.screens.instance.creation.Utils.wrapWithMargin;
 
-import com.formdev.flatlaf.extras.components.FlatTable;
 import java.awt.Component;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -20,7 +20,6 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
-import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.TableCellRenderer;
@@ -102,10 +101,10 @@ public class VanillaPane extends JPanel {
 
         var versionTableModel = new VersionTableModel();
 
-        var versionTable = new FlatTable();
+        var versionTable = new JTable();
         versionTable.setModel(versionTableModel);
         versionTable.getColumn("Version").setCellRenderer(new VersionCellRenderer());
-        versionTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        versionTable.setSelectionMode(SINGLE_SELECTION);
 
         var versionTableViewport = new JScrollPane(versionTable, VERTICAL_SCROLLBAR_AS_NEEDED, HORIZONTAL_SCROLLBAR_NEVER);
         versionPane.add(wrapWithMargin(versionTableViewport, Utils.THIN_BORDER));
