@@ -119,8 +119,8 @@ public final class HTTPMetaRepository implements MetaRepository {
     }
 
     // TODO: fix this hack
-    public CompletableFuture<PackageIndex> getMinecraftIndex() {
-        return obtainFile(url + "/net.minecraft/index.json", new TypeReference<PackageIndex>() {})
+    public CompletableFuture<PackageIndex> getPackageIndex(String uid) {
+        return obtainFile(url + "/" + uid + "/index.json", new TypeReference<PackageIndex>() {})
             .thenApply(HttpResponse::body);
     }
 }

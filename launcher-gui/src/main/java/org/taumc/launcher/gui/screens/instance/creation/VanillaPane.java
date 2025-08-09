@@ -7,6 +7,7 @@ import static javax.swing.ListSelectionModel.SINGLE_SELECTION;
 import static javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER;
 import static javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED;
 import static javax.swing.SwingConstants.CENTER;
+import static org.taumc.launcher.core.meta.prism.HTTPMetaRepository.prism;
 import static org.taumc.launcher.gui.screens.instance.creation.Utils.STD_DIM_MAX_TEXTFIELD;
 import static org.taumc.launcher.gui.screens.instance.creation.Utils.STD_MARGIN;
 import static org.taumc.launcher.gui.screens.instance.creation.Utils.THIN_BORDER;
@@ -21,10 +22,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import javax.swing.BoxLayout;
+import javax.swing.ButtonGroup;
 import javax.swing.ImageIcon;
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.SwingConstants;
@@ -37,12 +40,17 @@ import org.taumc.launcher.gui.icon.IconRegistry;
 public class VanillaPane extends JPanel {
     private final LinkedHashMap<String, String> RELEASE_NAMES = new LinkedHashMap<>();
     private final HashMap<String, ArrayList<PackageIndex.Version>> RELEASES = new HashMap<>();
+    // TODO: do this better
+    private final LinkedHashMap<String, String> LOADER_UIDS = new LinkedHashMap<>();
+    private final LinkedHashMap<String, ArrayList<PackageIndex.Version>> LOADER_REVS = new LinkedHashMap<>();
+    private final HTTPMetaRepository PRISM_META = prism();
 
     public VanillaPane() {
         super();
         setLayout(new BoxLayout(this, Y_AXIS));
 
         loadMCVersions();
+        loadLoaderVersions();
 
         add(createTitlePane());
         add(createMainboxPane());
@@ -50,9 +58,11 @@ public class VanillaPane extends JPanel {
 
     /**
      * @param typeUnchecked Any object.
-     * @return A release type string if the object equals it - otherwise "unknown"
+     * @return If the input is a valid release type, it returns unchanged. If any other object, it returns "unknown". If
+     *         the input is null, returns ""
      */
     private String validateReleaseType(Object typeUnchecked) {
+        if (typeUnchecked == null) return "";
         return RELEASE_NAMES.values().stream()
                 .filter(t -> t.equals(typeUnchecked))
                 .findAny()
@@ -70,8 +80,7 @@ public class VanillaPane extends JPanel {
         try {
             // Loading is synchronous, to make sure that once this method exits the lists are untouched
             // After that, only the Swing event thread gets to touch them.
-            //noinspection resource # HTTPMetaRepositories noop .close()
-            HTTPMetaRepository.prism().getMinecraftIndex().get().versions().forEach(v -> {
+            PRISM_META.getPackageIndex("net.minecraft").get().versions().forEach(v -> {
                 var type = validateReleaseType(v.properties().get("type"));
                 var list = RELEASES.computeIfAbsent(type, k -> new ArrayList<>());
                 list.add(v);
@@ -79,6 +88,25 @@ public class VanillaPane extends JPanel {
         } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private void loadLoaderVersions() {
+        LOADER_UIDS.put("Forge", "net.minecraftforge");
+        LOADER_UIDS.put("NeoForge", "net.neoforged");
+        LOADER_UIDS.put("Fabric", "net.fabricmc.fabric-loader");
+        LOADER_UIDS.put("Quilt", "org.quiltmc.quilt-loader");
+        LOADER_UIDS.put("LiteLoader", "com.mumfrey.liteloader");
+
+        LOADER_UIDS.forEach((name, uid) -> {
+            try {
+                // See loadMCVersions - this is forced to be synchronous for a reason
+                PRISM_META.getPackageIndex(uid).get().versions().forEach(v ->
+                        LOADER_REVS.computeIfAbsent(uid, k -> new ArrayList<>()).add(v)
+                );
+            } catch (InterruptedException | ExecutionException e) {
+                throw new RuntimeException(e);
+            }
+        });
     }
 
     private static JPanel createTitlePane() {
@@ -150,10 +178,11 @@ public class VanillaPane extends JPanel {
     }
 
     private JPanel createModloaderPane() {
-        var modloaderPane = boxPanel(Y_AXIS);
+        var modloaderPane = boxPanel(X_AXIS);
         modloaderPane.setBorder(STD_MARGIN);
 
         var loaderTableModel = new VersionTableModel();
+
         var loaderTable = new JTable();
         loaderTable.setModel(loaderTableModel);
         loaderTable.getColumn("Version").setCellRenderer(new VersionCellRenderer());
@@ -162,6 +191,33 @@ public class VanillaPane extends JPanel {
         var loaderTableViewport = new JScrollPane(loaderTable, VERTICAL_SCROLLBAR_AS_NEEDED, HORIZONTAL_SCROLLBAR_NEVER);
         modloaderPane.add(wrapWithMargin(loaderTableViewport, THIN_BORDER));
 
+        var loaderRadioPane = boxPanel(Y_AXIS);
+        loaderRadioPane.setBorder(STD_MARGIN);
+
+        var loaderButtonGroup = new ButtonGroup();
+
+        var noneButton = new JRadioButton("None");
+        loaderRadioPane.add(noneButton);
+        loaderButtonGroup.add(noneButton);
+        for (var loader : LOADER_UIDS.entrySet()) {
+            var radio = new JRadioButton(loader.getKey());
+            loaderRadioPane.add(radio);
+            loaderButtonGroup.add(radio);
+
+            radio.setActionCommand(loader.getValue());
+            radio.addActionListener(al -> {
+                var listName = al.getActionCommand();
+
+                if (loaderTableModel.hasList(listName)) return;
+
+                loaderTableModel.clear();
+                loaderTableModel.populate(listName, LOADER_REVS.get(listName));
+
+                loaderTable.repaint();
+            });
+        }
+        noneButton.doClick();
+        modloaderPane.add(loaderRadioPane);
 
         return modloaderPane;
     }
@@ -215,6 +271,11 @@ public class VanillaPane extends JPanel {
             if (!datasetNames.remove(name)) return;
 
             data.removeAll(versions);
+        }
+
+        public void clear() {
+            datasetNames.clear();
+            data.clear();
         }
     }
 
