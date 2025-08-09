@@ -4,6 +4,7 @@ import static java.util.Comparator.comparing;
 import static javax.swing.ListSelectionModel.SINGLE_SELECTION;
 import static javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER;
 import static javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED;
+import static org.taumc.launcher.gui.screens.instance.creation.Utils.STD_MARGIN;
 import static org.taumc.launcher.gui.screens.instance.creation.Utils.wrapWithMargin;
 
 import java.awt.Component;
@@ -91,6 +92,7 @@ public class VanillaPane extends JPanel {
         mainboxPane.setBorder(Utils.THIN_BORDER);
 
         mainboxPane.add(createVersionPane());
+        mainboxPane.add(createModloaderPane());
 
         return mainboxPane;
     }
@@ -138,6 +140,23 @@ public class VanillaPane extends JPanel {
         versionPane.add(filterPane);
 
         return versionPane;
+    }
+
+    public JPanel createModloaderPane() {
+        var modloaderPane = Utils.boxPanel(BoxLayout.Y_AXIS);
+        modloaderPane.setBorder(STD_MARGIN);
+
+        var loaderTableModel = new VersionTableModel();
+        var loaderTable = new JTable();
+        loaderTable.setModel(loaderTableModel);
+        loaderTable.getColumn("Version").setCellRenderer(new VersionCellRenderer());
+        loaderTable.setSelectionMode(SINGLE_SELECTION);
+
+        var loaderTableViewport = new JScrollPane(loaderTable, VERTICAL_SCROLLBAR_AS_NEEDED, HORIZONTAL_SCROLLBAR_NEVER);
+        modloaderPane.add(wrapWithMargin(loaderTableViewport, Utils.THIN_BORDER));
+
+
+        return modloaderPane;
     }
 
     private static class VersionTableModel extends AbstractTableModel {
