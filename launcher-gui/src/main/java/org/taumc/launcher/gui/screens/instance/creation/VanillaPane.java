@@ -215,65 +215,9 @@ public class VanillaPane extends JPanel {
         return modloaderPane;
     }
 
-    private static class VersionTableModel extends AbstractTableModel {
-        private static final String[] colNames = {
-                "Version", "Release Date", "Release Type"
-        };
-
-        private final ArrayList<PackageIndex.Version> data = new ArrayList<>();
-        private final HashSet<String> datasetNames = new HashSet<>();
-
-        @Override
-        public int getColumnCount() {
-            return colNames.length;
-        }
-
-        @Override
-        public int getRowCount() {
-            return data.size();
-        }
-
-        @Override
-        public String getColumnName(int idx) {
-            return colNames[idx];
-        }
-
-        @Override
-        public Object getValueAt(int row, int col) {
-            var ver = data.get(row);
-            return (ver.recommended() && col == 0 ? "REC" : "") + switch (col) {
-                case 0 -> ver.version();
-                case 1 -> ver.releaseTime();
-                case 2 -> ver.properties().getOrDefault("type", "unknown");
-                default -> throw new IllegalArgumentException("Invalid column " + col);
-            };
-        }
-
-        private boolean hasList(String name) {
-            return datasetNames.contains(name);
-        }
-
-        private void populate(String name, List<PackageIndex.Version> versions) {
-            if (!datasetNames.add(name)) return;
-
-            data.addAll(versions);
-            data.sort(comparing(PackageIndex.Version::releaseTime).reversed());
-        }
-
-        private void depopulate(String name, List<PackageIndex.Version> versions) {
-            if (!datasetNames.remove(name)) return;
-
-            data.removeAll(versions);
-        }
-
-        private void clear() {
-            datasetNames.clear();
-            data.clear();
-        }
-    }
-
     private static class VersionTable extends JTable {
         private final VersionTableModel model;
+
         public VersionTable() {
             super(new VersionTableModel(), null, null);
 
@@ -300,26 +244,83 @@ public class VanillaPane extends JPanel {
             model.clear();
             repaint();
         }
-    }
 
-    // TODO: decide whether the performance oj raw JLabel table cell renderers is an issue
-    private static class VersionCellRenderer implements TableCellRenderer {
-        private static final ImageIcon STAR = IconRegistry.loadBuiltinIcon("poly/star", 4);
-        private static final ImageIcon EMPTY = IconRegistry.loadBuiltinIcon("empty", 4);
-        private final JLabel RECOMMENDED = new JLabel(null, STAR, SwingConstants.LEFT);
-        private final JLabel NORMAL = new JLabel(null, EMPTY, SwingConstants.LEFT);
+        private static class VersionTableModel extends AbstractTableModel {
+            private static final String[] colNames = {
+                    "Version", "Release Date", "Release Type"
+            };
 
-        @Override
-        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-            var val = (String) value;
+            private final ArrayList<PackageIndex.Version> data = new ArrayList<>();
+            private final HashSet<String> datasetNames = new HashSet<>();
 
-            if (val.startsWith("REC")) {
-                val = val.substring(3);
-                RECOMMENDED.setText(val);
-                return RECOMMENDED;
-            } else {
-                NORMAL.setText(val);
-                return NORMAL;
+            @Override
+            public int getColumnCount() {
+                return colNames.length;
+            }
+
+            @Override
+            public int getRowCount() {
+                return data.size();
+            }
+
+            @Override
+            public String getColumnName(int idx) {
+                return colNames[idx];
+            }
+
+            @Override
+            public Object getValueAt(int row, int col) {
+                var ver = data.get(row);
+                return (ver.recommended() && col == 0 ? "REC" : "") + switch (col) {
+                    case 0 -> ver.version();
+                    case 1 -> ver.releaseTime();
+                    case 2 -> ver.properties().getOrDefault("type", "unknown");
+                    default -> throw new IllegalArgumentException("Invalid column " + col);
+                };
+            }
+
+            private boolean hasList(String name) {
+                return datasetNames.contains(name);
+            }
+
+            private void populate(String name, List<PackageIndex.Version> versions) {
+                if (!datasetNames.add(name)) return;
+
+                data.addAll(versions);
+                data.sort(comparing(PackageIndex.Version::releaseTime).reversed());
+            }
+
+            private void depopulate(String name, List<PackageIndex.Version> versions) {
+                if (!datasetNames.remove(name)) return;
+
+                data.removeAll(versions);
+            }
+
+            private void clear() {
+                datasetNames.clear();
+                data.clear();
+            }
+        }
+
+        // TODO: decide whether the performance oj raw JLabel table cell renderers is an issue
+        private static class VersionCellRenderer implements TableCellRenderer {
+            private static final ImageIcon STAR = IconRegistry.loadBuiltinIcon("poly/star", 4);
+            private static final ImageIcon EMPTY = IconRegistry.loadBuiltinIcon("empty", 4);
+            private final JLabel RECOMMENDED = new JLabel(null, STAR, SwingConstants.LEFT);
+            private final JLabel NORMAL = new JLabel(null, EMPTY, SwingConstants.LEFT);
+
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+                var val = (String) value;
+
+                if (val.startsWith("REC")) {
+                    val = val.substring(3);
+                    RECOMMENDED.setText(val);
+                    return RECOMMENDED;
+                } else {
+                    NORMAL.setText(val);
+                    return NORMAL;
+                }
             }
         }
     }
