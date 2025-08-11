@@ -76,7 +76,11 @@ public class VersionTable extends JTable {
             return (ver.recommended() && col == 0 ? "REC" : "") + switch (col) {
                 case 0 -> ver.version();
                 case 1 -> ver.releaseTime();
-                case 2 -> ver.properties().getOrDefault("type", "unknown");
+                case 2 -> {
+                    var props = ver.properties();
+                    if (props == null) yield "unknown";
+                    else yield ver.properties().getOrDefault("type", "unknown");
+                }
                 default -> throw new IllegalArgumentException("Invalid column " + col);
             };
         }
