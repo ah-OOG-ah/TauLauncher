@@ -1,11 +1,9 @@
 package org.taumc.launcher.gui.screens.home;
 
 import com.formdev.flatlaf.FlatClientProperties;
-import org.apache.commons.lang3.mutable.MutableObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.taumc.launcher.core.auth.Account;
-import org.taumc.launcher.core.auth.microsoft.MicrosoftAccount;
 import org.taumc.launcher.core.importer.InstanceImporter;
 import org.taumc.launcher.core.mods.ProjectType;
 import org.taumc.launcher.core.mods.curseforge.CurseForgeAPI;
@@ -23,6 +21,7 @@ import org.taumc.launcher.gui.icon.IconRegistry;
 import org.taumc.launcher.gui.launch.LaunchHandler;
 import org.taumc.launcher.gui.launch.ProgressDialog;
 import org.taumc.launcher.gui.screens.curseforge.ManualDownloadDialog;
+import org.taumc.launcher.gui.screens.instance.creation.InstanceCreateFrame;
 import org.taumc.launcher.gui.screens.instance.InstanceEditView;
 import org.taumc.launcher.gui.screens.mods.AddModsView;
 import org.taumc.launcher.gui.screens.settings.GlobalSettingsView;
@@ -112,13 +111,20 @@ public class HomeView extends TauLauncherFrame {
         JButton addInstanceButton = new JButton("Add Instance");
         addInstanceButton.putClientProperty(FlatClientProperties.BUTTON_TYPE, FlatClientProperties.BUTTON_TYPE_BORDERLESS);
         addInstanceButton.addActionListener(e -> this.showCreateInstanceDialog());
+
         JButton importButton = new JButton("Import Instance");
         importButton.putClientProperty(FlatClientProperties.BUTTON_TYPE, FlatClientProperties.BUTTON_TYPE_BORDERLESS);
         importButton.addActionListener(e -> this.showImportInstanceDialog());
+
+        var tButton = new JButton("test");
+        tButton.putClientProperty(FlatClientProperties.BUTTON_TYPE, FlatClientProperties.BUTTON_TYPE_BORDERLESS);
+        tButton.addActionListener(e -> this.launchTest());
+
         JPanel topPanel = new JPanel();
         topPanel.setLayout(new BoxLayout(topPanel, BoxLayout.X_AXIS));
         topPanel.add(addInstanceButton);
         topPanel.add(importButton);
+        topPanel.add(tButton);
 
         JButton settingsButton = new JButton("Settings");
         settingsButton.putClientProperty(FlatClientProperties.BUTTON_TYPE, FlatClientProperties.BUTTON_TYPE_BORDERLESS);
@@ -209,6 +215,13 @@ public class HomeView extends TauLauncherFrame {
             model.updateInstanceFolders();
             this.refreshInstanceButtons();
         }, SwingUtilities::invokeLater);
+    }
+
+    private void launchTest() {
+        final var frame = new InstanceCreateFrame();
+        frame.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+        frame.pack();
+        frame.setVisible(true);
     }
 
     private CompletableFuture<Void> showModHostingImportInstanceDialog() {
