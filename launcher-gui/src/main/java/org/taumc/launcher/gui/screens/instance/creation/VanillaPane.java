@@ -136,12 +136,7 @@ public class VanillaPane extends JPanel {
         var versionPane = boxPanel(X_AXIS);
         versionPane.setBorder(STD_MARGIN);
 
-        var versionTableModel = new VersionTableModel();
-
-        var versionTable = new JTable();
-        versionTable.setModel(versionTableModel);
-        versionTable.getColumn("Version").setCellRenderer(new VersionCellRenderer());
-        versionTable.setSelectionMode(SINGLE_SELECTION);
+        var versionTable = new VersionTable();
 
         var versionTableViewport = new JScrollPane(versionTable, VERTICAL_SCROLLBAR_AS_NEEDED, HORIZONTAL_SCROLLBAR_NEVER);
         versionPane.add(wrapWithMargin(versionTableViewport, THIN_BORDER));
@@ -164,12 +159,10 @@ public class VanillaPane extends JPanel {
                 var listName = al.getActionCommand();
                 var list = RELEASES.get(listName);
 
-                if (versionTableModel.hasList(listName))
-                    versionTableModel.depopulate(listName, list);
+                if (versionTable.hasList(listName))
+                    versionTable.depopulate(listName, list);
                 else
-                    versionTableModel.populate(listName, list);
-
-                versionTable.repaint();
+                    versionTable.populate(listName, list);
             });
         }
         assert releaseCheck != null;
@@ -184,12 +177,7 @@ public class VanillaPane extends JPanel {
         var modloaderPane = boxPanel(X_AXIS);
         modloaderPane.setBorder(STD_MARGIN);
 
-        var loaderTableModel = new VersionTableModel();
-
-        var loaderTable = new JTable();
-        loaderTable.setModel(loaderTableModel);
-        loaderTable.getColumn("Version").setCellRenderer(new VersionCellRenderer());
-        loaderTable.setSelectionMode(SINGLE_SELECTION);
+        var loaderTable = new VersionTable();
 
         var loaderTableViewport = new JScrollPane(loaderTable, VERTICAL_SCROLLBAR_AS_NEEDED, HORIZONTAL_SCROLLBAR_NEVER);
         modloaderPane.add(wrapWithMargin(loaderTableViewport, THIN_BORDER));
@@ -215,12 +203,10 @@ public class VanillaPane extends JPanel {
             radio.addActionListener(al -> {
                 var listName = al.getActionCommand();
 
-                if (loaderTableModel.hasList(listName)) return;
+                if (loaderTable.hasList(listName)) return;
 
-                loaderTableModel.clear();
-                loaderTableModel.populate(listName, LOADER_REVS.get(listName));
-
-                loaderTable.repaint();
+                loaderTable.clear();
+                loaderTable.populate(listName, LOADER_REVS.get(listName));
             });
         }
         noneButton.doClick();
@@ -263,26 +249,56 @@ public class VanillaPane extends JPanel {
             };
         }
 
-        public boolean hasList(String name) {
+        private boolean hasList(String name) {
             return datasetNames.contains(name);
         }
 
-        public void populate(String name, List<PackageIndex.Version> versions) {
+        private void populate(String name, List<PackageIndex.Version> versions) {
             if (!datasetNames.add(name)) return;
 
             data.addAll(versions);
             data.sort(comparing(PackageIndex.Version::releaseTime).reversed());
         }
 
-        public void depopulate(String name, List<PackageIndex.Version> versions) {
+        private void depopulate(String name, List<PackageIndex.Version> versions) {
             if (!datasetNames.remove(name)) return;
 
             data.removeAll(versions);
         }
 
-        public void clear() {
+        private void clear() {
             datasetNames.clear();
             data.clear();
+        }
+    }
+
+    private static class VersionTable extends JTable {
+        private final VersionTableModel model;
+        public VersionTable() {
+            super(new VersionTableModel(), null, null);
+
+            model = (VersionTableModel) getModel();
+            getColumn("Version").setCellRenderer(new VersionCellRenderer());
+            setSelectionMode(SINGLE_SELECTION);
+        }
+
+        public boolean hasList(String listName) {
+            return model.hasList(listName);
+        }
+
+        public void populate(String name, List<PackageIndex.Version> versions) {
+            model.populate(name, versions);
+            repaint();
+        }
+
+        public void depopulate(String name, List<PackageIndex.Version> versions) {
+            model.depopulate(name, versions);
+            repaint();
+        }
+
+        public void clear() {
+            model.clear();
+            repaint();
         }
     }
 
